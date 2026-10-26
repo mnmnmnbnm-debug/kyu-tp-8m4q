@@ -96,7 +96,14 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
 .cam[hidden]{display:none!important}
 .camview{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:16/9;border:2px solid var(--line)}
 .camview.v{aspect-ratio:9/16;max-height:60vh;margin:0 auto}
-.camview video{width:100%;height:100%;object-fit:cover;display:block}
+.camview video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+.views{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.cv{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cv[hidden]{display:none}
+.cv select{font-weight:400;color:var(--fg);font-size:13px;padding:6px 8px;width:100%}
+.player{display:flex;flex-direction:column;gap:6px}
+.player[hidden]{display:none}
+.player video{width:100%;max-height:50vh;background:#000;border-radius:8px}
 .camview .tag{position:absolute;top:8px;right:8px;font-size:12px;font-weight:700;background:rgba(0,0,0,.6);padding:2px 8px;border-radius:6px}
 #camview2[hidden]{display:none}
 .camview.flip video{transform:scaleX(-1)}
@@ -135,7 +142,8 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
   <button class="btn" id="mirrorBtn">좌우반전</button>
   <button class="btn" id="fsBtn">전체화면</button>
   <button class="btn" id="editBtn">대본 편집</button>
-  <button class="btn" id="camBtn">📷 카메라</button>
+  <button class="btn" id="camBtn1">📷 카메라 1</button>
+  <button class="btn" id="camBtn2">📷 카메라 2</button>
 </div>
 
 <div class="main" id="mainBox">
@@ -154,17 +162,17 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
 </div>
 <div class="split" id="split" title="끌어서 카메라·프롬프터 폭 조절 (더블클릭: 30%로)"><span class="pct" id="splitPct"></span></div>
 <aside class="cam" id="cam" hidden>
-  <div class="camview flip" id="camview"><video id="vid" autoplay muted playsinline></video><div class="badge" id="recBadge" hidden></div><div class="msg" id="camMsg">카메라 준비 중…</div><div class="tag">1번</div></div>
-  <div class="camview flip" id="camview2" hidden><video id="vid2" autoplay muted playsinline></video><div class="msg" id="camMsg2"></div><div class="tag">2번</div></div>
-  <div class="camrow"><select id="vSel" aria-label="카메라"></select><select id="aSel" aria-label="마이크"></select><button class="btn" id="devRefresh" title="카메라·마이크 목록 다시 찾기">↻</button></div>
-  <div class="camrow"><select id="vSel2" aria-label="2번 카메라"></select></div>
+  <div class="views" id="views">
+    <div class="cv" id="cv1" hidden><div class="camview flip" id="camview"><video id="vid" autoplay muted playsinline></video><div class="badge" id="recBadge" hidden></div><div class="msg" id="camMsg"></div><div class="tag">카메라 1</div></div><select id="vSel" aria-label="카메라 1"></select></div>
+    <div class="cv" id="cv2" hidden><div class="camview flip" id="camview2"><video id="vid2" autoplay muted playsinline></video><div class="msg" id="camMsg2"></div><div class="tag">카메라 2</div></div><select id="vSel2" aria-label="카메라 2"></select></div>
+  </div>
+  <div class="camrow"><select id="aSel" aria-label="마이크"></select><button class="btn" id="devRefresh" title="카메라·마이크 목록 다시 찾기">↻</button></div>
   <div class="camrow">
     <button class="btn recbtn" id="recBtn">● 녹화 + 프롬프터 시작</button>
     <button class="btn" id="flipBtn">미리보기 반전</button>
-    <button class="btn" id="shapeBtn">세로 보기</button>
   </div>
-  <div class="devinfo" id="devInfo"></div>
-  <div class="hint">녹화를 누르면 카운트다운 뒤 프롬프터가 같이 시작되고, 대본이 끝나거나 정지를 누르면 녹화도 멈춰요. 미리보기 반전은 화면에만 적용되고 영상 파일은 원래 방향으로 저장돼요.</div>
+  <div class="hint">위쪽 <b>카메라 1 / 카메라 2</b> 버튼으로 켜고 끌 수 있어요. 켜진 카메라는 모두 같이 녹화되고, 파일은 카메라마다 따로 저장돼요. 미리보기 반전은 화면에만 적용돼요.</div>
+  <div class="player" id="playerBox" hidden><video id="player" controls playsinline></video><button class="btn" id="playerClose">닫기</button></div>
   <div class="clips" id="clips"></div>
 </aside>
 </div>
@@ -189,7 +197,7 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
 <div id="gateMsg" style="color:var(--rec);font-size:13px;min-height:1.2em"></div>
 </form></div>
 <script>
-const ENC={"s":"LXIa1ClH4Jr6AB6pZLL1rg==","i":"ko0QZvFCxh8HYp4L","d":"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"};
+const ENC={"s":"zmo+tmXLUW1kf9qqWsjY0A==","i":"UYDzral45okTPg3G","d":"ASsPVn647cqsa/DU1HQd0EDG5uAiVXOttmsoHDwBww5vj2FH3beW0zO6loqWD0rSgKZ6TbKMDxoDst6sxbm6qp8lHfav3fV9IwY4DsKc3BcSBsPO1fg39NNuu3GlQzQXjhvC0WrFjlF4FxgBnhgz2Uq9ObLTG7y0lE4BgkRtDZoEd/Fy3f+4S7dm+03vHRgL0qtSYM+aQPuqRKvzoXQq7vz8At1Lb01zVqnFKzsArCgvHl8kio3EyYm3mRRYP2le3sW907yCUqhdF9YSoSAKjKJhTcINOPiV6bWTACDVULyqVmSfIzqUydMF1KcujZ4H26YhDXvs9OzyoRqiRCQ1hSJPhZs54jJIgCCzRcLgb80aBlIOBWpYl1l1XK1DLmStRyaYaeET/UlAsQdpkjxA7eo04vSjqwo951LRPwXGnogjxF/rBN/UBJQfipLu2drlNtzsYi4ekIAuqJXveWrIGrfGeSeRYa7MWhLzB8tSAwY7bFa62JferwRWmnRbme8NS9cfzp1A0jPhMNGELSTKS+Tp5Uypooqu7rWAtTxi/rzGFyjx+6RoFyTH+f1uUXFFUk+LrsE11ibRWp2eEvWGXKcH1JyrzYSqtI4g5eP3rEqc9Jnh10B0vNGWNTOg3bp5M4SMsf9zvlH+LLZjly+LrIafduWrhzLtzNWp/EMC7zJ2a94UGg76aN9SgIoPazMxBnYWYK1FShlpfrTn0ACgsUICg8KUkGD1HhKMqoxsXZGgiHkUkVjURv2r9nEVHDzcHCt+8VWUUhaVnNZylFEvQv1z20L036DVdMruEUA0z2w5o/M3zB43q2wA5ekZ0FCnMKeurO95Kd8HcWiQkou7yXqGtSVnMOyxD38M3LQekgWApR9I+0U2QQJnZ07U5Co3S3rsLB1RSVDf21CWxYfkYSs6RAlCzXsCPszljW4l6zE1WVoWv2m4cpiCUzPbqxQONjWT6EO+6VTh2EkZrsk13M7KQ9+4T/j0zIkDpfj3XjVbE2mW/7kYmziXT0LU0DmTdpMceYLYRivA/5d1w6MTzrfQppNSfEyB4vvoEEVGWdFjqOJ1ni5+e7zyAp2msacGGL892cPcTS5nd/UXfUK6e9gAgWoKKQcQkS32H9SjiuihAT/2Wo8fiZks5E0NIkynU5OVAMO+Cr510DdiuRG4dJuIT+eqXUbxkcSe4NZxSgwWljeMcwXmq0k0po4Xga+l9bGgaWKjgYxk6VcS1noEFwErsR9E9lPoXqhZiDTWEJVbUI41B/rpTCphNs3NbAtiNI0EF96uTol+0vt+NLHoBKtl//aNl5G7fWy3RAi5uI2BjZ6u7KioqOLXr/bwgjsHAVkqWu8lNtXeZYoI2KUjQjEs9MG5ClPB/O0AJjFVeg7FhJ2+Ce4orqsqBJTOqzGQSo0Wv8SvCiNUdXOOc2E7fzuxIXtuO1Oxg21Xp1RUYB4Urnb9D0mZaL5FPDY73Hy0fuo8t/V6saWJiM0e7CjfhxRicpD76GqYVRBrSpZRqMu95L4nDZl/niSYBt/6sdqxeZyoNL5yN8pvQOUddqSX92HeTJokTyqJThvdht5Cf8ltlBQ0HTKYUlhsqFGsbhmfF4ZZQ9bsT01qr7jUe8OPRPylW/tdfI6tXXfV9NPcWticCfuQhEI/3lZFOomobxA9zFvC/1DCSbqlO2YpBYRi42QPK6H3ro05wcHqPXhsaxavklowfYy1yupzkv7ypX5+L2jTjL+ogKuadvgfi2DRHtRHs+WIIu2/AD8WZk0f2YLbO2TiAGp0U2svNcM3Py3ZlFSZKJSf3btcs0lZMmkyKhB0RoUO6LNyiip3piRz4W4QCDMfmxCHWUEezXVR08qY57QhAVRGkfPNMzHcE15/deRgX8MlUMNDP6LjGIzUZDLA+8whTNYF6NKkteIh6OUxXh1yar/i9vJOUWLt1ciB+BTTsVcMBYM9iIn9r8wYowuGBjLEZ8AOJBxc4B7bIOOptceq99p7AL/DGSxLan7kw3B2/nPYNcPbDhzy7v5ycGU/2l7iGUImnuIc2tchboBHgkU7cButyv16SfZIdIpP0VV8CSw84+elfnct9Kuo3t7HbEIyggbRWkJmTo1HzWdq5N55k3TAu2vXMih4muKyW0kFKtRkF4K+Mth8DDejUTG3V0FhcgctFGfRget6Cz+LFISXUv9SZRV4CNyOmEwl5IpWNjkvyFw6CAnqObSVf0jLuoND2kBF2JYQtxc97G/LA60SYfiWPBsNFglvO1nK1dfsRA/+VnUEv/zOgcDYrs3FCV0Koj0hqMAHNBRv492iNALvB1VdcmuK3mSnJLl/jdo1TM167Bzd8FbPmBcHdi4gqaAs6XoCLM8kaGolazGc+ELt3qeEN2nvLzHF1oCwE39i34pdkR87+KoEcsZyg+MSGL0/oQ2nQz5ngX9A+8Jr2b7whALOBBsaZzk3vfQO/GSsDrLkBO2JMwx10MNx3laj8m6lB+zveIHHozNhnQNCsHKoblzPwNStNF2eGlRntwoaJouGh53I7xTO8innhY6qzj7mYKYr6Z1aeIzqCDgNDxLIiNrukrINDnfOs37z6/PaqIK+29QckQxj9Bsn1/lsfztUI8b1QuCchHvWF7k+ZmkX4L3r8vveWZCd1At3LGNgwtEcqEqnIOhtQ77eXJHP+oViknnd4d9wFxYbK+0bEbbb40KGD2VJLbgqkxph0maGBYTy/m+JyvNfqeyzrVLxXBxyt1h5L2VcD9AytBHzX/QQHa93yFz5At3hBs41zeYZBPdGl2fI6bZ0wmE/QAoPfYXR+KxwgKxq0EiZVZ5qbp/7573waHD72tq2cR3R8Uhuu3rfDJ+8fJFxANRuMziqeRTZYoumOMXXiDKYESzpQVfWUIomiAHyiXulhJsLLBmTpebLS0UAS94XMGoY78AwbxX+CTYopSbh+w00wcrtr3zxlagGB9rpdm5QSrDzK17Sp70doY8XPqznBRtRfFvRLiJxDXQRlmwr4L0V+0H1CFLLkrbwgHqxqdgX3aZkLV38L6BWmYgfCawiF5tA8fLkhv+hP2JWJJmYle+1DemcjozxrzTx2UBkMf9MfhoGY0e4hJS3V5wPuNbs0eDQNh1iyzJ08js8SJPnSDaGAfiBH5VSImKqrjfSDIZX9u7WgL4nzoqPKmUYJje/AzruuunNWVP9yk40JYaD2tw4KmbuQRLBC3Eme1YOs4nJ0gfvKhr3kr+cWOGyl/4wrHygJNhNG0VgHsQGKUOAJK6I8RuiIYgvh6R8EfPS5CAXpH0RJZfypzVy6dOic8oGvKTyT1Z4V7KC39GcolLcFE+LmbZ87UlYgafiuRH8jz97LWfBRSDjnYQPkIDLcf1oVL7zudE3PNVEcuDYRFv3mz6E1ZaddgdjsCPx/b1QIfdoCMyyC1RIVWRpzyPC7BOhFOiaB8ehQ4bGOaY3ig4xe2lciBnBFVu+cUmtO6MUC1ms0ss4OkxvYgaD2Xgplx0ML9YegaKiXUNJB8jY7hz9ZtErfk3oryNTPpsufy3QN3n591PjWN2Y9hoJsDhFnjtRSZt1EPuvTDSzGnkg1YmKdmCo9m4ynIiSbTxX8Ma1mK8cxOdEEXrkFSa0XJa0EPoYXh5unfU+oxlF6eSX9ek/VZaQnjYIaMU995LC/z3bPsvi8Y5Bl2LqYR/DklJHvghIMCm1w1u6n7k991aZpUVDgMPMembPMI8UdvypQ3+Yzprx06FCS5uEol6HP87IeCcXfGsxOQcj+QAJ7zh40bQlpyGie+M5w/NzKaurbKFFVlItVVKyNAYCuaQzMf5yFVtBeisftASIPjEHW42/H1YDUG8bty7/ZEtjycclF+Ddar2bWjkDaNXxtqm4tHraPlShub/McOXyKo+Ye7KkoGdOOu6ZcEeB/0FcoAV8sO48IGQE+M6D9FEpfWBIHGcNUlr7Lm0SGH4Oc4I5V5dcPHlOk1k3gLtjcm1JLPxPqPandnSHxtBmptNQRVjWiU5jFaySdzfIJkfOo/Iu0SACTK4A2ZJotcfrwszUqwOaZIPpk6MQBMTMKgXeglOGfbwRlgGA5AwHURxp79EPDXAMv1A2JVYglwseuRlA8bJGceQUVqZOQ/ScflMcC6UPVzGwMz24NXkuUhZzfU5iYreqvBvucMYMExY1gQ4OEL7zGz53myGajwg8+lZ+epmy7ZQOeA6+/j0JqgKZTPa8YJ9cZjqElAfBdN8eWg/1O1sqgnAFkDfZmNWbtr+kqLks2jJKhxT3/nXimF6pp5aewYliKvIqw+/ExZpyFZUg8obSug1LzdtIa3toFzmj5zHqz+wKct39mrdKQ417QMcwNTq4EDEf4RkNXoabYjaWYc8AX8/1VdTWc7WvV1vcG9tnmjS8SPSCyXtY3lD4HJbqsAgJe/WlzvaWnxLhVi5rcKVoKV45L9Oxq6QyL3WBvZjLIttEGzHoa1pqZKOpaCi0BGgQne0pFpnvbc4xftHYWyuCFFbR8rZvt6Usv7itR7Oz8ss8ZgzkYr3Szu9cMaMsFr465XNvL7e4OPNX4gsCRl64IXrRyCtOl+YIVfc4lUA8EeNeFqunQx0leBCcNNOsCEwovxHBwcVtkSuZWJLe/YcNyw47TLTuckp9dyqdiPmdM6sVO88ZtPhQeiDfkKea5s837H7VDBI4DHHvLqe53Y6ajq1hmgi179/rwwyWafyIVgUloyDZ3f6HFyVsHgO431gCv117cg4YNS8Lvu/AHod6Flkdp36ASa6ZVgfxYiO8NS7u5po6909vI0CAHn7a7HrpE6bFJEnjhpee6Oli85cHq6WJSpHzPwrsZiGj9NflGziNsBTRAAPJUqQ1pixc6XDGWbHUYIazf+v0G+8hV7a6Do0BtRg3PL5OY5hyYLl8hKF05XA4lAIh/vSTaiW2ueZSTwdM/gEVWqMwCSaGLkZZ+5d3sOE0x6LP0Bh8dVRvRxXu7rN9OXwGLJIXDkoqF7Ta+kBuKaghdj7K78zKaRW95u1bP3j9uEuGn5dvwD4P4MtukGYSfenD1dCTpbQvtfVr0kOoEAtSxpJwDZ5144nJGi8A5qrlJJQzSXaLPjakM3+mLT9BR6GmDyirjax0rExlotZDjGscqi6S1I1KK/C6KmxjDALAmceFn2hl0k4gOaoPaC2UAoOCjVRcprTQdD53A5Im9Q0IfCwG6QXXBm19pNKXYL+xyc9fSxSbKOgIu1jqLO2WMxeTBmgHLf5XeI5MvRf3kH7xMsNJHpKZIUC71tzzmXK98s/gAIrYkbdc129M9Tp3yY15mWXRWqNO+dnHOQuLn9MgoozyVcdFvP96DQaW1nrO02ya9Qd6/D1tr5o9KwAG067IWfKof4b1yWZMMlJ6wDnsG3J9Yjz/Fop8/2305jtOxZ3ejxGyb2vVNBUwpjElx+sCuFzYCEmDjKDmF6O+BtgimnpUDgRPHVn7B4+Ns5O0Ys6hcihBUyGwBylraqwkT5PBhJoU+ZgaI/4CXN0Toma+jq8mExxHzMeOf4uz35nevdIFn1/uqyf2jrLjLlL74/mj9M9y6cvIkiWwxDLTmvIyQt0wfdz3fNCHT53UJ8fkYbRCnWq1IrIludp9kEyza+pgyibWyJsN2YslCQZnd9kI2Y6oKyaFtmKGglxK15zZbvW/yMDWOw6073La1CJIN/Z16gTcrWqQPVPdc3REa56Ifl3Gj8woJzU25eU7KopeqWjUMh5jCx9X3uAIaVl+napH9j3aQqeKr3B9dXj/NaGFJpk67sUJKNzuzjAsHhKU1VovyblFP38DCSiDOdy88gaeK6jZ96zxhr4P9iQMU/nkkIggABDpKq0VZjbPP5JcK2+CXj2fAUDeHGCM9geWo9rbEyInW4ty44aOnzN4be8kSEEPOtk8oHFH4KFnxw5HWo+CNSc/5+fEm4cZvlNFK3xWVylFhu29Rlob7lQ4NacZq+194yoJl1+XiUMZ6z0XzOwlCwueEbKU9OI6d4o1lApZZXFhKRFk6eGhRPhNz25tHmwniqx6XAE1pc5GKmzpyGbwE1/02REzqIy3gDeW/cVip6p1x+ZCYYttikSq0FLRqd0p++OHY7Tl8QKpgcmpWPiYcz7QyyCityePO17baa65tOac0ROA7OYK/KGWgQQiOBbldviISlpwJ+hUNBk0ZqBQ3Ew9XH2ZKlCbubGrPtumqYJACYYwpZDor0lnaCyG+Vha3UhU0NpIgiTWVDWSRCpG3FBxDh9a5XFSYvD+6q8IpctclTbLswMZUBW1DtPvaY7ahVRMllbpdEBWYr7iKjN/lzKfVttPefQQZhM9H8Gr+yfRjF0P7pXGFsmBwz5XC/w6M311s7scs299an/veHwdcKM+CnGDoUxan6Yo4//ym33dGsk6lhoYqJfaRwry47CzUsNX3tRm2M4cLf4XdgzuOS7NY8S9yHRXr/H50F09ek07icmf4qQzEpCypJWlufcfWIy65Evo9QGgPIFuAwmnGR5fXoK1sF32yzJwuN1Jre7g3N3hvEUsSQnLWpWQCA+NBykH/xV66xEoTWJ37b02wcjU6VUCgsj5MOgJxEKy+82xYDfGRyGVDsjYpayiZDf3d5kLkzFhekGGC05MsYASiHnQdKI="};
 const b64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
 async function unlock(pw){
   const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
@@ -360,114 +368,103 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ---------- camera ---------- */
-let stream=null, rec=null, chunks=[], recStart=0, recTimer=null, takeNo=0, dl=null;
+let stream=null, stream2=null, mic=null, recs=[], rec=null, recStart=0, recTimer=null, takeNo=0, dl=null;
+let camOn={1:store.get('kyu-cam1-on')==='1', 2:store.get('kyu-cam2-on')==='1'};
 (async()=>{try{dl=await window.claude?.use?.('downloads')}catch(e){dl=null}})();
 const MIME=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||'';
-function camMsg(t){$('camMsg').textContent=t;$('camMsg').hidden=!t}
-/* device choice is remembered by NAME (ids can change between page loads when opened as a file) */
 const clean=l=>(l||'').replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i,'').trim();
-async function findId(kind,label){
-  if(!label) return null;
-  try{const ds=await navigator.mediaDevices.enumerateDevices();
-    const d=ds.find(x=>x.kind===kind&&x.deviceId&&clean(x.label)===clean(label)); return d?d.deviceId:null}catch(e){return null}
+const getPref=k=>{try{return JSON.parse(store.get(k)||'null')}catch(e){return null}};
+const setPref=(k,o)=>store.set(k,o?JSON.stringify(o):'');
+async function devs(){try{return await navigator.mediaDevices.enumerateDevices()}catch(e){return []}}
+async function resolve(kind,pref){
+  if(!pref) return null; const ds=(await devs()).filter(d=>d.kind===kind&&d.deviceId);
+  let d=ds.find(x=>x.deviceId===pref.id); if(!d&&pref.label) d=ds.find(x=>clean(x.label)===clean(pref.label));
+  return d?d.deviceId:null;
 }
-async function listDevices(){
-  try{const ds=await navigator.mediaDevices.enumerateDevices();
-    const vt=stream&&stream.getVideoTracks()[0], at=stream&&stream.getAudioTracks()[0];
-    const fill=(sel,kind,track,prefix)=>{
-      sel.innerHTML=''; const list=ds.filter(d=>d.kind===kind&&d.deviceId!=='default'&&d.deviceId!=='communications');
-      list.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId||('label:'+d.label);o.textContent=clean(d.label)||(prefix+(i+1));sel.appendChild(o)});
-      let idx=-1;
-      if(track){const tid=track.getSettings().deviceId, tl=clean(track.label);
-        idx=[...sel.options].findIndex(o=>o.value===tid); if(idx<0) idx=[...sel.options].findIndex(o=>o.textContent===tl);
-        if(idx<0&&tl){const o=document.createElement('option');o.value=tid||('label:'+tl);o.textContent=tl;sel.appendChild(o);idx=sel.options.length-1}}
-      if(idx<0) idx=sel.options.length?0:-1;
-      if(!sel.options.length){const o=document.createElement('option');o.value='';o.textContent=prefix+'없음';sel.appendChild(o);idx=0}
-      sel.selectedIndex=idx;
-    };
-    fill($('vSel'),'videoinput',vt,'카메라 '); fill($('aSel'),'audioinput',at,'마이크 ');
-  }catch(e){}
-  if(typeof fill2==='function') fill2();
-  showDevInfo();
+const V=(id,w,h)=>Object.assign(id?{deviceId:{exact:id}}:{}, w?{width:{ideal:w},height:{ideal:h},frameRate:{ideal:30}}:{});
+function msg(n,t){const m=$(n===1?'camMsg':'camMsg2'); m.textContent=t||''; m.hidden=!t}
+function vidOf(n){return $(n===1?'vid':'vid2')}
+function getS(n){return n===1?stream:stream2} function setS(n,v){if(n===1)stream=v;else stream2=v}
+async function openMic(){
+  if(mic) return mic;
+  const A={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
+  const id=await resolve('audioinput',getPref('kyu-mic'));
+  try{mic=await navigator.mediaDevices.getUserMedia({audio:id?{...A,deviceId:{exact:id}}:A})}catch(e){try{mic=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e2){mic=null}}
+  return mic;
 }
-async function openCam(){
-  if(!navigator.mediaDevices?.getUserMedia){camMsg('이 화면에서는 카메라를 쓸 수 없어요.');return}
-  if(rec&&rec.state==='recording') return;
-  stream&&stream.getTracks().forEach(t=>t.stop()); stream=null;
-  camMsg('카메라 준비 중…');
-  const v=await findId('videoinput',store.get('kyu-cam-vlabel')), a=await findId('audioinput',store.get('kyu-cam-alabel'));
-  const V={width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}}, A={echoCancellation:false,noiseSuppression:false,autoGainControl:false};
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({video:v?{...V,deviceId:{exact:v}}:V,audio:a?{...A,deviceId:{exact:a}}:A});
-  }catch(e){
-    try{stream=await navigator.mediaDevices.getUserMedia({video:V,audio:A})}catch(e1){}
-    if(!stream) try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:true})}
-    catch(e2){camMsg(e2.name==='NotAllowedError'?'카메라·마이크 권한이 막혀 있어요. 브라우저 주소창의 권한 설정에서 허용해 주세요.':'카메라를 열 수 없어요 ('+e2.name+').');return}
-  }
-  // first time permission: labels become available only now -> retry once with the remembered device
-  if(!v&&store.get('kyu-cam-vlabel')||!a&&store.get('kyu-cam-alabel')){
-    const v2=await findId('videoinput',store.get('kyu-cam-vlabel')), a2=await findId('audioinput',store.get('kyu-cam-alabel'));
-    const vt0=stream.getVideoTracks()[0], at0=stream.getAudioTracks()[0];
-    const needV=v2&&vt0&&vt0.getSettings().deviceId!==v2, needA=a2&&at0&&at0.getSettings().deviceId!==a2;
-    if(needV||needA){try{const s2=await navigator.mediaDevices.getUserMedia({video:v2?{...V,deviceId:{exact:v2}}:V,audio:a2?{...A,deviceId:{exact:a2}}:A}); stream.getTracks().forEach(t=>t.stop()); stream=s2}catch(e){}}
-  }
-  if(playing) backToCam(); $('vid').srcObject=stream; camMsg('');
-  await listDevices(); fill2(); await openCam2();
+function closeMic(){mic&&mic.getTracks().forEach(t=>t.stop());mic=null}
+async function openCamN(n){
+  if(!navigator.mediaDevices?.getUserMedia){msg(n,'이 화면에서는 카메라를 쓸 수 없어요.');return}
+  closeCamN(n,true); msg(n,'카메라 준비 중…');
+  let id=await resolve('videoinput',getPref('kyu-cam'+n));
+  const other=getS(n===1?2:1), otherId=other&&other.getVideoTracks()[0]&&other.getVideoTracks()[0].getSettings().deviceId;
+  if(!id&&n===2){const v=(await devs()).filter(d=>d.kind==='videoinput'&&d.deviceId&&d.deviceId!==otherId); if(v.length) id=v[0].deviceId}
+  if(id&&id===otherId){msg(n,'다른 카메라와 같은 장치예요. 아래에서 다른 카메라를 골라 주세요.'); await fillSelects(); return}
+  let st=null, err=null;
+  for(const c of [V(id,1920,1080),V(id,1280,720),V(id)]){try{st=await navigator.mediaDevices.getUserMedia({video:c,audio:false});break}catch(e){err=e}}
+  if(!st){msg(n,err&&err.name==='NotAllowedError'?'카메라 권한이 막혀 있어요. 주소창 왼쪽 아이콘에서 허용해 주세요.':'카메라를 켤 수 없어요 ('+(err&&err.name)+'). 다른 앱이 쓰고 있는지 확인해 주세요.'); await fillSelects(); return}
+  // labels appear only after the first permission: retry once with the remembered camera
+  const pref=getPref('kyu-cam'+n);
+  if(pref&&!id){const id2=await resolve('videoinput',pref); if(id2&&id2!==st.getVideoTracks()[0].getSettings().deviceId&&id2!==otherId){try{const s2=await navigator.mediaDevices.getUserMedia({video:V(id2,1920,1080),audio:false});st.getTracks().forEach(t=>t.stop());st=s2}catch(e){}}}
+  setS(n,st); const v=vidOf(n); v.srcObject=st; msg(n,'');
+  {const t=st.getVideoTracks()[0]; if(t&&t.label) setPref('kyu-cam'+n,{id:t.getSettings().deviceId,label:clean(t.label)})}
+  await openMic(); await fillSelects();
 }
-function showDevInfo(){
-  const box=$('devInfo'); if(!box) return; box.textContent='';
-  if(!stream){return}
-  const vt=stream.getVideoTracks()[0], at=stream.getAudioTracks()[0];
-  const add=(k,v)=>{const r=document.createElement('div');const b=document.createElement('b');b.textContent=k;r.append(b,document.createTextNode(v));box.appendChild(r)};
-  if(vt){const s=vt.getSettings();add('사용 중인 카메라 ',(vt.label||'알 수 없음')+(s.width?' · '+s.width+'×'+s.height+(s.frameRate?' '+Math.round(s.frameRate)+'fps':''):''))}
-  else add('사용 중인 카메라 ','없음');
-  if(at){add('사용 중인 마이크 ',at.label||'알 수 없음')} else add('사용 중인 마이크 ','없음');
+function closeCamN(n,keepView){const st=getS(n); st&&st.getTracks().forEach(t=>t.stop()); setS(n,null); vidOf(n).srcObject=null; if(!keepView) msg(n,'')}
+async function fillSelects(){
+  const ds=await devs(); const vids=ds.filter(d=>d.kind==='videoinput'&&d.deviceId), mics=ds.filter(d=>d.kind==='audioinput'&&d.deviceId&&d.deviceId!=='default'&&d.deviceId!=='communications');
+  const fill=(sel,list,track,prefix,pref)=>{
+    sel.innerHTML=''; list.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=clean(d.label)||(prefix+(i+1));sel.appendChild(o)});
+    let tid=track&&track.getSettings().deviceId, idx=[...sel.options].findIndex(o=>o.value===tid);
+    if(idx<0&&track){const tl=clean(track.label); idx=[...sel.options].findIndex(o=>o.textContent===tl)}
+    if(idx<0&&pref) idx=[...sel.options].findIndex(o=>o.value===pref.id||o.textContent===clean(pref.label));
+    if(!sel.options.length){const o=document.createElement('option');o.value='';o.textContent=prefix+'없음';sel.appendChild(o);idx=0}
+    sel.selectedIndex=idx<0?0:idx;
+  };
+  fill($('vSel'),vids,stream&&stream.getVideoTracks()[0],'카메라 ',getPref('kyu-cam1'));
+  fill($('vSel2'),vids,stream2&&stream2.getVideoTracks()[0],'카메라 ',getPref('kyu-cam2'));
+  fill($('aSel'),mics,mic&&mic.getAudioTracks()[0],'마이크 ',getPref('kyu-mic'));
 }
-function closeCam(){stream&&stream.getTracks().forEach(t=>t.stop());stream=null;$('vid').srcObject=null;closeCam2()}
-let stream2=null;
-function closeCam2(){stream2&&stream2.getTracks().forEach(t=>t.stop());stream2=null;$('vid2').srcObject=null;$('camview2').hidden=true;$('camMsg2').textContent=''}
-async function openCam2(){
-  closeCam2(); const lbl=store.get('kyu-cam-v2label'); if(!lbl) return;
-  $('camview2').hidden=false; $('camMsg2').textContent='2번 카메라 준비 중…';
-  const id=await findId('videoinput',lbl); if(!id){$('camMsg2').textContent='2번 카메라('+lbl+')를 찾을 수 없어요. 연결 후 ↻';return}
-  const main=stream&&stream.getVideoTracks()[0]; if(main&&main.getSettings().deviceId===id){$('camMsg2').textContent='1번과 같은 카메라예요. 다른 카메라를 골라 주세요.';return}
-  let err=null;
-  for(const v of [{deviceId:{exact:id},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}},{deviceId:{exact:id},width:{ideal:1280},height:{ideal:720}},{deviceId:{exact:id}}]){
-    try{stream2=await navigator.mediaDevices.getUserMedia({video:v,audio:false});break}catch(e){err=e;stream2=null}}
-  if(stream2){$('vid2').srcObject=stream2; $('camMsg2').textContent=''}
-  else $('camMsg2').textContent='2번 카메라를 켤 수 없어요 ('+(err&&err.name)+'). 다른 앱이 이 카메라를 쓰고 있는지 확인해 주세요.';
+function applyCamUI(){
+  const any=camOn[1]||camOn[2];
+  $('cam').hidden=!any; $('mainBox').classList.toggle('camon',any);
+  $('cv1').hidden=!camOn[1]; $('cv2').hidden=!camOn[2];
+  $('camBtn1').classList.toggle('on',camOn[1]); $('camBtn2').classList.toggle('on',camOn[2]);
+  lastNow=-1; render();
 }
-function fill2(){
-  const sel=$('vSel2'), main=$('vSel'); const keep=store.get('kyu-cam-v2label');
-  sel.innerHTML=''; const none=document.createElement('option'); none.value=''; none.textContent='2번 카메라: 사용 안 함'; sel.appendChild(none);
-  [...main.options].forEach((o,i)=>{ if(i===main.selectedIndex||!o.value) return; const n=document.createElement('option'); n.value=o.value; n.textContent='2번 카메라: '+o.textContent; sel.appendChild(n)});
-  const idx=[...sel.options].findIndex(o=>o.textContent==='2번 카메라: '+keep); sel.selectedIndex=idx>0?idx:0;
-  if(sel.options.length<2){const n=document.createElement('option');n.disabled=true;n.textContent='(다른 카메라가 없어요 — 연결 후 ↻)';sel.appendChild(n)}
+async function toggleCam(n){
+  if(recs.some(r=>r.state==='recording')) return;
+  camOn[n]=!camOn[n]; store.set('kyu-cam'+n+'-on',camOn[n]?'1':''); applyCamUI();
+  if(camOn[n]) await openCamN(n); else closeCamN(n);
+  if(!camOn[1]&&!camOn[2]) closeMic();
 }
 function startRec(){
-  if(!stream){openCam();return}
-  if(playing) backToCam();
-  if(!window.MediaRecorder){camMsg('이 브라우저는 녹화를 지원하지 않아요.');return}
-  takeNo++; const no=takeNo; recs=[];
-  const mk=(ms,suffix)=>{const ch=[]; let r;
+  const cams=[1,2].filter(n=>camOn[n]&&getS(n));
+  if(!cams.length){msg(1,'켜진 카메라가 없어요.');return}
+  if(!window.MediaRecorder) return;
+  closePlayer(); takeNo++; const no=takeNo; recs=[];
+  const aud=mic?mic.getAudioTracks():[];
+  cams.forEach(n=>{const ms=new MediaStream([...getS(n).getVideoTracks(),...aud]); const ch=[]; let r;
     try{r=new MediaRecorder(ms,MIME?{mimeType:MIME,videoBitsPerSecond:8000000,audioBitsPerSecond:192000}:{})}catch(e){r=new MediaRecorder(ms)}
     r.ondataavailable=e=>{if(e.data&&e.data.size)ch.push(e.data)};
-    r.onstop=()=>saveTake(ch,r.mimeType||MIME||'video/webm',suffix,(performance.now()-recStart)/1000,no);
-    recs.push(r); return r};
-  rec=mk(stream, stream2?'_cam1':'');
-  if(stream2) mk(new MediaStream([...stream2.getVideoTracks(),...stream.getAudioTracks()]),'_cam2');
-  recStart=performance.now(); recs.forEach(r=>r.start(1000));
-  $('camview').classList.add('recording'); if(stream2)$('camview2').classList.add('recording'); $('recBadge').hidden=false;
+    r.onstop=()=>saveTake(ch,r.mimeType||MIME||'video/webm',cams.length>1?'_cam'+n:'',(performance.now()-recStart)/1000,no);
+    recs.push(r)});
+  rec=recs[0]; recStart=performance.now(); recs.forEach(r=>r.start(1000));
+  cams.forEach(n=>$(n===1?'camview':'camview2').classList.add('recording'));
   $('recBtn').textContent='■ 녹화 정지';
-  recTimer=setInterval(()=>{$('recBadge').textContent='● REC '+(recs.length>1?'×2 ':'')+fmt((performance.now()-recStart)/1000)},250);
-  $('vSel').disabled=$('aSel').disabled=$('vSel2').disabled=true;
+  const badge=$('recBadge'); badge.hidden=!camOn[1];
+  recTimer=setInterval(()=>{const t='● REC '+(recs.length>1?'×2 ':'')+fmt((performance.now()-recStart)/1000); badge.textContent=t; if(!camOn[1]) $('recBtn').textContent='■ 녹화 정지 '+t.slice(6)},250);
+  ['vSel','vSel2','aSel'].forEach(k=>$(k).disabled=true);
 }
-let recs=[];
 function stopRec(){
   recs.forEach(r=>{if(r.state!=='inactive') r.stop()});
   clearInterval(recTimer); $('camview').classList.remove('recording'); $('camview2').classList.remove('recording'); $('recBadge').hidden=true;
-  $('recBtn').textContent='● 녹화 + 프롬프터 시작'; $('vSel').disabled=$('aSel').disabled=$('vSel2').disabled=false;
+  $('recBtn').textContent='● 녹화 + 프롬프터 시작'; ['vSel','vSel2','aSel'].forEach(k=>$(k).disabled=false);
 }
+let playing=null;
+function closePlayer(){const p=$('player'); p.pause(); p.removeAttribute('src'); p.load(); $('playerBox').hidden=true; if(playing){playing.btn.textContent='보기'; playing=null}}
+function showClip(url,btn){ if(playing) playing.btn.textContent='보기'; const p=$('player'); p.src=url; $('playerBox').hidden=false; p.play().catch(()=>{}); btn.textContent='닫기'; playing={url,btn}; }
+$('playerClose').onclick=e=>{closePlayer();e.currentTarget.blur()};
 function saveTake(ch,type,suffix,sec,no){
   const ext=type.includes('mp4')?'mp4':'webm';
   const blob=new Blob(ch,{type});
@@ -476,7 +473,7 @@ function saveTake(ch,type,suffix,sec,no){
   const row=document.createElement('div'); row.className='clip';
   const label=document.createElement('span'); label.textContent=name+' · '+fmt(sec)+' · '+(blob.size/1048576).toFixed(1)+'MB';
   const play=document.createElement('button'); play.className='btn'; play.textContent='보기';
-  play.onclick=()=>{ if(playing&&playing.btn===play) backToCam(); else showClip(url,play); play.blur(); };
+  play.onclick=()=>{ if(playing&&playing.btn===play) closePlayer(); else showClip(url,play); play.blur(); };
   const save=document.createElement('button'); save.className='btn'; save.textContent='다운로드';
   save.onclick=async()=>{
     if(dl){try{await dl.save({filename:name,data:blob});save.textContent='저장됨';return}catch(e){if(e&&e.code==='declined')return; if(e&&e.code==='rate_limited'){save.textContent='잠시 후 다시';return}}}
@@ -486,35 +483,24 @@ function saveTake(ch,type,suffix,sec,no){
   let armed=null;
   del.onclick=()=>{ del.blur();
     if(!armed){del.textContent='정말 삭제?';del.classList.add('armed');armed=setTimeout(()=>{armed=null;del.textContent='삭제';del.classList.remove('armed')},3000);return}
-    clearTimeout(armed); if(playing&&playing.btn===play) backToCam();
+    clearTimeout(armed); if(playing&&playing.btn===play) closePlayer();
     URL.revokeObjectURL(url); row.remove(); };
   row.append(label,play,save,del); $('clips').prepend(row);
 }
-let playing=null;
-function showClip(url,btn){
-  const w=$('vid'); if(playing) playing.btn.textContent='보기';
-  w.srcObject=null; w.src=url; w.muted=false; w.controls=true; $('camview').classList.remove('flip');
-  w.play().catch(()=>{}); btn.textContent='카메라로'; playing={url,btn};
-}
-function backToCam(){
-  const w=$('vid'); if(playing){playing.btn.textContent='보기'; playing=null}
-  w.pause(); w.removeAttribute('src'); w.load(); w.controls=false; w.muted=true; w.srcObject=stream;
-  $('camview').classList.toggle('flip',!$('flipBtn').classList.contains('on'));
-}
-$('camBtn').onclick=e=>{const c=$('cam'); c.hidden=!c.hidden; $('mainBox').classList.toggle('camon',!c.hidden); e.currentTarget.classList.toggle('on',!c.hidden); store.set('kyu-cam-open',c.hidden?'':'1'); if(!c.hidden) openCam(); else {stopRec();closeCam()}};
-$('vSel').onchange=e=>{store.set('kyu-cam-vlabel',e.target.selectedOptions[0].textContent);openCam()};
-$('vSel2').onchange=e=>{const t=e.target.selectedOptions[0]; store.set('kyu-cam-v2label',t.value?t.textContent.replace(/^2번 카메라: /,''):''); openCam2()};
-$('devRefresh').onclick=e=>{listDevices();e.currentTarget.blur()};
-try{navigator.mediaDevices.addEventListener('devicechange',()=>listDevices())}catch(e){}
-$('aSel').onchange=e=>{store.set('kyu-cam-alabel',e.target.selectedOptions[0].textContent);openCam()};
-$('flipBtn').onclick=e=>{const on=$('camview').classList.toggle('flip');$('camview2').classList.toggle('flip',on);e.currentTarget.classList.toggle('on',!on)};
-$('shapeBtn').onclick=e=>{const v=$('camview').classList.toggle('v');$('camview2').classList.toggle('v',v);e.currentTarget.textContent=v?'가로 보기':'세로 보기'};
-$('recBtn').onclick=()=>{
-  if(rec&&rec.state==='recording'){stopRec(); if(running) stop(); return}
-  if(!stream){openCam().then(()=>{if(stream){startRec(); stop(); elapsed=0; start();}});return}
-  startRec(); stop(); elapsed=0; start();
+$('camBtn1').onclick=e=>{toggleCam(1);e.currentTarget.blur()};
+$('camBtn2').onclick=e=>{toggleCam(2);e.currentTarget.blur()};
+$('vSel').onchange=e=>{const o=e.target.selectedOptions[0]; setPref('kyu-cam1',{id:o.value,label:o.textContent}); openCamN(1)};
+$('vSel2').onchange=e=>{const o=e.target.selectedOptions[0]; setPref('kyu-cam2',{id:o.value,label:o.textContent}); openCamN(2)};
+$('aSel').onchange=e=>{const o=e.target.selectedOptions[0]; setPref('kyu-mic',{id:o.value,label:o.textContent}); closeMic(); openMic().then(fillSelects)};
+$('devRefresh').onclick=e=>{fillSelects();e.currentTarget.blur()};
+try{navigator.mediaDevices.addEventListener('devicechange',()=>{if(camOn[1]||camOn[2]) fillSelects()})}catch(e){}
+$('flipBtn').onclick=e=>{const on=$('camview').classList.toggle('flip');$('camview2').classList.toggle('flip',on);e.currentTarget.classList.toggle('on',!on);e.currentTarget.blur()};
+$('recBtn').onclick=async e=>{e.currentTarget.blur();
+  if(recs.some(r=>r.state==='recording')){stopRec(); if(running) stop(); return}
+  if(!camOn[1]&&!camOn[2]){await toggleCam(1)}
+  startRec(); if(recs.length){stop(); elapsed=0; start();}
 };
-const _stop=stop; stop=function(){_stop(); if(rec&&rec.state==='recording'&&elapsed>=total) setTimeout(stopRec,800)};
+const _stop=stop; stop=function(){_stop(); if(recs.some(r=>r.state==='recording')&&elapsed>=total) setTimeout(stopRec,800)};
 /* ---------- split ---------- */
 let camPct=+(store.get('kyu-cam-pct')||30);
 function setCamPct(v,save){camPct=Math.round(Math.max(15,Math.min(60,v)));$('mainBox').style.setProperty('--camw',camPct+'%');
@@ -529,7 +515,7 @@ function setCamPct(v,save){camPct=Math.round(Math.max(15,Math.min(60,v)));$('mai
   sp.addEventListener('dblclick',()=>setCamPct(30,true));
 })();
 setCamPct(camPct,false);
-if(store.get('kyu-cam-open')==='1') setTimeout(()=>$('camBtn').click(),300);
+applyCamUI(); setTimeout(async()=>{if(camOn[1]) await openCamN(1); if(camOn[2]) await openCamN(2)},200);
 parse(); applyView(); applyNear();
 
 }
