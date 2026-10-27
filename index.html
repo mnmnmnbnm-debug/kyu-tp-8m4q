@@ -197,6 +197,34 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
 #hub .job{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:16px}
 @media (max-width:760px){#hub .job{grid-template-columns:1fr}}
 #hub .vid{display:flex;flex-direction:column;gap:6px}
+#hub .frow{display:flex;gap:6px;align-items:stretch}
+#hub .frow input{flex:1;min-width:0}
+#hub .frow .btn{white-space:nowrap}
+#hub .pp{display:flex;flex-direction:column;gap:8px;width:100%;max-width:270px}
+#hub .phone{position:relative;width:100%;aspect-ratio:9/16;background:#000;border-radius:22px;overflow:hidden;border:7px solid #111;box-shadow:0 0 0 1px var(--line);box-sizing:border-box;cursor:pointer}
+#hub .phone>video,#hub .phone>iframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0;background:#000}
+#hub .phone .pph{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;text-align:center;color:#aab;font-size:12px;padding:14px}
+#hub .phone .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:42px;color:rgba(255,255,255,.85);pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+#hub .ov{position:absolute;inset:0;pointer-events:none;color:#fff;font:600 10px/1.3 -apple-system,system-ui,sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+#hub .ov svg{width:21px;height:21px;fill:none;stroke:#fff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+#hub .ov .tb{position:absolute;top:2.5%;left:5%;right:5%;display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:800}
+#hub .ov .tb.c{justify-content:center;gap:12px;font-size:12px}
+#hub .ov .tb.c .dim{opacity:.6}
+#hub .ov .tb.c .r{position:absolute;right:0}
+#hub .ov .rc{position:absolute;right:2.5%;display:flex;flex-direction:column;align-items:center;gap:11px}
+#hub .ov .rc>div{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:9px}
+#hub .ov .bl{position:absolute;left:4%;right:19%;display:flex;flex-direction:column;gap:4px}
+#hub .ov .user{display:flex;align-items:center;gap:6px;font-size:10px}
+#hub .ov .av{width:20px;height:20px;border-radius:50%;background:#ffcc33;flex:none;border:1px solid #fff}
+#hub .ov .fol{border:1px solid rgba(255,255,255,.9);border-radius:6px;padding:1px 6px;font-size:9px}
+#hub .ov .cap{font-weight:400;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;word-break:break-word}
+#hub .ov .more{opacity:.75}
+#hub .ov .snd{font-weight:400;font-size:9px;opacity:.9}
+#hub .ov .nav{position:absolute;left:0;right:0;bottom:0;height:6.5%;background:#000;display:flex;justify-content:space-around;align-items:center;text-shadow:none}
+#hub .ov .nav svg{width:17px;height:17px}
+#hub .ov .ad{position:absolute;left:4%;right:4%;border:1.5px dashed #ffcc33;border-radius:8px;background:rgba(255,204,51,.2);display:flex;align-items:center;justify-content:center;color:#ffcc33;font-size:9px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+#hub .ov .zone{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,rgba(255,77,77,.16) 0 6px,transparent 6px 12px)}
+#hub .pp .note{font-size:11px;color:var(--dim)}
 #hub video.v,#hub iframe.v{width:100%;aspect-ratio:9/16;max-height:70vh;background:#000;border:0;border-radius:10px;object-fit:contain}
 #hub .ph{aspect-ratio:9/16;max-height:420px;border-radius:10px;border:1px dashed var(--line);display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;text-align:center;color:var(--dim);font-size:13px;padding:16px}
 #hub .info{display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -337,7 +365,7 @@ body{height:auto;min-height:100%}
       <form class="box" id="pForm" autocomplete="off">
         <h2>새 예약</h2>
         <label for="pVideo">영상<select id="pVideo"></select></label>
-        <label for="pPath" id="pPathL" hidden>Mac 파일 위치 (콘텐츠 폴더 기준)<input type="text" id="pPath" placeholder="예: #5 동지 팥죽/dongji_final.mp4"></label>
+        <label for="pPath" id="pPathL" hidden>Mac 파일 위치 (콘텐츠 폴더 기준)<span class="frow"><input type="text" id="pPath" placeholder="예: #5 동지 팥죽/dongji_final.mp4"><button class="btn" type="button" id="pPick">📁 파일 선택</button></span><input type="file" id="pFileIn" accept="video/*,.mov,.mp4,.m4v" hidden></label>
         <div id="pPrevBox"></div>
         <div>
           <div class="sub" style="margin-bottom:6px;font-weight:500">올릴 곳</div>
@@ -1028,12 +1056,101 @@ function pVideoOpts(){
   pOnVideo();
 }
 function pPicked(){const v=hx('pVideo').value; if(!v||v==='path') return null; const [id,i]=v.split('|'); const j=H.jobs.find(x=>x.id===id); return j&&j.versions[+i]?{job:j,ver:j.versions[+i],idx:+i}:null}
-let pPrevKey='';
-function pOnVideo(){ hx('pPathL').hidden=hx('pVideo').value!=='path';
-  const pv=pPicked(), key=pv?(pv.ver.drive||pv.ver.file||''):'';
-  if(key===pPrevKey) return; pPrevKey=key; const b=hx('pPrevBox'); b.textContent='';
-  if(pv&&(pv.ver.drive||pv.ver.file)){const vb=videoBox(pv.ver,'미리보기'); vb.style.maxWidth='170px'; b.appendChild(vb)} }
+let pPrevKey='', pFileURL=null, pOvDraw=null;
+let pNet=(()=>{try{return localStorage.getItem('kyu-pnet')||'instagram'}catch(e){return 'instagram'}})();
+const PI={
+ heart:'<path d="M12 20s-7-4.4-8.8-8.8C2 8 4 4.8 7.2 4.8c1.9 0 3.5 1.1 4.8 2.9 1.3-1.8 2.9-2.9 4.8-2.9C20 4.8 22 8 20.8 11.2 19 15.6 12 20 12 20z"/>',
+ cmt:'<path d="M20.5 12a8.5 8.5 0 0 1-12.6 7.4L3.5 20.5l1.2-4.2A8.5 8.5 0 1 1 20.5 12z"/>',
+ send:'<path d="M21 3 10 14"/><path d="m21 3-7 18-4-7-7-4z"/>',
+ share:'<path d="M14 5l7 7-7 7v-4c-6 0-9 2-11 5 1-6 4-10 11-11z"/>',
+ dots:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+ thumb:'<path d="M7 10v10H4V10z"/><path d="M7 10l4-7c1.5 0 2.5 1.2 2.2 2.7L12.6 9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7"/>',
+ mark:'<path d="M6 3h12v18l-6-4.5L6 21z"/>',
+ cam:'<rect x="3" y="7" width="18" height="13" rx="3"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8.5 7l1.5-3h4l1.5 3"/>',
+ srch:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+ home:'<path d="M4 11 12 4l8 7v9H4z"/>',
+ plus:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/>',
+ reel:'<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="m10 9 5 3-5 3z"/>',
+ user:'<circle cx="12" cy="9" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+ bell:'<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21h4"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+ vid:'<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/>',
+ music:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/>'};
+const pi=n=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+PI[n]+'</svg>';
+const ACC='institutocoreanokyu';
+function pDrawOv(ov,net){
+  ov.textContent=''; if(net==='none') return;
+  const T={
+   instagram:{top:'<span>Reels</span>'+pi('cam'),topC:false,
+     rc:[['heart','1,204'],['cmt','86'],['send','312'],['dots','']], rcB:'17%', lines:1, blB:'9.5%',
+     follow:'Seguir', snd:'♫ '+ACC+' · Audio original',
+     nav:['home','srch','plus','reel','user'], zones:[['0','7%'],['bottom','0','24%']], ad:null},
+   facebook:{top:'<span>Reels</span><span style="display:flex;gap:10px">'+pi('srch')+pi('user')+'</span>',topC:false,
+     rc:[['thumb','1.2 mil'],['cmt','86'],['share','312'],['dots','']], rcB:'28%', lines:2, blB:'19%',
+     follow:'Seguir', snd:'♫ Audio original',
+     nav:['home','vid','user','bell','mail'], zones:[['0','7%'],['bottom','0','30%']], ad:['8%','9%','Anuncio · banner (Facebook puede poner aquí un anuncio)']},
+   tiktok:{top:'<span class="dim">Siguiendo</span><span>Para ti</span><span class="r">'+pi('srch')+'</span>',topC:true,
+     rc:[['av',''],['heart','12.4K'],['cmt','86'],['mark','540'],['share','312'],['music','']], rcB:'11%', lines:2, blB:'9.5%',
+     follow:null, snd:'♫ sonido original - '+ACC,
+     nav:['home','user','plus','mail','user'], zones:[['0','8%'],['bottom','0','27%']], ad:null}}[net];
+  for(const z of T.zones){ const d=hel('div','zone'); if(z[0]==='bottom'){d.style.bottom=z[1];d.style.height=z[2]} else {d.style.top=z[0];d.style.height=z[1]} ov.appendChild(d) }
+  const tb=hel('div','tb'+(T.topC?' c':'')); tb.innerHTML=T.top; ov.appendChild(tb);
+  const rc=hel('div','rc'); rc.style.bottom=T.rcB;
+  for(const [k,n] of T.rc){ const d=hel('div'); if(k==='av'){d.innerHTML='<span class="av" style="width:30px;height:30px"></span>'} else {d.innerHTML=pi(k); if(n) d.appendChild(hel('span',null,n))} rc.appendChild(d) }
+  ov.appendChild(rc);
+  const bl=hel('div','bl'); bl.style.bottom=T.blB;
+  const u=hel('div','user'); u.innerHTML='<span class="av"></span>'; u.appendChild(hel('span',null,(net==='tiktok'?'@':'')+ACC)); if(T.follow) u.appendChild(hel('span','fol',T.follow)); bl.appendChild(u);
+  const capTxt=(hx('pCap').value.trim()||'(캡션이 여기에 보여요)');
+  const cap=hel('div','cap',capTxt); cap.style.webkitLineClamp=T.lines; cap.style.lineClamp=T.lines; bl.appendChild(cap);
+  if(capTxt.split('\n').length>T.lines||capTxt.length>(T.lines*38)) bl.appendChild(hel('span','more','… más'));
+  bl.appendChild(hel('div','snd',T.snd)); ov.appendChild(bl);
+  if(T.ad){ const a=hel('div','ad',T.ad[2]); a.style.bottom=T.ad[0]; a.style.height=T.ad[1]; ov.appendChild(a) }
+  const nv=hel('div','nav'); nv.innerHTML=T.nav.map(pi).join(''); ov.appendChild(nv);
+}
+function phoneBox(src){
+  const wrap=hel('div','pp'), tabs=hel('div','pick'), ph=hel('div','phone'), ov=hel('div','ov');
+  const draw=()=>{ pDrawOv(ov,pNet); [...tabs.children].forEach(c=>c.classList.toggle('on',c.dataset.k===pNet)) };
+  [['instagram','Instagram'],['facebook','Facebook'],['tiktok','TikTok'],['none','레이어 끄기']].forEach(([k,l])=>{
+    const c=hel('span','chip',l); c.dataset.k=k; c.tabIndex=0; c.setAttribute('role','button');
+    c.onclick=()=>{pNet=k; try{localStorage.setItem('kyu-pnet',k)}catch(e){} draw()};
+    c.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();c.onclick()}}; tabs.appendChild(c)});
+  const play=hel('div','play','▶');
+  const setVideo=url=>{ ph.querySelectorAll('.pph').forEach(x=>x.remove()); const v=hel('video'); v.src=url; v.playsInline=true; v.loop=true; v.preload='metadata'; ph.prepend(v);
+    ph.onclick=()=>{ if(v.paused){v.play(); play.hidden=true} else {v.pause(); play.hidden=false} }; ph.appendChild(play) };
+  if(src.url) setVideo(src.url);
+  else if(src.drive){ const f=hel('iframe'); f.src='https://drive.google.com/file/d/'+src.drive+'/preview'; f.allow='autoplay'; ph.prepend(f); ph.style.cursor='default' }
+  else if(src.file){
+    if(vidCache[src.file]) setVideo(vidCache[src.file]);
+    else { const p=hel('div','pph'); p.appendChild(hel('div',null,src.file.split('/').pop())); const b=hel('button','btn','▶ 영상 불러오기'); b.type='button';
+      b.onclick=async e=>{e.stopPropagation(); b.disabled=true; const u=await localVideoURL(src.file); if(u){vidCache[src.file]=u; setVideo(u)} else {b.disabled=false; b.textContent='찾지 못했어요 · 다시'; if(typeof dirH==='undefined'||!dirH) p.appendChild(hel('div',null,'Studio에서 📁 저장 폴더(콘텐츠)를 먼저 연결해 주세요.'))}};
+      p.appendChild(b); ph.prepend(p) } }
+  ph.appendChild(ov); draw(); pOvDraw=draw;
+  wrap.append(tabs,ph,hel('div','note','빗금 = 버튼·글자에 가려지는 자리 (중요한 자막·얼굴은 피하기)'));
+  return wrap;
+}
+function pSrc(){ const pv=pPicked(); if(pv) return pv.ver.drive?{drive:pv.ver.drive}:pv.ver.file?{file:pv.ver.file}:null;
+  if(hx('pVideo').value==='path'){ if(pFileURL) return {url:pFileURL}; const p=hx('pPath').value.trim(); return p?{file:p}:null } return null }
+function pRenderPrev(force){ const s=pSrc(), key=JSON.stringify(s); if(key===pPrevKey&&!force) return; pPrevKey=key;
+  const b=hx('pPrevBox'); b.textContent=''; pOvDraw=null; if(s) b.appendChild(phoneBox(s)) }
+function pOnVideo(){ hx('pPathL').hidden=hx('pVideo').value!=='path'; pRenderPrev() }
 hx('pVideo').onchange=()=>{pUserPath=hx('pVideo').value==='path'; pOnVideo()};
+hx('pCap').addEventListener('input',()=>{ if(pOvDraw) pOvDraw() });
+hx('pPath').addEventListener('change',()=>{ if(pFileURL){URL.revokeObjectURL(pFileURL); pFileURL=null} pRenderPrev() });
+function pSetFile(f,rel){ if(pFileURL) URL.revokeObjectURL(pFileURL); pFileURL=URL.createObjectURL(f); hx('pPath').value=rel||f.name;
+  hx('pMsg').textContent=rel?'':(typeof dirH!=='undefined'&&dirH?'⚠️ 콘텐츠 폴더 밖의 파일이에요. Claude가 찾을 수 있게 콘텐츠 폴더 안에 넣어 주세요.':'Studio에서 저장 폴더(콘텐츠)를 연결하면 폴더 경로까지 자동으로 들어가요. 지금은 파일 이름만 들어갔어요.');
+  pRenderPrev(true) }
+hx('pPick').onclick=async()=>{
+  try{
+    if(window.showOpenFilePicker){
+      const opt={id:'kyu-post',types:[{description:'영상',accept:{'video/*':['.mp4','.mov','.m4v','.webm']}}]};
+      if(typeof dirH!=='undefined'&&dirH) opt.startIn=dirH;
+      const [h]=await window.showOpenFilePicker(opt); const f=await h.getFile();
+      let rel=null; if(typeof dirH!=='undefined'&&dirH){ try{ const parts=await dirH.resolve(h); if(parts&&parts.length) rel=parts.join('/') }catch(e){} }
+      pSetFile(f,rel);
+    } else hx('pFileIn').click();
+  }catch(e){ if(e&&e.name!=='AbortError') hx('pMsg').textContent='파일을 열지 못했어요.' }
+};
+hx('pFileIn').onchange=()=>{ const f=hx('pFileIn').files[0]; if(f) pSetFile(f,null) };
 hx('pForm').addEventListener('submit',async e=>{e.preventDefault();
   const nets=[]; if(hx('pIG').checked) nets.push('instagram'); if(hx('pFB').checked) nets.push('facebook');
   if(!nets.length){hx('pMsg').textContent='올릴 곳을 하나 이상 골라 주세요.';return}
