@@ -149,6 +149,7 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
 .hubnav a{color:#9aa4b2;text-decoration:none;font-weight:700;font-size:13px;padding:5px 12px;border-radius:999px;cursor:pointer}
 .hubnav a:hover{color:#fff}
 .hubnav a.on{background:#ffcc33;color:#14110a;cursor:default}
+.hubnav a.off{opacity:.35;cursor:not-allowed}
 @media (prefers-reduced-motion:reduce){.prog i{transition:none}}
 /* ---------- KYU hub (Home / Edit) overlay ---------- */
 .hubnav a{user-select:none}
@@ -1076,11 +1077,23 @@ async function api(action,payload){
   if(j.error) throw new Error(j.error);
   return j;
 }
+function saveEdited(){
+  const L=[]; (H.jobs||[]).filter(j=>(j.versions||[]).length&&j.status!=='editing').sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).forEach(j=>{
+    for(let i=j.versions.length-1;i>=0;i--){const v=j.versions[i]; L.push({id:j.id,i,title:j.title||'제목 없음',v:v.v??i+1,file:v.file||'',drive:v.drive||'',done:j.status==='done'&&i===j.versions.length-1})}});
+  try{localStorage.setItem('kyu-edited',JSON.stringify(L))}catch(e){} audioNav();
+}
+function audioNav(){
+  let L=[]; try{L=JSON.parse(localStorage.getItem('kyu-edited')||'[]')}catch(e){}
+  document.querySelectorAll('.hubnav a[href="audio.html"]').forEach(a=>{const off=!L.length; a.classList.toggle('off',off); a.toggleAttribute('aria-disabled',off);
+    a.title=off?'편집한 영상이 있을 때 쓸 수 있어요':'편집한 영상의 소리 보정';
+    a.onclick=e=>{if(a.classList.contains('off')){e.preventDefault(); try{htoast('편집한 영상이 생기면 Audio를 쓸 수 있어요')}catch(x){}}}});
+}
+audioNav();
 async function hubLoad(force){
   if(hubBusy&&!force) return; hubBusy=true; hx('hubSync').textContent='불러오는 중…';
   try{const j=await api('all'); const sig=JSON.stringify(j.data); const changed=sig!==hubSig; hubSig=sig; Object.assign(H,j.data); hubLoaded=true; hubErr('');
     const d=new Date(j.at||Date.now()); hx('hubSync').textContent=hpad(d.getHours())+':'+hpad(d.getMinutes())+' 기준';
-    if(force||changed) safeRender()}
+    saveEdited(); if(force||changed) safeRender()}
   catch(e){ if(e.message!=='auth'){hubErr('저장소에 연결하지 못했어요. 인터넷을 확인하고 ↻를 눌러 주세요.'); } hx('hubSync').textContent='' }
   finally{hubBusy=false}
 }
@@ -1535,7 +1548,7 @@ function jobCard(j){
   const del=hel('button','btn danger','작업 삭제'); del.type='button'; harm(del,'정말 삭제?',()=>hubWrite('delete','jobs',j.id).then(()=>htoast('작업을 지웠어요')));
   const sch=hel('button','btn','📅 예약하기'); sch.type='button'; sch.hidden=!vers.length;
   sch.onclick=()=>{showHub('home'); setTimeout(()=>{hx('pVideo').value=j.id+'|'+vi; pUserPath=false; pOnVideo(); hx('pCap').focus()},50)};
-  if(hasV&&j.status!=='editing') row.append(send,done,sch); row.append(del); info.appendChild(row);
+  if(hasV&&j.status!=='editing'){const au=hel('a','btn','🎚 소리 보정'); au.href='audio.html?job='+encodeURIComponent(j.id)+'&i='+vi; au.style.textDecoration='none'; row.append(send,done,sch,au)} row.append(del); info.appendChild(row);
   card.append(vs,info); return card;
 }
 

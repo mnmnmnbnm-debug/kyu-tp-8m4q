@@ -32,9 +32,6 @@ h1{font-size:22px;margin:22px 0 4px;font-weight:900}
 .box h2{font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
 .box h2 .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#14110a;font-size:12px;font-weight:900}
 .box .how{color:var(--dim);font-size:13px;margin:0 0 12px;line-height:1.5}
-.drop{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--dim);cursor:pointer}
-.drop.over{border-color:var(--accent);color:var(--fg)}
-.drop b{color:var(--fg)}
 video{width:100%;max-height:420px;background:#000;border-radius:10px;display:block}
 .wave{position:relative;margin-top:10px}
 .wave canvas{width:100%;height:150px;display:block;background:#0a0d11;border:1px solid var(--line);border-radius:10px;cursor:crosshair}
@@ -72,12 +69,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <h1>Audio</h1>
 <p class="sub">영상 소리를 고르게 다듬고, 튀는 소리를 바꾸거나 옮기고, 저작권 걱정 없는 배경음을 넣어요.</p>
 
-<div class="grid">
+<div class="box" id="locked" hidden><h2>편집한 영상이 아직 없어요</h2><p class="how" style="margin:6px 0 12px">Edit에서 편집이 끝난 영상이 생기면 여기서 소리를 보정할 수 있어요.</p><a class="btn primary" href="./#edit" style="text-decoration:none">Edit로 가기</a></div>
+<div class="grid" id="main">
 <div>
   <section class="box">
-    <h2><span class="n">1</span>영상 불러오기</h2>
-    <p class="how">찍은 영상(mp4·mov)이나 소리 파일을 끌어다 놓거나 눌러서 골라요.</p>
-    <label class="drop" id="drop"><input type="file" id="file" accept="video/*,audio/*" hidden><b>여기에 파일을 놓거나 눌러서 고르기</b><br><span id="fname">아직 고른 파일이 없어요</span></label>
+    <h2><span class="n">1</span>편집한 영상</h2>
+    <p class="how">Edit에서 편집이 끝난 영상의 소리를 보정해요.</p>
+    <div class="row"><select id="jobSel" aria-label="편집한 영상" style="flex:1;min-width:220px"></select><button class="btn primary" id="loadJob">▶ 불러오기</button></div>
+    <div class="status" id="fname"></div>
+    <label class="btn sm" id="pickWrap" hidden style="margin-top:6px">📂 이 영상 파일 직접 열기<input type="file" id="file" accept="video/*" hidden></label>
     <div id="player" hidden>
       <video id="vid" controls playsinline muted></video>
       <div class="wave"><canvas id="wave" height="150"></canvas></div>
@@ -386,7 +386,7 @@ let debounce=null; const schedule=(fn=processAll)=>{clearTimeout(debounce); debo
 
 /* ---------- loading ---------- */
 async function loadFile(f){
-  fileName=f.name.replace(/\.[^.]+$/,''); $('fname').textContent=f.name; status('파일을 여는 중…',true); $('player').hidden=false;
+  fileName=f.name.replace(/\.[^.]+$/,''); $('fname').textContent='✓ '+f.name; status('파일을 여는 중…',true); $('player').hidden=false;
   stopPlay(); if(vid.src) URL.revokeObjectURL(vid.src); vid.src=URL.createObjectURL(f);
   try{
     actx=actx||new AudioContext(); SR=actx.sampleRate;
@@ -397,10 +397,43 @@ async function loadFile(f){
   }catch(e){console.error(e); status('이 파일의 소리를 읽지 못했어요. mp4로 다시 저장해서 올려 주세요.')}
 }
 $('file').onchange=e=>{if(e.target.files[0]) loadFile(e.target.files[0])};
-const drop=$('drop');
-['dragover','dragenter'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.add('over')}));
-['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.remove('over')}));
-drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f) loadFile(f)});
+/* edited videos from the hub (Edit jobs) */
+let EDITED=[]; try{EDITED=JSON.parse(store.get('kyu-edited')||'[]')}catch(e){}
+const nf=x=>String(x).normalize('NFC');
+function idbRoot(){return new Promise(res=>{try{const r=indexedDB.open('kyu-fs',1); r.onupgradeneeded=()=>r.result.createObjectStore('h'); r.onerror=()=>res(null);
+  r.onsuccess=()=>{try{const q=r.result.transaction('h').objectStore('h').get('root'); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null)}catch(e){res(null)}}}catch(e){res(null)}})}
+async function hchild(d,name,kind){try{return kind==='dir'?await d.getDirectoryHandle(name):await d.getFileHandle(name)}catch(e){}
+  const want=kind==='dir'?'directory':'file'; for await(const [n,h] of d.entries()) if(h.kind===want&&nf(n)===nf(name)) return h; return null}
+async function hfind(d,name,depth){const h=await hchild(d,name,'file'); if(h) return {h,dir:d}; if(depth<=0) return null;
+  for await(const [n,s] of d.entries()) if(s.kind==='directory'){const r=await hfind(s,name,depth-1); if(r) return r} return null}
+let outDir=null;
+async function openEdited(e){
+  if(!e.file) return {err:'drive'};
+  const root=await idbRoot(); if(!root) return {err:'no-folder'};
+  let p='denied'; try{p=await root.queryPermission({mode:'readwrite'}); if(p!=='granted') p=await root.requestPermission({mode:'readwrite'})}catch(x){}
+  if(p!=='granted') return {err:'no-permission'};
+  let parts=nf(e.file).replace(/^.*?콘텐츠\//,'').split('/').filter(Boolean), d=root;
+  if(parts.length>1&&nf(parts[0])===nf(root.name)) parts=parts.slice(1);
+  for(let i=0;i<parts.length-1&&d;i++) d=await hchild(d,parts[i],'dir');
+  let fh=d?await hchild(d,parts[parts.length-1],'file'):null;
+  if(!fh){const r=await hfind(root,parts[parts.length-1],2); if(r){fh=r.h; d=r.dir}}
+  if(!fh) return {err:'not-found'};
+  outDir=d; return {file:await fh.getFile()};
+}
+function cur(){const v=$('jobSel').value; return EDITED.find(x=>x.id+'|'+x.i===v)}
+if(!EDITED.length){$('locked').hidden=false; $('main').hidden=true; document.querySelector('.sub').hidden=true}
+else{
+  EDITED.forEach(x=>{const o=document.createElement('option'); o.value=x.id+'|'+x.i; o.textContent=x.title+' · v'+x.v+(x.done?' ✓ 완료':''); $('jobSel').appendChild(o)});
+  const q=new URLSearchParams(location.search), want=q.get('job')+'|'+q.get('i'); if(EDITED.some(x=>x.id+'|'+x.i===want)) $('jobSel').value=want;
+  const MSG={drive:'이 버전은 Google Drive에만 있어요. 받아서 아래 버튼으로 열어 주세요.','no-folder':'Studio에서 저장 폴더(콘텐츠)를 먼저 연결하거나, 아래 버튼으로 이 영상 파일을 직접 여세요.','no-permission':'폴더 사용 허락이 필요해요. 다시 누르고 크롬 창에서 허용을 눌러 주세요.','not-found':'연결된 폴더에서 이 영상을 찾지 못했어요. 아래 버튼으로 직접 여세요.'};
+  $('loadJob').onclick=async()=>{const e=cur(); if(!e) return; $('loadJob').disabled=true; $('fname').textContent='불러오는 중…'; $('pickWrap').hidden=true; outDir=null;
+    let r; try{r=await openEdited(e)}catch(x){r={err:'not-found'}}
+    $('loadJob').disabled=false;
+    if(r.file){loadFile(r.file)} else {$('fname').textContent='⚠️ '+MSG[r.err]; $('pickWrap').hidden=false}};
+  $('jobSel').onchange=()=>{$('fname').textContent=(cur()||{}).file||''; $('pickWrap').hidden=true};
+  $('fname').textContent=(cur()||{}).file||'';
+  if(q.get('job')) $('loadJob').click();
+}
 vid.addEventListener('loadedmetadata',()=>{$('expVid').disabled=!finalBuf||!vid.videoWidth});
 
 /* ---------- playback (video muted, our audio in sync) ---------- */
@@ -498,8 +531,11 @@ function wav(b){const ch=b.numberOfChannels, L=b.length, buf=new ArrayBuffer(44+
   w('RIFF');u32(36+L*ch*2);w('WAVE');w('fmt ');u32(16);u16(1);u16(ch);u32(b.sampleRate);u32(b.sampleRate*ch*2);u16(ch*2);u16(16);w('data');u32(L*ch*2);
   const d=[...Array(ch)].map((_,c)=>b.getChannelData(c)); for(let i=0;i<L;i++) for(let c=0;c<ch;c++){const s=Math.max(-1,Math.min(1,d[c][i])); v.setInt16(o,s<0?s*0x8000:s*0x7fff,true); o+=2}
   return new Blob([buf],{type:'audio/wav'})}
+async function saveOut(blob,name){
+  if(outDir){try{const fh=await outDir.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(blob); await w.close(); return '‘'+outDir.name+'’ 폴더에 '+name+'로 저장했어요.'}catch(e){console.warn(e)}}
+  dl(blob,name); return '다운로드 폴더에 저장했어요.'}
 function dl(blob,name){const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove()},4000)}
-$('expWav').onclick=()=>{if(finalBuf) dl(wav(finalBuf),fileName+'_소리보정.wav')};
+$('expWav').onclick=async()=>{if(finalBuf) $('expStatus').textContent=await saveOut(wav(finalBuf),fileName+'_소리보정.wav')};
 $('expVid').onclick=async()=>{
   if(!finalBuf||!vid.videoWidth) return;
   const types=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm'];
@@ -522,8 +558,8 @@ $('expVid').onclick=async()=>{
   setTimeout(()=>rec.stop(),300); await done; clearInterval(tick); bar.style.width='100%';
   vid.addEventListener('play',startPlay);
   const ext=mime.startsWith('video/mp4')?'mp4':'webm';
-  dl(new Blob(chunks,{type:mime.split(';')[0]}),fileName+'_소리보정.'+ext);
-  $('expStatus').textContent=ext==='mp4'?'저장했어요. 다운로드 폴더를 확인해 주세요.':'저장했어요 (webm). 인스타에 올릴 땐 mp4로 바꿔야 할 수 있어요.';
+  const msg=await saveOut(new Blob(chunks,{type:mime.split(';')[0]}),fileName+'_소리보정.'+ext);
+  $('expStatus').textContent=msg+(ext==='mp4'?'':' (webm이라 인스타에 올릴 땐 mp4로 바꿔야 할 수 있어요.)');
   btn.disabled=false; $('expWav').disabled=false; setTimeout(()=>{pr.hidden=true; bar.style.width='0'},3000);
 };
 
