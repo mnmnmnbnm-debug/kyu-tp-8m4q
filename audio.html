@@ -1,0 +1,532 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KYU Audio</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{--bg:#0d1014;--panel:#161b22;--panel2:#1c222b;--line:#262d37;--fg:#f2f4f7;--dim:#8a95a5;--accent:#ffcc33;--rec:#ff4d4d;--ok:#4cd28a;
+  --sans:"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;color-scheme:dark}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);padding:0 max(16px,env(safe-area-inset-left)) 60px}
+button,select,input{font:inherit;color:inherit}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.hubnav{display:inline-flex;gap:2px;padding:3px;border:1px solid #2a313b;border-radius:999px}
+.hubnav a{color:#9aa4b2;text-decoration:none;font-weight:700;font-size:13px;padding:5px 12px;border-radius:999px}
+.hubnav a:hover{color:#fff}
+.hubnav a.on{background:var(--accent);color:#14110a}
+.bar .note{color:var(--dim);font-size:13px;margin-left:auto}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:14px;white-space:nowrap}
+.btn:hover{border-color:var(--dim)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:#14110a;border-color:var(--accent);font-weight:700}
+.btn.on{border-color:var(--accent);color:var(--accent)}
+.btn.sm{padding:5px 10px;font-size:13px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=number]{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+.wrap{max-width:1280px;margin:0 auto}
+h1{font-size:22px;margin:22px 0 4px;font-weight:900}
+.sub{color:var(--dim);font-size:14px;margin:0 0 18px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:18px}
+.box h2{font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.box h2 .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#14110a;font-size:12px;font-weight:900}
+.box .how{color:var(--dim);font-size:13px;margin:0 0 12px;line-height:1.5}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--dim);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--fg)}
+.drop b{color:var(--fg)}
+video{width:100%;max-height:420px;background:#000;border-radius:10px;display:block}
+.wave{position:relative;margin-top:10px}
+.wave canvas{width:100%;height:150px;display:block;background:#0a0d11;border:1px solid var(--line);border-radius:10px;cursor:crosshair}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--dim);margin-top:6px;flex-wrap:wrap;align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ab{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.ab button{border:0;background:none;padding:6px 14px;border-radius:999px;cursor:pointer;font-weight:700;font-size:13px;color:var(--dim)}
+.ab button.on{background:var(--accent);color:#14110a}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;font-weight:700}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+.sl{display:grid;grid-template-columns:120px 1fr 44px;gap:10px;align-items:center;margin:8px 0;font-size:14px}
+.sl small{display:block;color:var(--dim);font-size:11px;font-weight:400}
+.sl output{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:right}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.status{font-size:13px;color:var(--dim);min-height:1.4em;margin-top:8px}
+.status.busy{color:var(--accent)}
+.ev{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--panel2)}
+.ev .t{font-family:var(--mono);font-size:13px;color:var(--accent)}
+.ev .ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+.ev .ctl input[type=number]{width:74px}
+.empty{color:var(--dim);font-size:13px;padding:6px 0}
+.tabs2{display:flex;gap:6px;margin-bottom:12px}
+.links a{color:var(--accent)}
+.links{font-size:13px;color:var(--dim);line-height:1.7;margin-top:8px}
+.prog{height:6px;background:#0a0d11;border-radius:6px;overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+</style></head><body>
+<div class="bar">
+  <nav class="hubnav" aria-label="KYU 메뉴"><a href="./#home">Home</a><a href="./#studio">Studio</a><a href="./#edit">Edit</a><a class="on" aria-current="page" href="audio.html">Audio</a></nav>
+  <span class="note">파일은 인터넷에 올라가지 않고 이 브라우저 안에서만 처리돼요.</span>
+</div>
+<div class="wrap">
+<h1>Audio</h1>
+<p class="sub">영상 소리를 고르게 다듬고, 튀는 소리를 바꾸거나 옮기고, 저작권 걱정 없는 배경음을 넣어요.</p>
+
+<div class="grid">
+<div>
+  <section class="box">
+    <h2><span class="n">1</span>영상 불러오기</h2>
+    <p class="how">찍은 영상(mp4·mov)이나 소리 파일을 끌어다 놓거나 눌러서 골라요.</p>
+    <label class="drop" id="drop"><input type="file" id="file" accept="video/*,audio/*" hidden><b>여기에 파일을 놓거나 눌러서 고르기</b><br><span id="fname">아직 고른 파일이 없어요</span></label>
+    <div id="player" hidden>
+      <video id="vid" controls playsinline muted></video>
+      <div class="wave"><canvas id="wave" height="150"></canvas></div>
+      <div class="legend"><span><i style="background:#3b4452"></i>원래 소리</span><span><i style="background:var(--accent)"></i>보정한 소리</span><span><i style="background:rgba(255,77,77,.45)"></i>특수한 소리</span><span>파형을 누르면 그 위치로 이동, 끌면 구간 선택</span></div>
+      <div class="row" style="margin-top:10px">
+        <div class="ab" role="group" aria-label="듣기 선택"><button id="abOrig">원래 소리</button><button id="abNew" class="on">보정한 소리</button></div>
+        <button class="btn sm" id="addSel" disabled>선택한 구간을 특수 소리로 추가</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+  </section>
+
+  <section class="box">
+    <h2><span class="n">3</span>특수한 소리</h2>
+    <p class="how">갑자기 튀는 소리(박수, 문 소리, 기침, 물건 소리)를 자동으로 찾아요. 파형에서 구간을 끌어서 직접 추가해도 돼요. 각각 줄이기, 지우기, 효과음으로 바꾸기, 다른 위치로 옮기기를 고를 수 있어요.</p>
+    <div class="row" style="margin-bottom:10px"><button class="btn sm" id="detect" disabled>다시 찾기</button><span class="status" id="evCount" style="margin:0"></span></div>
+    <div id="events"><div class="empty">영상을 불러오면 여기에 나와요.</div></div>
+  </section>
+</div>
+
+<div>
+  <section class="box">
+    <h2><span class="n">2</span>목소리 보정</h2>
+    <p class="how">처음부터 끝까지 같은 크기, 같은 음질로 들리게 맞춰요. 바꾸면 바로 다시 계산돼요.</p>
+    <div class="chips" id="presets">
+      <button class="chip" data-p="voice">목소리 강조</button>
+      <button class="chip" data-p="noisy">시끄러운 곳</button>
+      <button class="chip" data-p="natural">자연스럽게</button>
+      <button class="chip" data-p="off">보정 안 함</button>
+    </div>
+    <div class="sl"><label for="nr">주변 소음 줄이기<small>에어컨, 차 소리, 웅웅거림</small></label><input type="range" id="nr" min="0" max="100"><output for="nr"></output></div>
+    <div class="sl"><label for="gate">말 사이 조용하게<small>숨소리, 말 쉬는 틈의 잡음</small></label><input type="range" id="gate" min="0" max="100"><output for="gate"></output></div>
+    <div class="sl"><label for="clar">목소리 선명하게<small>먹먹함 줄이고 또렷하게</small></label><input type="range" id="clar" min="0" max="100"><output for="clar"></output></div>
+    <div class="sl"><label for="lev">음량 고르게<small>작은 말은 키우고 큰 말은 줄이기</small></label><input type="range" id="lev" min="0" max="100"><output for="lev"></output></div>
+    <div class="sl"><label for="vol">최종 크기<small>릴스 기준은 0</small></label><input type="range" id="vol" min="-6" max="6" step="1"><output for="vol"></output></div>
+  </section>
+
+  <section class="box">
+    <h2><span class="n">4</span>배경음</h2>
+    <p class="how">직접 만든 곡이라 저작권 걱정이 없어요. 말할 때는 자동으로 작아져요.</p>
+    <div class="tabs2"><button class="btn sm on" id="mGen">곡 만들기</button><button class="btn sm" id="mFile">내 음악 파일</button><button class="btn sm" id="mNone">배경음 없음</button></div>
+    <div id="genBox">
+      <div class="chips" id="styles">
+        <button class="chip" data-s="lofi">로파이 (잔잔)</button>
+        <button class="chip" data-s="bright">밝은 팝</button>
+        <button class="chip" data-s="piano">피아노</button>
+        <button class="chip" data-s="latin">라틴 리듬</button>
+        <button class="chip" data-s="kpop">K-팝 느낌</button>
+      </div>
+      <div class="row"><button class="btn sm" id="newSong">🎲 다른 곡으로</button><button class="btn sm" id="songPrev">▶ 곡만 들어보기</button><span class="status" id="songInfo" style="margin:0"></span></div>
+    </div>
+    <div id="fileBox" hidden>
+      <label class="btn sm" style="display:inline-block">음악 파일 고르기<input type="file" id="mfile" accept="audio/*" hidden></label> <span class="status" id="mfname" style="margin:0"></span>
+      <div class="links">저작권 없는 음악 받는 곳: <a href="https://www.youtube.com/audiolibrary" target="_blank" rel="noopener">YouTube 오디오 보관함</a> · <a href="https://pixabay.com/music/" target="_blank" rel="noopener">Pixabay Music</a> · <a href="https://freemusicarchive.org/" target="_blank" rel="noopener">Free Music Archive</a><br>곡마다 조건이 달라요. "출처 표시 필요"라고 적힌 곡은 캡션에 출처를 넣어 주세요. 인스타 음원과 달리 영상 안에 넣은 음악은 직접 확인해야 해요.</div>
+    </div>
+    <div id="mixBox">
+      <div class="sl"><label for="mvol">배경음 크기</label><input type="range" id="mvol" min="0" max="100"><output for="mvol"></output></div>
+      <div class="sl"><label for="duck">말할 때 줄이기</label><input type="range" id="duck" min="0" max="100"><output for="duck"></output></div>
+    </div>
+  </section>
+
+  <section class="box">
+    <h2><span class="n">5</span>내보내기</h2>
+    <p class="how"><b>영상으로 저장</b>은 영상을 처음부터 끝까지 한 번 재생하면서 새 소리를 입혀요. 그동안 이 탭을 닫거나 다른 탭으로 옮기지 마세요.</p>
+    <div class="row"><button class="btn primary" id="expVid" disabled>🎬 영상으로 저장 (mp4)</button><button class="btn" id="expWav" disabled>🎵 소리만 저장 (wav)</button></div>
+    <div class="prog" id="prog" hidden><i></i></div>
+    <div class="status" id="expStatus"></div>
+  </section>
+</div>
+</div>
+</div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const PRESETS={voice:{nr:60,gate:45,clar:60,lev:70},noisy:{nr:90,gate:70,clar:55,lev:75},natural:{nr:35,gate:20,clar:30,lev:45},off:{nr:0,gate:0,clar:0,lev:0}};
+const DEF={preset:'voice',...PRESETS.voice,vol:0,style:'lofi',seed:1,mmode:'gen',mvol:35,duck:70};
+let S=Object.assign({},DEF); try{Object.assign(S,JSON.parse(store.get('kyu-audio')||'{}'))}catch(e){}
+if(S.mmode==='file') S.mmode='gen';
+const save=()=>store.set('kyu-audio',JSON.stringify(S));
+
+/* ---------- state ---------- */
+let SR=48000, orig=null, origSt=null, voice=null, sfxTrack=null, music=null, userMusic=null, finalBuf=null, origBuf=null;
+let events=[], sel=null, listen='new', fileName='audio';
+let actx=null, src=null;
+const vid=$('vid');
+const status=(t,busy)=>{const s=$('status'); s.textContent=t||''; s.classList.toggle('busy',!!busy)};
+const fmt=t=>{t=Math.max(0,t); const m=Math.floor(t/60), s=t-m*60; return m+':'+(s<10?'0':'')+s.toFixed(1)};
+const dbg=x=>Math.pow(10,x/20);
+function rng(seed){let a=seed>>>0||1; return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ---------- FFT ---------- */
+const N=2048, HOP=512, HB=N/2+1;
+const COS=new Float32Array(N/2), SIN=new Float32Array(N/2), REV=new Uint32Array(N), WIN=new Float32Array(N);
+for(let i=0;i<N/2;i++){COS[i]=Math.cos(2*Math.PI*i/N); SIN[i]=-Math.sin(2*Math.PI*i/N)}
+for(let i=0,b=Math.log2(N);i<N;i++){let r=0; for(let j=0;j<b;j++) r|=((i>>j)&1)<<(b-1-j); REV[i]=r; WIN[i]=0.5-0.5*Math.cos(2*Math.PI*i/N)}
+function fft(re,im,inv){
+  for(let i=0;i<N;i++){const j=REV[i]; if(j>i){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t}}
+  for(let size=2;size<=N;size<<=1){const h=size>>1, step=N/size;
+    for(let i=0;i<N;i+=size) for(let j=0;j<h;j++){const k=j*step, wr=COS[k], wi=inv?-SIN[k]:SIN[k], a=i+j, b=a+h;
+      const tr=re[b]*wr-im[b]*wi, ti=re[b]*wi+im[b]*wr; re[b]=re[a]-tr; im[b]=im[a]-ti; re[a]+=tr; im[a]+=ti}}
+  if(inv) for(let i=0;i<N;i++){re[i]/=N; im[i]/=N}
+}
+
+/* ---------- 1. noise reduction (spectral gating) ---------- */
+function denoise(x,amt){
+  if(amt<=0) return x.slice();
+  const L=x.length, F=Math.ceil(L/HOP)+1, pad=new Float32Array(L+2*N); pad.set(x,N/2);
+  const en=new Float32Array(F);
+  for(let f=0;f<F;f++){let s=0,o=f*HOP; for(let i=0;i<N;i+=4){const v=pad[o+i]; s+=v*v} en[f]=s}
+  const idx=[...en.keys()].sort((a,b)=>en[a]-en[b]).slice(0,Math.max(8,Math.floor(F*0.12)));
+  const re=new Float32Array(N), im=new Float32Array(N), noise=new Float32Array(HB);
+  for(const f of idx){const o=f*HOP; for(let i=0;i<N;i++){re[i]=pad[o+i]*WIN[i]; im[i]=0} fft(re,im); for(let k=0;k<HB;k++) noise[k]+=Math.hypot(re[k],im[k])}
+  for(let k=0;k<HB;k++) noise[k]/=idx.length;
+  const s=amt/100, over=1+3.5*s, floor=0.3-0.25*s, out=new Float32Array(L+2*N), prev=new Float32Array(HB).fill(1), g=new Float32Array(HB);
+  for(let f=0;f<F;f++){const o=f*HOP;
+    for(let i=0;i<N;i++){re[i]=pad[o+i]*WIN[i]; im[i]=0}
+    fft(re,im);
+    for(let k=0;k<HB;k++){const m2=re[k]*re[k]+im[k]*im[k], n2=noise[k]*noise[k]*over*over, snr=m2/(n2+1e-12); let v=snr/(1+snr); v=floor+(1-floor)*v; v=Math.max(v,prev[k]*0.8); g[k]=v}
+    for(let k=0;k<HB;k++){const v=(g[Math.max(0,k-1)]+g[k]*2+g[Math.min(HB-1,k+1)])/4; prev[k]=g[k]; re[k]*=v; im[k]*=v; if(k>0&&k<N/2){re[N-k]=re[k]; im[N-k]=-im[k]}}
+    fft(re,im,true);
+    for(let i=0;i<N;i++) out[o+i]+=re[i]*WIN[i]/1.5;
+  }
+  return out.subarray(N/2,N/2+L).slice();
+}
+
+/* ---------- 2. EQ + compressor ---------- */
+async function eq(x,clar){
+  const ctx=new OfflineAudioContext(1,x.length,SR), b=ctx.createBuffer(1,x.length,SR); b.copyToChannel(x,0);
+  const s=ctx.createBufferSource(); s.buffer=b; const c=clar/100;
+  const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=70+30*c; hp.Q.value=0.7;
+  const mud=ctx.createBiquadFilter(); mud.type='peaking'; mud.frequency.value=280; mud.Q.value=1; mud.gain.value=-4*c;
+  const pres=ctx.createBiquadFilter(); pres.type='peaking'; pres.frequency.value=3200; pres.Q.value=0.9; pres.gain.value=5*c;
+  const air=ctx.createBiquadFilter(); air.type='highshelf'; air.frequency.value=9000; air.gain.value=2*c;
+  const ess=ctx.createBiquadFilter(); ess.type='peaking'; ess.frequency.value=7000; ess.Q.value=2; ess.gain.value=-2*c;
+  s.connect(hp).connect(mud).connect(pres).connect(air).connect(ess).connect(ctx.destination); s.start();
+  return (await ctx.startRendering()).getChannelData(0).slice();
+}
+
+/* ---------- 3. gate + leveling + limiter ---------- */
+function rmsFrames(x,win){const n=Math.ceil(x.length/win), r=new Float32Array(n); for(let f=0;f<n;f++){let s=0,c=0; for(let i=f*win;i<Math.min(x.length,(f+1)*win);i++){s+=x[i]*x[i];c++} r[f]=Math.sqrt(s/Math.max(1,c))} return r}
+function pct(a,p){const b=Float32Array.from(a).sort(); return b[Math.min(b.length-1,Math.floor(b.length*p))]}
+function applyFrameGain(x,gain,win){const L=x.length; for(let i=0;i<L;i++){const fp=i/win-0.5, f0=Math.max(0,Math.floor(fp)), f1=Math.min(gain.length-1,f0+1), t=Math.min(1,Math.max(0,fp-f0)); x[i]*=gain[f0]*(1-t)+gain[f1]*t}}
+function gateLevel(x,gateAmt,levAmt){
+  const win=Math.round(SR*0.02), r=rmsFrames(x,win), nf=Math.max(pct(r,0.1),1e-5), thr=nf*2.8, n=r.length;
+  const speech=pct(r,0.75);
+  const g=new Float32Array(n).fill(1);
+  if(gateAmt>0){const minG=dbg(-6-18*gateAmt/100); let cur=1;
+    for(let f=0;f<n;f++){let t=r[f]>=thr?1:Math.max(minG,Math.pow(r[f]/thr,1.5)); cur=t>cur?cur+(t-cur)*0.6:cur+(t-cur)*0.12; g[f]=cur}}
+  if(levAmt>0){const a=levAmt/100, target=speech, d=new Float32Array(n); let last=1;
+    for(let f=0;f<n;f++){if(r[f]>thr*1.4){last=Math.min(4,Math.max(0.45,target/r[f]))} d[f]=last}
+    const sm=new Float32Array(n), w=12, P=new Float64Array(n+1);
+    for(let f=0;f<n;f++) P[f+1]=P[f]+Math.log(d[f]);
+    for(let f=0;f<n;f++){const a=Math.max(0,f-w), b=Math.min(n,f+w+1); sm[f]=Math.exp((P[b]-P[a])/(b-a))}
+    for(let f=0;f<n;f++) g[f]*=Math.pow(sm[f],a)}
+  applyFrameGain(x,g,win); return x;
+}
+function normalize(x,volDb){
+  const win=Math.round(SR*0.05), r=rmsFrames(x,win), thr=pct(r,0.5); let s=0,c=0;
+  for(const v of r) if(v>=thr){s+=v*v;c++}
+  const rms=Math.sqrt(s/Math.max(1,c)), k=rms>0?dbg(-17+volDb)/rms:1; for(let i=0;i<x.length;i++) x[i]*=k; return x;
+}
+function limit(chs,ceil=0.89){
+  const L=chs[0].length, la=Math.round(SR*0.005), rel=Math.exp(-1/(SR*0.06)), pk=new Float32Array(L);
+  for(let i=0;i<L;i++){let m=0; for(const c of chs) m=Math.max(m,Math.abs(c[i])); pk[i]=m}
+  const q=[]; let g=1; const need=new Float32Array(L);
+  for(let i=L-1,m=0;i>=0;i--){ // running max over lookahead window (approx, block)
+    m=pk[i]; for(let j=1;j<=la&&i+j<L;j+=8) m=Math.max(m,pk[i+j]); need[i]=m>ceil?ceil/m:1}
+  for(let i=0;i<L;i++){const t=need[i]; g=t<g?t:1-(1-g)*rel; if(g>t) g=t; for(const c of chs) c[i]*=g}
+}
+
+/* ---------- special sounds ---------- */
+function detectEvents(x){
+  const win=Math.round(SR*0.01), r=rmsFrames(x,win), n=r.length, blk=100, med=new Float32Array(n);
+  for(let b=0;b<n;b+=blk){const m=pct(r.subarray(Math.max(0,b-blk),Math.min(n,b+2*blk)),0.5); med.fill(m,b,Math.min(n,b+blk))}
+  const flag=[]; for(let f=0;f<n;f++) if(r[f]>Math.max(med[f]*5,0.03)) flag.push(f);
+  const ev=[]; for(const f of flag){const last=ev[ev.length-1]; if(last&&f-last.e<=8) last.e=f; else ev.push({s:f,e:f})}
+  return ev.map(e=>({start:Math.max(0,(e.s-3)*win/SR),end:Math.min(x.length/SR,(e.e+4)*win/SR)})).filter(e=>e.end-e.start<0.9).slice(0,30)
+    .map(e=>({...e,action:'keep',sfx:'pop',move:0,auto:true}));
+}
+function synthSfx(type,dur){
+  const L=Math.round(SR*dur), y=new Float32Array(L), R=rng(7);
+  for(let i=0;i<L;i++){const t=i/SR, p=t/dur;
+    if(type==='pop'){const f=650*Math.exp(-t*30)+140; y[i]=Math.sin(2*Math.PI*f*t)*Math.exp(-t*28)*0.9}
+    else if(type==='ding'){y[i]=(Math.sin(2*Math.PI*1760*t)+0.4*Math.sin(2*Math.PI*2640*t)+0.2*Math.sin(2*Math.PI*4400*t))*Math.exp(-t*5)*0.45*Math.min(1,t*400)}
+    else if(type==='whoosh'){y[i]=(R()*2-1)*Math.sin(Math.PI*p)**2*0.55}
+    else if(type==='boing'){y[i]=Math.sin(2*Math.PI*(260*t+40*Math.sin(2*Math.PI*14*t)/14*(1-p)))*Math.exp(-t*4)*0.7}
+    else if(type==='click'){y[i]=(R()*2-1)*Math.exp(-t*300)*0.8}
+    else if(type==='beep'){y[i]=Math.sin(2*Math.PI*1000*t)*0.35*Math.min(1,t*200,(dur-t)*200)}
+  }
+  if(type==='whoosh'){let a=0,b=0; for(let i=0;i<L;i++){const c=0.02+0.25*Math.sin(Math.PI*i/L); a+=c*(y[i]-a); b+=c*(a-b); y[i]=b*2.2}}
+  return y;
+}
+const SFXLEN={pop:0.25,ding:0.9,whoosh:0.5,boing:0.7,click:0.08};
+function applyEvents(v,o){
+  const sfx=new Float32Array(v.length), fade=Math.round(SR*0.012);
+  const duck=(a,b,amt)=>{for(let i=a;i<b;i++){const e=Math.min(1,(i-a)/fade,(b-1-i)/fade); v[i]*=1-(1-amt)*Math.max(0,e)}};
+  for(const e of events){const a=Math.max(0,Math.round(e.start*SR)), b=Math.min(v.length,Math.round(e.end*SR)); if(b<=a) continue;
+    if(e.action==='lower') duck(a,b,dbg(-18));
+    else if(e.action==='mute') duck(a,b,0);
+    else if(e.action==='replace'){duck(a,b,0); const s=e.sfx==='beep'?synthSfx('beep',(b-a)/SR):synthSfx(e.sfx,SFXLEN[e.sfx]); let pk=0; for(let i=a;i<b;i++) pk=Math.max(pk,Math.abs(o[i])); pk=pk||0.3; const k=Math.min(1,pk*1.2)/0.9;
+      for(let i=0;i<s.length&&a+i<sfx.length;i++) sfx[a+i]+=s[i]*k}
+    else if(e.action==='move'&&e.move){const seg=v.slice(a,b); duck(a,b,0); const d=Math.round((e.start+e.move)*SR);
+      for(let i=0;i<seg.length;i++){const j=d+i; if(j>=0&&j<sfx.length){const f=Math.min(1,i/fade,(seg.length-1-i)/fade); sfx[j]+=seg[i]*f}}}
+  }
+  return sfx;
+}
+
+/* ---------- music generator (original, copyright-free) ---------- */
+const STY={lofi:{name:'로파이',bpm:[72,84]},bright:{name:'밝은 팝',bpm:[108,120]},piano:{name:'피아노',bpm:[66,78]},latin:{name:'라틴 리듬',bpm:[90,98]},kpop:{name:'K-팝 느낌',bpm:[118,128]}};
+const PROGS=[[0,4,5,3],[5,3,0,4],[0,5,1,4],[3,4,2,5],[0,3,4,3],[5,4,3,4]];
+const MAJ=[0,2,4,5,7,9,11], KEYS=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+const mf=m=>440*Math.pow(2,(m-69)/12);
+function genMusic(style,seed,dur){
+  const R=rng(seed*7919+style.length), st=STY[style]||STY.lofi, bpm=Math.round(st.bpm[0]+R()*(st.bpm[1]-st.bpm[0])), beat=60/bpm;
+  const key=[0,2,5,7,9,10,3][Math.floor(R()*7)], root=48+key, prog=PROGS[Math.floor(R()*PROGS.length)];
+  const L=Math.round(SR*dur), y=new Float32Array(L);
+  const note=(deg,oct)=>root+12*oct+MAJ[((deg%7)+7)%7]+12*Math.floor(deg/7);
+  const tone=(t0,d,f,amp,kind)=>{const a=Math.round(t0*SR); if(a>=L) return; const n=Math.min(L-a,Math.round((d+0.6)*SR));
+    if(kind==='pluck'){const P=Math.max(2,Math.round(SR/f)), buf=new Float32Array(P); for(let i=0;i<P;i++) buf[i]=R()*2-1; let p=0;
+      for(let i=0;i<n;i++){const v=buf[p], nx=buf[(p+1)%P]; buf[p]=(v+nx)*0.4985; y[a+i]+=v*amp*(i<d*SR?1:Math.exp(-(i-d*SR)/(SR*0.05))); p=(p+1)%P} return}
+    for(let i=0;i<n;i++){const t=i/SR; let v, env;
+      if(kind==='ep'){env=Math.min(1,t*200)*Math.exp(-t*1.6)*(t<d?1:Math.exp(-(t-d)*12)); v=Math.sin(2*Math.PI*f*t)+0.25*Math.sin(4*Math.PI*f*t)*Math.exp(-t*6); v*=1+0.08*Math.sin(2*Math.PI*4.5*t)}
+      else if(kind==='piano'){env=Math.min(1,t*500)*Math.exp(-t*2.4)*(t<d?1:Math.exp(-(t-d)*10)); v=Math.sin(2*Math.PI*f*t)+0.5*Math.sin(4*Math.PI*f*t)*Math.exp(-t*3)+0.2*Math.sin(6*Math.PI*f*t)*Math.exp(-t*5)}
+      else if(kind==='pad'){env=Math.min(1,t/0.4)*(t<d?1:Math.exp(-(t-d)*4)); v=Math.sin(2*Math.PI*f*t)+0.5*Math.sin(2*Math.PI*f*1.004*t)+0.3*Math.sin(4*Math.PI*f*t)}
+      else if(kind==='bass'){env=Math.min(1,t*300)*(t<d?Math.exp(-t*1.2):Math.exp(-(t-d)*20)); v=Math.sin(2*Math.PI*f*t)+0.3*Math.sin(4*Math.PI*f*t)}
+      else {env=Math.min(1,t*300)*Math.exp(-t*3)*(t<d?1:Math.exp(-(t-d)*15)); v=Math.sin(2*Math.PI*f*t)}
+      y[a+i]+=v*env*amp}};
+  const drum=(t0,kind,amp)=>{const a=Math.round(t0*SR); if(a>=L) return; const n=Math.min(L-a,Math.round(SR*0.35));
+    for(let i=0;i<n;i++){const t=i/SR; let v=0;
+      if(kind==='kick') v=Math.sin(2*Math.PI*(45*t+(110/18)*(1-Math.exp(-t*18))))*Math.exp(-t*9);
+      else if(kind==='snare') v=((R()*2-1)*0.7*Math.exp(-t*16)+Math.sin(2*Math.PI*190*t)*0.5*Math.exp(-t*25));
+      else if(kind==='clap') v=(R()*2-1)*(Math.exp(-t*30)+(t>0.012?0.6*Math.exp(-(t-0.012)*25):0));
+      else if(kind==='hat'){v=(R()*2-1)*Math.exp(-t*90)}
+      else if(kind==='rim') v=Math.sin(2*Math.PI*1700*t)*Math.exp(-t*60);
+      y[a+i]+=v*amp}};
+  const bars=Math.ceil(dur/(beat*4))+1;
+  let mel=4;
+  for(let b=0;b<bars;b++){const t=b*beat*4, deg=prog[b%4], intro=b<1;
+    const chord=[deg,deg+2,deg+4,deg+6];
+    if(style==='lofi'){chord.forEach((c,i)=>tone(t+i*0.03,beat*3.6,mf(note(c,1)),0.09,'ep')); tone(t,beat*1.8,mf(note(deg,-1)),0.22,'bass'); tone(t+beat*2.5,beat,mf(note(deg,-1)),0.16,'bass');
+      if(!intro) for(let k=0;k<4;k++){const sw=k%2?beat*0.08:0; if(k===0||(k===2&&R()<0.5)) drum(t+k*beat,'kick',0.5); if(k===1||k===3) drum(t+k*beat,'snare',0.18); drum(t+k*beat,'hat',0.06); drum(t+k*beat+beat/2+sw,'hat',0.04)}
+      if(R()<0.6) for(let k=0;k<3;k++){if(R()<0.55){mel=Math.max(2,Math.min(9,mel+[-2,-1,1,2][Math.floor(R()*4)])); tone(t+(k*1.3+R()*0.3)*beat,beat*0.9,mf(note([0,1,2,4,5,7,8,9][mel%8]+0,2)),0.05,'piano')}}}
+    else if(style==='piano'){[0,2,4,7,4,2,0,2].forEach((o,i)=>tone(t+i*beat/2,beat*1.2,mf(note(deg+[0,2,4,7,9,7,4,2][i],o>4?1:0)),0.11,'piano')); tone(t,beat*4,mf(note(deg,-1)),0.12,'piano');
+      if(b%2===1){mel=Math.max(4,Math.min(11,mel+[-2,-1,1,2][Math.floor(R()*4)])); tone(t+beat*2,beat*1.6,mf(note(mel,1)),0.07,'piano')}}
+    else if(style==='bright'||style==='kpop'){
+      chord.slice(0,3).forEach(c=>tone(t,beat*4,mf(note(c,1)),0.035,'pad'));
+      for(let k=0;k<8;k++) tone(t+k*beat/2,beat*0.4,mf(note(chord[[0,1,2,1,0,2,1,2][k]],2)),0.13,'pluck');
+      for(let k=0;k<4;k++) tone(t+k*beat,beat*0.9,mf(note(deg,-1)),0.2,'bass');
+      if(!intro) for(let k=0;k<4;k++){drum(t+k*beat,'kick',style==='kpop'?0.55:0.45); if(k%2) drum(t+k*beat,style==='kpop'?'snare':'clap',0.2); drum(t+k*beat+beat/2,'hat',0.07); if(style==='kpop'){drum(t+k*beat+beat/4,'hat',0.035); drum(t+k*beat+beat*3/4,'hat',0.035)}}}
+    else if(style==='latin'){
+      const s16=beat/4;
+      for(let k=0;k<4;k++) tone(t+k*beat,beat*0.8,mf(note(deg,-1)),0.22,'bass');
+      [0,3,6,8,11,14].forEach(i=>tone(t+i*s16,s16*1.5,mf(note(chord[i%3],1)),0.1,'pluck'));
+      if(!intro) for(let half=0;half<2;half++){const h=t+half*beat*2; drum(h,'kick',0.5); drum(h+beat,'kick',0.45); drum(h+3*s16,'snare',0.2); drum(h+6*s16,'snare',0.2); for(let k=0;k<4;k++) drum(h+k*beat/2,'hat',0.05); drum(h+beat*1.5,'rim',0.12)}}
+  }
+  if(style==='lofi'){let a=0; for(let i=0;i<L;i++){a+=0.35*(y[i]-a); y[i]=a} const R2=rng(seed); for(let i=0;i<L;i+=Math.floor(SR*0.03+R2()*SR*0.2)) y[i]+=(R2()*2-1)*0.08}
+  let pk=0; for(let i=0;i<L;i++) pk=Math.max(pk,Math.abs(y[i]));
+  const fi=SR*1, fo=SR*2.5; for(let i=0;i<L;i++){y[i]=y[i]/(pk||1)*0.85*Math.min(1,i/fi,(L-i)/fo)}
+  return {buf:y,info:`${st.name} · ${bpm} BPM · ${KEYS[key]} 장조`};
+}
+
+/* ---------- pipeline ---------- */
+let busy=false, again=false, songCache=null;
+async function processAll(){
+  if(!orig) return; if(busy){again=true; return} busy=true; again=false;
+  status('소리를 다듬는 중…',true); await new Promise(r=>setTimeout(r,30));
+  const t0=performance.now();
+  try{
+    let v=denoise(orig,S.nr); await new Promise(r=>setTimeout(r,0));
+    v=await eq(v,S.clar);
+    if(S.clar>0){ // gentle compression
+      const ctx=new OfflineAudioContext(1,v.length,SR), b=ctx.createBuffer(1,v.length,SR); b.copyToChannel(v,0); const s=ctx.createBufferSource(); s.buffer=b;
+      const c=ctx.createDynamicsCompressor(); c.threshold.value=-26; c.ratio.value=2.5; c.knee.value=8; c.attack.value=0.006; c.release.value=0.18;
+      s.connect(c).connect(ctx.destination); s.start(); v=(await ctx.startRendering()).getChannelData(0).slice()}
+    gateLevel(v,S.gate,S.lev); normalize(v,S.vol);
+    if(S.preset==='off'&&!S.nr&&!S.gate&&!S.clar&&!S.lev){v=orig.slice(); normalize(v,S.vol)}
+    voice=v; sfxTrack=applyEvents(voice,orig);
+    await buildMusic(false); mixFinal();
+    status(`다 됐어요 (${((performance.now()-t0)/1000).toFixed(1)}초). 영상을 재생해서 들어 보세요.`);
+  }catch(e){console.error(e); status('계산 중 문제가 생겼어요: '+e.message)}
+  busy=false; drawWave(); if(again) processAll();
+}
+async function buildMusic(force){
+  const dur=orig?orig.length/SR:60;
+  if(S.mmode==='gen'){const k=S.style+'|'+S.seed+'|'+dur.toFixed(2); if(force||!songCache||songCache.k!==k){const g=genMusic(S.style,S.seed,dur); songCache={k,...g}} music=songCache.buf; $('songInfo').textContent=songCache.info}
+  else if(S.mmode==='file'&&userMusic){const L=orig?orig.length:userMusic.length; music=new Float32Array(L); for(let i=0;i<L;i++) music[i]=userMusic[i%userMusic.length]; const fo=SR*2.5; for(let i=Math.max(0,L-fo);i<L;i++) music[i]*=(L-i)/fo}
+  else music=null;
+}
+function mixFinal(){
+  if(!voice) return;
+  const L=voice.length, l=new Float32Array(L), r=new Float32Array(L);
+  let duckEnv=null;
+  if(music){const win=Math.round(SR*0.01), rr=rmsFrames(voice,win), thr=Math.max(pct(rr,0.3),1e-4)*2.5; duckEnv=new Float32Array(rr.length); let e=0;
+    for(let f=0;f<rr.length;f++){const t=rr[f]>thr?1:0; e=t>e?e+(t-e)*0.35:e+(t-e)*0.03; duckEnv[f]=1-(S.duck/100)*0.8*e}
+    const g=Math.pow(S.mvol/100,1.6)*0.6;
+    for(let i=0;i<L;i++){const m=music[i]||0, d=duckEnv[Math.min(duckEnv.length-1,Math.floor(i/win))]; l[i]=r[i]=m*g*d}}
+  for(let i=0;i<L;i++){const v=voice[i]+sfxTrack[i]; l[i]+=v; r[i]+=v}
+  limit([l,r]);
+  const b=new AudioBuffer({length:L,numberOfChannels:2,sampleRate:SR}); b.copyToChannel(l,0); b.copyToChannel(r,1); finalBuf=b;
+  $('expVid').disabled=!vid.videoWidth; $('expWav').disabled=false;
+  if(!vid.paused) startPlay();
+}
+let debounce=null; const schedule=(fn=processAll)=>{clearTimeout(debounce); debounce=setTimeout(fn,350)};
+
+/* ---------- loading ---------- */
+async function loadFile(f){
+  fileName=f.name.replace(/\.[^.]+$/,''); $('fname').textContent=f.name; status('파일을 여는 중…',true); $('player').hidden=false;
+  stopPlay(); if(vid.src) URL.revokeObjectURL(vid.src); vid.src=URL.createObjectURL(f);
+  try{
+    actx=actx||new AudioContext(); SR=actx.sampleRate;
+    const ab=await f.arrayBuffer(), dec=await actx.decodeAudioData(ab);
+    const L=dec.length, m=new Float32Array(L); for(let c=0;c<dec.numberOfChannels;c++){const d=dec.getChannelData(c); for(let i=0;i<L;i++) m[i]+=d[i]/dec.numberOfChannels}
+    orig=m; origBuf=dec; events=detectEvents(orig); renderEvents(); $('detect').disabled=false;
+    await processAll();
+  }catch(e){console.error(e); status('이 파일의 소리를 읽지 못했어요. mp4로 다시 저장해서 올려 주세요.')}
+}
+$('file').onchange=e=>{if(e.target.files[0]) loadFile(e.target.files[0])};
+const drop=$('drop');
+['dragover','dragenter'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.add('over')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f) loadFile(f)});
+vid.addEventListener('loadedmetadata',()=>{$('expVid').disabled=!finalBuf||!vid.videoWidth});
+
+/* ---------- playback (video muted, our audio in sync) ---------- */
+let segStop=null;
+function stopPlay(){if(src){try{src.stop()}catch(e){} src.disconnect(); src=null}}
+function startPlay(){stopPlay(); if(!actx) return; actx.resume(); const b=listen==='orig'?origBuf:finalBuf; if(!b) return;
+  src=actx.createBufferSource(); src.buffer=b; src.connect(actx.destination); src.start(0,Math.min(b.duration,vid.currentTime))}
+vid.addEventListener('play',startPlay); vid.addEventListener('pause',stopPlay); vid.addEventListener('seeking',()=>{if(!vid.paused) startPlay()}); vid.addEventListener('ended',stopPlay);
+vid.addEventListener('volumechange',()=>{if(!vid.muted) vid.muted=true});
+function setListen(m){listen=m; $('abOrig').classList.toggle('on',m==='orig'); $('abNew').classList.toggle('on',m==='new'); if(!vid.paused) startPlay()}
+$('abOrig').onclick=()=>setListen('orig'); $('abNew').onclick=()=>setListen('new');
+function playRange(a,b){clearTimeout(segStop); vid.currentTime=a; vid.play(); segStop=setTimeout(()=>vid.pause(),(b-a)*1000+250)}
+
+/* ---------- waveform ---------- */
+const cv=$('wave'); let drag=null;
+function drawWave(){
+  const w=cv.clientWidth, h=150, dpr=devicePixelRatio||1; if(!w) return; cv.width=w*dpr; cv.height=h*dpr; const g=cv.getContext('2d'); g.scale(dpr,dpr); g.clearRect(0,0,w,h);
+  if(!orig) return; const L=orig.length, dur=L/SR, X=t=>t/dur*w;
+  for(const e of events){g.fillStyle='rgba(255,77,77,.28)'; g.fillRect(X(e.start),0,Math.max(2,X(e.end)-X(e.start)),h); if(e.action==='move'&&e.move){g.fillStyle='rgba(76,210,138,.3)'; g.fillRect(X(e.start+e.move),0,Math.max(2,X(e.end)-X(e.start)),h)}}
+  if(sel){g.fillStyle='rgba(255,204,51,.18)'; g.fillRect(X(Math.min(sel.a,sel.b)),0,Math.abs(X(sel.b)-X(sel.a)),h)}
+  const lane=(arr,col,sc)=>{if(!arr) return; g.fillStyle=col; const step=L/w; for(let x=0;x<w;x++){let mx=0; const a=Math.floor(x*step), b=Math.min(L,Math.floor((x+1)*step)); for(let i=a;i<b;i+=4){const v=Math.abs(arr[i]); if(v>mx) mx=v} const hh=Math.min(1,mx*sc)*(h/2-4); g.fillRect(x,h/2-hh,1,Math.max(1,hh*2))}};
+  let om=0; for(let i=0;i<L;i+=64) om=Math.max(om,Math.abs(orig[i]));
+  lane(orig,'#3b4452',0.95/(om||1));
+  if(finalBuf&&listen==='new'){lane(finalBuf.getChannelData(0),'rgba(255,204,51,.85)',0.95/0.89)}
+  g.fillStyle='#fff'; g.fillRect(X(vid.currentTime||0),0,2,h);
+}
+const tAt=e=>{const r=cv.getBoundingClientRect(); return Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*(orig?orig.length/SR:0)};
+cv.addEventListener('pointerdown',e=>{if(!orig) return; cv.setPointerCapture(e.pointerId); drag={a:tAt(e),x:e.clientX}});
+cv.addEventListener('pointermove',e=>{if(!drag) return; if(Math.abs(e.clientX-drag.x)>5){sel={a:drag.a,b:tAt(e)}; $('addSel').disabled=false; drawWave()}});
+cv.addEventListener('pointerup',e=>{if(!drag) return; if(Math.abs(e.clientX-drag.x)<=5){vid.currentTime=drag.a; sel=null; $('addSel').disabled=true} drag=null; drawWave()});
+(function loop(){if(!vid.paused) drawWave(); requestAnimationFrame(loop)})();
+addEventListener('resize',drawWave);
+$('addSel').onclick=()=>{if(!sel) return; const a=Math.min(sel.a,sel.b), b=Math.max(sel.a,sel.b); events.push({start:a,end:b,action:'mute',sfx:'pop',move:0,auto:false}); events.sort((x,y)=>x.start-y.start); sel=null; $('addSel').disabled=true; renderEvents(); refreshEvents()};
+$('detect').onclick=()=>{if(!orig) return; const manual=events.filter(e=>!e.auto); events=[...detectEvents(orig),...manual].sort((x,y)=>x.start-y.start); renderEvents(); refreshEvents()};
+
+/* ---------- events UI ---------- */
+function refreshEvents(){if(!voice) return; schedule(async()=>{status('특수한 소리를 바꾸는 중…',true); await processAll()})}
+function renderEvents(){
+  const box=$('events'); box.innerHTML='';
+  $('evCount').textContent=orig?(events.length?`${events.length}개 찾았어요`:'튀는 소리가 없어요'):'';
+  if(!events.length){box.innerHTML='<div class="empty">'+(orig?'자동으로 찾은 소리가 없어요. 파형에서 구간을 끌어서 추가할 수 있어요.':'영상을 불러오면 여기에 나와요.')+'</div>'; return}
+  events.forEach((e,i)=>{
+    const row=document.createElement('div'); row.className='ev';
+    row.innerHTML=`<span class="t">${fmt(e.start)}–${fmt(e.end)}</span>
+    <div class="ctl"><button class="btn sm" data-a="play">▶ 듣기</button>
+      <select data-a="action" aria-label="처리 방법"><option value="keep">그대로</option><option value="lower">작게</option><option value="mute">지우기</option><option value="replace">효과음으로 바꾸기</option><option value="move">다른 위치로 옮기기</option></select>
+      <select data-a="sfx" aria-label="효과음"><option value="pop">뽁</option><option value="ding">띵</option><option value="whoosh">휙</option><option value="boing">뾰잉</option><option value="click">딸깍</option><option value="beep">삐 (가리기)</option></select>
+      <span data-a="movebox">옮길 거리 <input type="number" step="0.1" data-a="move" aria-label="옮길 초"> 초</span>
+      <button class="btn sm" data-a="del" title="목록에서 빼기">✕</button></div>`;
+    const q=s=>row.querySelector(`[data-a="${s}"]`);
+    q('action').value=e.action; q('sfx').value=e.sfx; q('move').value=e.move;
+    const vis=()=>{q('sfx').hidden=e.action!=='replace'; q('movebox').hidden=e.action!=='move'}; vis();
+    q('play').onclick=()=>playRange(Math.max(0,e.start-0.6),e.end+0.6);
+    q('action').onchange=ev=>{e.action=ev.target.value; vis(); refreshEvents()};
+    q('sfx').onchange=ev=>{e.sfx=ev.target.value; refreshEvents()};
+    q('move').oninput=ev=>{e.move=parseFloat(ev.target.value)||0; refreshEvents()};
+    q('del').onclick=()=>{events.splice(i,1); renderEvents(); refreshEvents()};
+    box.appendChild(row)});
+  drawWave();
+}
+
+/* ---------- controls ---------- */
+const sliders=['nr','gate','clar','lev','vol','mvol','duck'];
+function syncUI(){
+  sliders.forEach(k=>{$(k).value=S[k]; $(k).nextElementSibling.textContent=k==='vol'?(S[k]>0?'+':'')+S[k]+'dB':S[k]});
+  document.querySelectorAll('#presets .chip').forEach(c=>c.classList.toggle('on',c.dataset.p===S.preset));
+  document.querySelectorAll('#styles .chip').forEach(c=>c.classList.toggle('on',c.dataset.s===S.style));
+  ['mGen','mFile','mNone'].forEach(id=>$(id).classList.toggle('on',{mGen:'gen',mFile:'file',mNone:'none'}[id]===S.mmode));
+  $('genBox').hidden=S.mmode!=='gen'; $('fileBox').hidden=S.mmode!=='file'; $('mixBox').hidden=S.mmode==='none';
+}
+sliders.forEach(k=>$(k).addEventListener('input',e=>{S[k]=+e.target.value; if(['nr','gate','clar','lev'].includes(k)) S.preset='custom'; syncUI(); save();
+  if(['mvol','duck'].includes(k)) schedule(()=>{mixFinal(); drawWave()}); else schedule()}));
+document.querySelectorAll('#presets .chip').forEach(c=>c.onclick=()=>{S.preset=c.dataset.p; Object.assign(S,PRESETS[c.dataset.p]); syncUI(); save(); schedule()});
+document.querySelectorAll('#styles .chip').forEach(c=>c.onclick=()=>{S.style=c.dataset.s; S.mmode='gen'; syncUI(); save(); remix(true)});
+async function remix(force){await buildMusic(force); mixFinal(); drawWave()}
+$('newSong').onclick=()=>{S.seed=Math.floor(Math.random()*1e6); save(); remix(true)};
+$('mGen').onclick=()=>{S.mmode='gen'; syncUI(); save(); remix()};
+$('mNone').onclick=()=>{S.mmode='none'; syncUI(); save(); remix()};
+$('mFile').onclick=()=>{S.mmode='file'; syncUI(); save(); if(userMusic) remix()};
+$('mfile').onchange=async e=>{const f=e.target.files[0]; if(!f) return; actx=actx||new AudioContext(); SR=actx.sampleRate;
+  try{const d=await actx.decodeAudioData(await f.arrayBuffer()); const m=new Float32Array(d.length); for(let c=0;c<d.numberOfChannels;c++){const x=d.getChannelData(c); for(let i=0;i<d.length;i++) m[i]+=x[i]/d.numberOfChannels}
+    let pk=0; for(const v of m) pk=Math.max(pk,Math.abs(v)); for(let i=0;i<m.length;i++) m[i]=m[i]/(pk||1)*0.85; userMusic=m; $('mfname').textContent=f.name; remix()}
+  catch(err){$('mfname').textContent='이 음악 파일을 읽지 못했어요.'}};
+let prevSrc=null;
+$('songPrev').onclick=async()=>{
+  if(prevSrc){prevSrc.stop(); prevSrc=null; $('songPrev').textContent='▶ 곡만 들어보기'; return}
+  actx=actx||new AudioContext(); SR=actx.sampleRate; await actx.resume(); if(!orig) await buildMusic(false); if(!music) await buildMusic(true);
+  const L=Math.min(music.length,SR*20), b=actx.createBuffer(1,L,SR); b.copyToChannel(music.subarray(0,L),0);
+  prevSrc=actx.createBufferSource(); prevSrc.buffer=b; const g=actx.createGain(); g.gain.value=0.6; prevSrc.connect(g).connect(actx.destination); prevSrc.start();
+  prevSrc.onended=()=>{prevSrc=null; $('songPrev').textContent='▶ 곡만 들어보기'}; $('songPrev').textContent='■ 멈추기'};
+
+/* ---------- export ---------- */
+function wav(b){const ch=b.numberOfChannels, L=b.length, buf=new ArrayBuffer(44+L*ch*2), v=new DataView(buf); let o=0;
+  const w=s=>{for(const c of s) v.setUint8(o++,c.charCodeAt(0))}, u32=x=>{v.setUint32(o,x,true);o+=4}, u16=x=>{v.setUint16(o,x,true);o+=2};
+  w('RIFF');u32(36+L*ch*2);w('WAVE');w('fmt ');u32(16);u16(1);u16(ch);u32(b.sampleRate);u32(b.sampleRate*ch*2);u16(ch*2);u16(16);w('data');u32(L*ch*2);
+  const d=[...Array(ch)].map((_,c)=>b.getChannelData(c)); for(let i=0;i<L;i++) for(let c=0;c<ch;c++){const s=Math.max(-1,Math.min(1,d[c][i])); v.setInt16(o,s<0?s*0x8000:s*0x7fff,true); o+=2}
+  return new Blob([buf],{type:'audio/wav'})}
+function dl(blob,name){const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove()},4000)}
+$('expWav').onclick=()=>{if(finalBuf) dl(wav(finalBuf),fileName+'_소리보정.wav')};
+$('expVid').onclick=async()=>{
+  if(!finalBuf||!vid.videoWidth) return;
+  const types=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm'];
+  const mime=types.find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t)); if(!mime){$('expStatus').textContent='이 브라우저는 영상 저장을 지원하지 않아요. Chrome에서 열어 주세요.'; return}
+  const btn=$('expVid'); btn.disabled=true; $('expWav').disabled=true; stopPlay();
+  await actx.resume(); const dest=actx.createMediaStreamDestination();
+  vid.pause(); vid.currentTime=0; await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
+  const vs=vid.captureStream?vid.captureStream():vid.mozCaptureStream(); const vt=vs.getVideoTracks()[0];
+  const stream=new MediaStream([vt,...dest.stream.getAudioTracks()]);
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12e6,audioBitsPerSecond:256000}), chunks=[];
+  rec.ondataavailable=e=>{if(e.data.size) chunks.push(e.data)};
+  const pr=$('prog'), bar=pr.firstElementChild; pr.hidden=false; $('expStatus').textContent='영상을 만드는 중이에요. 끝날 때까지 이 탭을 그대로 두세요.';
+  const tick=setInterval(()=>{bar.style.width=(vid.currentTime/vid.duration*100)+'%'},200);
+  const done=new Promise(r=>rec.onstop=r);
+  rec.start(1000);
+  const s=actx.createBufferSource(); s.buffer=finalBuf; s.connect(dest);
+  vid.removeEventListener('play',startPlay);
+  await vid.play(); s.start(0,vid.currentTime);
+  await new Promise(r=>vid.addEventListener('ended',r,{once:true}));
+  setTimeout(()=>rec.stop(),300); await done; clearInterval(tick); bar.style.width='100%';
+  vid.addEventListener('play',startPlay);
+  const ext=mime.startsWith('video/mp4')?'mp4':'webm';
+  dl(new Blob(chunks,{type:mime.split(';')[0]}),fileName+'_소리보정.'+ext);
+  $('expStatus').textContent=ext==='mp4'?'저장했어요. 다운로드 폴더를 확인해 주세요.':'저장했어요 (webm). 인스타에 올릴 땐 mp4로 바꿔야 할 수 있어요.';
+  btn.disabled=false; $('expWav').disabled=false; setTimeout(()=>{pr.hidden=true; bar.style.width='0'},3000);
+};
+
+syncUI();
+</script>
+</body></html>
