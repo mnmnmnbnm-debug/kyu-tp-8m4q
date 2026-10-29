@@ -1819,13 +1819,12 @@ const TS_KEYS=Object.keys(TS_BASE);
 const tsSame=(a,b)=>!!a&&!!b&&TS_KEYS.every(k=>String(a[k]??TS_BASE[k])===String(b[k]??TS_BASE[k]));
 function jobDiff(j){
   const out={add:[],rm:[],skills:null,style:null};
-  if(ePickBase){ const byId=Object.fromEntries((H.skills||[]).map(s=>[s.id,s])), have=new Set((j.skills||[]).map(s=>s.name));
-    const added=[...ePicked].filter(id=>!ePickBase.has(id)).map(id=>byId[id]).filter(Boolean);
-    const removed=[...ePickBase].filter(id=>!ePicked.has(id)).map(id=>byId[id]).filter(Boolean);
-    out.add=added.filter(s=>!have.has(s.name)); out.rm=removed.filter(s=>have.has(s.name));
+  if(ePickInit){ const lib=new Set((H.skills||[]).map(s=>s.name)), have=new Set((j.skills||[]).map(s=>s.name));
+    const pick=(H.skills||[]).filter(s=>ePicked.has(s.id)), pickN=new Set(pick.map(s=>s.name));
+    out.add=pick.filter(s=>!have.has(s.name)); out.rm=(j.skills||[]).filter(s=>lib.has(s.name)&&!pickN.has(s.name));
     if(out.add.length||out.rm.length){ const rmN=new Set(out.rm.map(s=>s.name));
       out.skills=(j.skills||[]).filter(s=>!rmN.has(s.name)).concat(out.add.map(s=>({name:s.name,desc:s.desc||''}))) } }
-  if(tsCur&&tsLoad&&!tsSame(tsCur,tsLoad)&&!tsSame(tsCur,j.textStyle)) out.style=Object.assign({},tsCur);
+  if(tsCur&&tsLoad&&!(j.textStyle?tsSame(tsCur,j.textStyle):tsSame(tsCur,tsLoad))) out.style=Object.assign({},tsCur);
   out.any=!!(out.skills||out.style); return out;
 }
 function diffText(d){ const L=[]; if(d.add.length) L.push('스킬 추가: '+d.add.map(s=>s.name).join(', ')); if(d.rm.length) L.push('스킬 빼기: '+d.rm.map(s=>s.name).join(', '));
