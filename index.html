@@ -1252,6 +1252,8 @@ async function localVideoURL(rel){
   return {err:'not-found'};
 }
 const vidCache={};
+function canAutoLoad(){ return typeof dirH!=='undefined'&&!!dirH&&typeof dirOK!=='undefined'&&dirOK }
+function autoLoadRest(){ if(!canAutoLoad()) return; setTimeout(()=>document.querySelectorAll('button[data-autoload]').forEach(x=>{ if(!x.disabled&&document.body.contains(x)) x.click() }),0) }
 function videoBox(ver,label){
   const box=hel('div','vid');
   if(ver&&ver.drive){const f=hel('iframe','v'); f.src='https://drive.google.com/file/d/'+ver.drive+'/preview'; f.allow='autoplay'; box.appendChild(f); return box}
@@ -1259,14 +1261,15 @@ function videoBox(ver,label){
     const show=url=>{box.textContent=''; const v=hel('video','v'); v.controls=true; v.playsInline=true; v.preload='metadata'; v.src=url; v.addEventListener('loadedmetadata',()=>{ if(v.currentTime===0&&v.duration>4) v.currentTime=3.2 },{once:true}); box.append(v,hel('div','mono',ver.file))};
     if(vidCache[ver.file]){show(vidCache[ver.file]); return box}
     const ph=hel('div','ph'); ph.append(hel('div',null,label||'편집된 영상'),hel('div','mono',ver.file));
-    const b=hel('button','btn','▶ 영상 불러오기'); b.type='button';
+    const b=hel('button','btn','▶ 영상 불러오기'); b.type='button'; b.dataset.autoload='1';
+    if(canAutoLoad()) setTimeout(()=>{ if(!b.disabled) b.click() },0);
     const why=hel('div','vchk'); why.hidden=true;
     const pickL=hel('label','btn','📂 파일 직접 열기'); const pin=hel('input'); pin.type='file'; pin.accept='video/*'; pin.hidden=true; pickL.appendChild(pin);
     pin.onchange=()=>{const f=pin.files&&pin.files[0]; if(f){const u=URL.createObjectURL(f); vidCache[ver.file]=u; show(u)}};
     const MSG={'no-folder':'Studio에서 📁 저장 폴더(콘텐츠)를 먼저 연결하거나, 아래 버튼으로 파일을 직접 여세요.','no-permission':'폴더 사용 허락이 필요해요. 다시 누르고 크롬 창에서 허용을 눌러 주세요.','not-found':'연결된 폴더('+((typeof dirH!=='undefined'&&dirH)?dirH.name:'')+')에서 이 파일을 못 찾았어요. 아래 버튼으로 직접 여세요.'};
     b.onclick=async()=>{b.disabled=true; b.textContent='불러오는 중…'; const r=await localVideoURL(ver.file);
-      if(r.url){vidCache[ver.file]=r.url; show(r.url); return}
-      b.disabled=false; b.textContent='▶ 다시 불러오기'; why.hidden=false; why.className='vchk warn'; why.textContent='⚠️ '+(MSG[r.err]||('불러오지 못했어요 ('+r.err+'). 아래 버튼으로 직접 여세요.'))};
+      if(r.url){vidCache[ver.file]=r.url; show(r.url); autoLoadRest(); return}
+      b.removeAttribute('data-autoload'); b.disabled=false; b.textContent='▶ 다시 불러오기'; why.hidden=false; why.className='vchk warn'; why.textContent='⚠️ '+(MSG[r.err]||('불러오지 못했어요 ('+r.err+'). 아래 버튼으로 직접 여세요.'))};
     ph.append(b,why,pickL); box.appendChild(ph); return box;
   }
   box.appendChild(hel('div','ph','아직 결과 영상이 없어요.')); return box;
@@ -1350,8 +1353,9 @@ function phoneBox(src){
   else if(src.drive){ const f=hel('iframe'); f.src='https://drive.google.com/file/d/'+src.drive+'/preview'; f.allow='autoplay'; ph.prepend(f); ph.style.cursor='default' }
   else if(src.file){
     if(vidCache[src.file]) setVideo(vidCache[src.file]);
-    else { const p=hel('div','pph'); p.appendChild(hel('div',null,src.file.split('/').pop())); const b=hel('button','btn','▶ 영상 불러오기'); b.type='button';
-      b.onclick=async e=>{e.stopPropagation(); b.disabled=true; const r=await localVideoURL(src.file); if(r.url){vidCache[src.file]=r.url; setVideo(r.url)} else {b.disabled=false; b.textContent='찾지 못했어요 · 다시'; if(!p.querySelector('.vchk')) p.appendChild(hel('div','vchk warn',r.err==='no-folder'?'Studio에서 📁 저장 폴더(콘텐츠)를 먼저 연결해 주세요.':r.err==='no-permission'?'폴더 사용 허락이 필요해요. 다시 눌러 허용해 주세요.':'폴더에서 못 찾았어요. 위 ‘📁 파일 선택’으로 직접 여세요.'))}};
+    else { const p=hel('div','pph'); p.appendChild(hel('div',null,src.file.split('/').pop())); const b=hel('button','btn','▶ 영상 불러오기'); b.type='button'; b.dataset.autoload='1';
+      if(canAutoLoad()) setTimeout(()=>{ if(!b.disabled) b.click() },0);
+      b.onclick=async e=>{if(e)e.stopPropagation(); b.disabled=true; const r=await localVideoURL(src.file); if(r.url){vidCache[src.file]=r.url; setVideo(r.url); autoLoadRest()} else {b.removeAttribute('data-autoload'); b.disabled=false; b.textContent='찾지 못했어요 · 다시'; if(!p.querySelector('.vchk')) p.appendChild(hel('div','vchk warn',r.err==='no-folder'?'Studio에서 📁 저장 폴더(콘텐츠)를 먼저 연결해 주세요.':r.err==='no-permission'?'폴더 사용 허락이 필요해요. 다시 눌러 허용해 주세요.':'폴더에서 못 찾았어요. 위 ‘📁 파일 선택’으로 직접 여세요.'))}};
       p.appendChild(b); ph.prepend(p) } }
   ph.appendChild(ov); draw(); pOvDraw=draw;
   wrap.append(tabs,ph,hel('div','note','빗금 = 버튼·글자에 가려지는 자리 (중요한 자막·얼굴은 피하기)'));
