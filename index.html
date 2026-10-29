@@ -1171,9 +1171,16 @@ async function api(action,payload){
   if(j.error) throw new Error(j.error);
   return j;
 }
+function scriptIdFor(j){
+  try{const strip=x=>nf(String(x||'')).replace(/^#\d+\s*/,'').trim(); const opts=[...$('pick').options];
+    let o=opts.find(o=>o.textContent===j.script)||opts.find(o=>strip(o.textContent)&&strip(o.textContent)===strip(j.script)); if(o) return o.value;
+    const f=nf((j.versions||[]).map(v=>v.file||'').join(' ')+' '+(j.source||'')); for(const [id,fold] of Object.entries(FOLDERS)) if(f.includes(nf(fold)+'/')) return id;
+    const t=strip(j.title); o=opts.find(o=>t&&(t.includes(strip(o.textContent).split(' ')[0])||strip(o.textContent).includes(t.split(' ')[0]))); return o?o.value:null}catch(e){return null}
+}
 function saveEdited(){
   const L=[]; (H.jobs||[]).filter(j=>(j.versions||[]).length&&j.status!=='editing').sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).forEach(j=>{
-    for(let i=j.versions.length-1;i>=0;i--){const v=j.versions[i]; L.push({id:j.id,i,title:j.title||'제목 없음',v:v.v??i+1,file:v.file||'',drive:v.drive||'',done:j.status==='done'&&i===j.versions.length-1})}});
+    const sid=scriptIdFor(j); let stext=''; try{stext=sid?(store.get(KEY[sid])||SCRIPTS[sid]||''):''}catch(e){}
+    for(let i=j.versions.length-1;i>=0;i--){const v=j.versions[i]; L.push({id:j.id,i,title:j.title||'제목 없음',v:v.v??i+1,file:v.file||'',drive:v.drive||'',done:j.status==='done'&&i===j.versions.length-1,script:j.script||'',scriptText:stext})}});
   try{localStorage.setItem('kyu-edited',JSON.stringify(L))}catch(e){} audioNav();
 }
 function audioNav(){

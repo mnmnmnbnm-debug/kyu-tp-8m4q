@@ -138,10 +138,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
   <section class="box">
     <h2><span class="n">4</span>배경음</h2>
-    <p class="how">직접 만든 곡이라 저작권 걱정이 없어요. 말할 때는 자동으로 작아져요.</p>
+    <p class="how">직접 만든 곡이라 저작권 걱정이 없어요. 기본은 대본 내용을 보고 가장 어울리는 리듬을 골라요. 말할 때는 자동으로 작아져요.</p>
     <div class="tabs2"><button class="btn sm on" id="mGen">곡 만들기</button><button class="btn sm" id="mFile">내 음악 파일</button><button class="btn sm" id="mNone">배경음 없음</button></div>
     <div id="genBox">
       <div class="chips" id="styles">
+        <button class="chip" data-s="auto">🎬 대본에 맞추기</button>
         <button class="chip" data-s="lofi">로파이 (잔잔)</button>
         <button class="chip" data-s="bright">밝은 팝</button>
         <button class="chip" data-s="piano">피아노</button>
@@ -176,7 +177,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 const $=id=>document.getElementById(id);
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const PRESETS={voice:{nr:60,gate:45,clar:60,lev:70},noisy:{nr:90,gate:70,clar:55,lev:75},natural:{nr:35,gate:20,clar:30,lev:45},off:{nr:0,gate:0,clar:0,lev:0}};
-const DEF={preset:'voice',...PRESETS.voice,method:'rnn',vol:0,style:'lofi',seed:1,mmode:'gen',mvol:35,duck:70};
+const DEF={auto:true,preset:'voice',...PRESETS.voice,method:'rnn',vol:0,style:'lofi',seed:1,mmode:'gen',mvol:35,duck:70};
 let S=Object.assign({},DEF); try{Object.assign(S,JSON.parse(store.get('kyu-audio')||'{}'))}catch(e){}
 if(S.mmode==='file') S.mmode='gen';
 if(!['basic','rnn','music','both'].includes(S.method)) S.method='rnn';
@@ -447,17 +448,18 @@ const STY={
     comp:['x..x..x...x..x..','x.x.x.x.x.x.x.x.','..x...x...x...x.','x.......x.......'],bass:['x..x..x.x.......','x.x.x.x.x.x.x.x.','x...x...x...x...']}
 };
 const PROGS=[[0,4,5,3],[5,3,0,4],[0,5,1,4],[3,4,2,5],[0,3,4,3],[5,4,3,4],[1,4,0,5],[0,2,3,4]];
+const MINPROGS=[[0,5,2,6],[0,3,4,0],[0,5,3,4],[0,6,5,6]], MIN=[0,2,3,5,7,8,10];
 const MAJ=[0,2,4,5,7,9,11], KEYS=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
 const INAME={ep:'일렉 피아노',piano:'피아노',pluck:'플럭'};
 const mf=m=>440*Math.pow(2,(m-69)/12);
-function genMusic(style,seed,dur){
+function genMusic(style,seed,dur,opt={}){
   const R=rng(seed*7919+style.length*131+7), st=STY[style]||STY.lofi, pick=a=>a[Math.floor(R()*a.length)];
-  const bpm=Math.round(st.bpm[0]+R()*(st.bpm[1]-st.bpm[0])), beat=60/bpm, s16=beat/4;
-  const key=Math.floor(R()*12), root=48+key-(key>6?12:0), prog=pick(PROGS);
+  const BR=opt.bpm||st.bpm, bpm=Math.round(BR[0]+R()*(BR[1]-BR[0])), beat=60/bpm, s16=beat/4;
+  const key=Math.floor(R()*12), root=48+key-(key>6?12:0), prog=opt.minor?pick(MINPROGS):pick(PROGS), SC=opt.minor?MIN:MAJ;
   const nd=st.drums.length, sd=Math.abs(seed|0), dr=st.drums[sd%nd], dr2=st.drums[(sd+1+Math.floor(R()*(nd-1)))%nd], comp=st.comp[Math.floor(sd/nd)%st.comp.length], bassP=st.bass[(sd+Math.floor(sd/nd))%st.bass.length], inst=st.inst[(sd+Math.floor(R()*2))%st.inst.length];
   const swing=st.swing[0]+R()*(st.swing[1]-st.swing[0]), melDen=0.25+R()*0.45, voicing=R()<0.5?[0,2,4,6]:[0,2,4,7];
   const L=Math.round(SR*dur), y=new Float32Array(L);
-  const note=(deg,oct)=>root+12*oct+MAJ[((deg%7)+7)%7]+12*Math.floor(deg/7);
+  const note=(deg,oct)=>root+12*oct+SC[((deg%7)+7)%7]+12*Math.floor(deg/7);
   const T=(bar,step)=>bar*beat*4+step*s16+(step%2?swing*s16*2:0);
   const tone=(t0,d,f,amp,kind)=>{const a=Math.round(t0*SR); if(a>=L||a<0) return; const n=Math.min(L-a,Math.round((d+0.6)*SR));
     if(kind==='pluck'){const P=Math.max(2,Math.round(SR/f)), b=new Float32Array(P); for(let i=0;i<P;i++) b[i]=R()*2-1; let p=0;
@@ -501,13 +503,33 @@ function genMusic(style,seed,dur){
   if(style==='lofi'){let a=0; for(let i=0;i<L;i++){a+=0.35*(y[i]-a); y[i]=a} const R2=rng(seed); for(let i=0;i<L;i+=Math.floor(SR*0.03+R2()*SR*0.2)) y[i]+=(R2()*2-1)*0.08}
   let pk=0; for(let i=0;i<L;i++) pk=Math.max(pk,Math.abs(y[i]));
   const fi=SR*1, fo=SR*2.5; for(let i=0;i<L;i++) y[i]=y[i]/(pk||1)*0.85*Math.min(1,i/fi,(L-i)/fo);
-  return {buf:y,info:`${st.name} · ${dr.n}${dr2!==dr?' + '+dr2.n:''} · ${INAME[inst]} · ${bpm} BPM · ${KEYS[key]}`};
+  return {buf:y,info:`${st.name} · ${dr.n}${dr2!==dr?' + '+dr2.n:''} · ${INAME[inst]} · ${bpm} BPM · ${KEYS[key]}${opt.minor?' 단조':''}`};
 }
 
 
+/* pick the groove that fits the script (prompter text) */
+const MOODS=[
+  {k:/fantasm|espant|sangre|halloween|miedo|terror|noche más larga|귀신|무서/g,style:'lofi',minor:true,drum:3,bpm:[64,72],why:'귀신·밤 이야기 → 미스터리한 단조 로파이'},
+  {k:/\bamar\b|amor|te amo|사랑|pienso en ti|corazón|enamor/g,style:'piano',minor:false,drum:1,bpm:[64,74],why:'사랑 이야기 → 잔잔한 피아노'},
+  {k:/comida|restaurante|buffet|platillo|comes?\b|comer|sopa|fonda|cocina|김치|한식|wones|precio/g,style:'latin',minor:false,drum:1,bpm:[92,100],why:'음식·식당 이야기 → 신나는 쿰비아'},
+  {k:/viaje|seúl|ciudad|letrero|tienda|turista|capital|calle|barrio/g,style:'bright',minor:false,drum:1,bpm:[104,112],why:'여행·장소 이야기 → 밝은 팝'},
+  {k:/fighting|화이팅|k-?pop|idol|drama|gringo|inglés|selfie|laptop/g,style:'kpop',minor:false,drum:0,bpm:[118,124],why:'유행어·말장난 → K-팝 댄스'},
+  {k:/palabra|significa|coreano|dilo conmigo|pronuncia|carácter|antiguo|sílaba/g,style:'lofi',minor:false,drum:0,bpm:[76,86],why:'한국어 설명 → 차분한 로파이'}];
+function scriptMood(e){
+  const t=((e&&e.scriptText)||'')+' '+((e&&e.title)||''); if(!t.trim()) return null; const low=t.toLowerCase();
+  let best=null, bs=0; MOODS.forEach((m,i)=>{const n=(low.match(m.k)||[]).length*(i<2?1.5:1); if(n>bs){bs=n; best=m}});
+  best=best||MOODS[MOODS.length-1];
+  // speaking pace: words per second from the prompter timestamps
+  const ts=[...String((e&&e.scriptText)||'').matchAll(/^(\d+):(\d+(?:\.\d+)?)/gm)].map(x=>+x[1]*60+ +x[2]), words=(String((e&&e.scriptText)||'').replace(/^\d+:\d+(\.\d+)?/gm,'').match(/\S+/g)||[]).length;
+  const dur=ts.length?Math.max(...ts):0, wps=dur?words/dur:0, fast=wps>2.6;
+  return {...best,bpm:fast?[best.bpm[0]+6,best.bpm[1]+6]:best.bpm,why:best.why+(fast?' (말이 빨라서 조금 빠르게)':'')};
+}
 async function buildMusic(force){
   const dur=orig?orig.length/SR:60;
-  if(S.mmode==='gen'){const k=S.style+'|'+S.seed+'|'+dur.toFixed(2); if(force||!songCache||songCache.k!==k){const g=genMusic(S.style,S.seed,dur); songCache={k,...g}} music=songCache.buf; $('songInfo').textContent=songCache.info}
+  if(S.mmode==='gen'){const md=S.auto?scriptMood(typeof cur==='function'?cur():null):null, style=md?md.style:S.style, seed=md?(S.seed|0)+md.drum:S.seed;
+    const k=style+'|'+seed+'|'+(md?md.minor:'')+'|'+dur.toFixed(2); if(force||!songCache||songCache.k!==k){const g=genMusic(style,seed,dur,md?{minor:md.minor,bpm:md.bpm}:{}); songCache={k,...g}}
+    music=songCache.buf; $('songInfo').textContent=(md?'🎬 '+md.why+' · ':'')+songCache.info;
+    document.querySelectorAll('#styles .chip').forEach(c=>c.classList.toggle('on',S.auto?c.dataset.s==='auto':c.dataset.s===S.style))}
   else if(S.mmode==='file'&&userMusic){const L=orig?orig.length:userMusic.length; music=new Float32Array(L); for(let i=0;i<L;i++) music[i]=userMusic[i%userMusic.length]; const fo=SR*2.5; for(let i=Math.max(0,L-fo);i<L;i++) music[i]*=(L-i)/fo}
   else music=null;
 }
@@ -561,7 +583,7 @@ else{
     let r; try{r=await openEdited(e)}catch(x){r={err:'not-found'}}
     $('loadJob').disabled=false;
     if(r.file){loadFile(r.file)} else {$('fname').textContent='⚠️ '+(MSG0[r.err]||MSG[r.err]); $('pickWrap').hidden=r.err==='no-permission'}};
-  $('jobSel').onchange=()=>$('loadJob').click();
+  $('jobSel').onchange=()=>{songCache=null; $('loadJob').click()};
   $('fname').textContent=(cur()||{}).file||'';
   $('loadJob').click();
 }
@@ -625,14 +647,14 @@ function syncUI(){
   document.querySelectorAll('#presets .chip').forEach(c=>c.classList.toggle('on',c.dataset.p===S.preset));
   document.querySelectorAll('#methods .chip').forEach(c=>c.classList.toggle('on',c.dataset.m===S.method));
   $('mDesc').textContent=METHODS[S.method].desc;
-  document.querySelectorAll('#styles .chip').forEach(c=>c.classList.toggle('on',c.dataset.s===S.style));
+  document.querySelectorAll('#styles .chip').forEach(c=>c.classList.toggle('on',S.auto?c.dataset.s==='auto':c.dataset.s===S.style));
   ['mGen','mFile','mNone'].forEach(id=>$(id).classList.toggle('on',{mGen:'gen',mFile:'file',mNone:'none'}[id]===S.mmode));
   $('genBox').hidden=S.mmode!=='gen'; $('fileBox').hidden=S.mmode!=='file'; $('mixBox').hidden=S.mmode==='none';
 }
 sliders.forEach(k=>$(k).addEventListener('input',e=>{S[k]=+e.target.value; if(['nr','gate','clar','lev'].includes(k)) S.preset='custom'; syncUI(); save(); liveUpdate()}));
 document.querySelectorAll('#presets .chip').forEach(c=>c.onclick=()=>{S.preset=c.dataset.p; Object.assign(S,PRESETS[c.dataset.p]); syncUI(); save(); liveUpdate()});
 document.querySelectorAll('#methods .chip').forEach(c=>c.onclick=async()=>{S.method=c.dataset.m; syncUI(); save(); if(orig){await ensureWet(S.method); restart()}});
-document.querySelectorAll('#styles .chip').forEach(c=>c.onclick=()=>{S.style=c.dataset.s; S.mmode='gen'; syncUI(); save(); remix(true)});
+document.querySelectorAll('#styles .chip').forEach(c=>c.onclick=()=>{if(c.dataset.s==='auto'){S.auto=true; S.seed=0} else {S.auto=false; S.style=c.dataset.s} S.mmode='gen'; syncUI(); save(); remix(true)});
 async function remix(force){await buildMusic(force); restart()}
 $('newSong').onclick=()=>{S.seed=(S.seed|0)+1; save(); remix(true)};
 $('mGen').onclick=()=>{S.mmode='gen'; syncUI(); save(); remix()};
