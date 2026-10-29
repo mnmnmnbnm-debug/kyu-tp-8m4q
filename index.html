@@ -2,7 +2,7 @@
 <title>KYU 프롬프터</title>
 <meta name="robots" content="noindex,nofollow">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Sunflower:wght@700&family=Gowun+Dodum&family=Nanum+Pen+Script&family=Gaegu:wght@700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 :root{
   --bg:#0d1014; --panel:#161b22; --line:#262d37; --fg:#f2f4f7; --dim:#6b7686;
@@ -330,6 +330,55 @@ body{height:auto;min-height:100%}
 #hub #skBox .skill:hover{border-color:var(--dim)}
 #hub #skBox .skill.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 #hub #skBox .skill .ico{width:34px;height:34px;border-radius:8px;background:rgba(255,204,51,.12);display:flex;align-items:center;justify-content:center;font-size:18px}
+/* ---------- text-box style (Edit) ---------- */
+#tsBox summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+#tsBox summary::-webkit-details-marker{display:none}
+#tsBox summary h2{margin:0}
+#tsBox:not([open]) .car{transform:rotate(-90deg)}
+.tsx{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px;align-items:start;margin-top:10px}
+@media (max-width:760px){.tsx{grid-template-columns:1fr}.tsprev{max-width:260px}}
+.tsprev{position:sticky;top:64px;display:flex;flex-direction:column;gap:10px}
+.tsphone{position:relative;width:240px;aspect-ratio:9/16;border-radius:16px;overflow:hidden;border:2px solid #ffcc33;background:linear-gradient(#1e222a 0 62%,#343a46 62%)}
+.tsfig{position:absolute;left:28%;top:16%;width:44%;fill:none;stroke:#f2f4f7;stroke-width:3;stroke-linecap:round}
+.tsfig .f{fill:#f2f4f7;stroke:none}
+.tsui{position:absolute;right:6px;bottom:22%;display:flex;flex-direction:column;gap:10px;opacity:.5;font-size:15px}
+.tsui i{font-style:normal}
+.tsphone::after{content:'캡션 영역';position:absolute;left:0;right:0;bottom:0;height:16%;background:linear-gradient(transparent,rgba(0,0,0,.55));color:#6b7686;font-size:10px;display:flex;align-items:flex-end;padding:0 8px 6px}
+.tsline{position:absolute;left:6%;right:14%;display:flex;justify-content:center;text-align:center;z-index:2}
+.tsline.top{top:9%}.tsline.middle{top:47%}.tsline.bottom{bottom:19%}
+.tb{display:inline-flex;flex-wrap:wrap;justify-content:center;gap:0 .28em;line-height:1.18;position:relative;paint-order:stroke fill;max-width:100%}
+.tb.bar{width:112%;margin-left:-6%;justify-content:flex-start;border-left:5px solid var(--hl)}
+.tb.bubble::after{content:'';position:absolute;left:22%;bottom:-8px;border:9px solid transparent;border-top-color:var(--bx);border-bottom:0}
+.tb .w{display:inline-block;paint-order:stroke fill}
+.tb .w.mk{padding:0 .12em;border-radius:.15em}
+.tb .c{display:inline-block;opacity:0;animation:ts-type .01s forwards}
+@keyframes ts-pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+@keyframes ts-fade{0%{transform:translateY(40%);opacity:0}100%{transform:none;opacity:1}}
+@keyframes ts-slide{0%{transform:translateX(-120%);opacity:0}100%{transform:none;opacity:1}}
+@keyframes ts-bounce{0%{transform:translateY(-60%);opacity:0}50%{transform:translateY(8%);opacity:1}75%{transform:translateY(-6%)}100%{transform:none}}
+@keyframes ts-type{to{opacity:1}}
+@keyframes ts-kara{to{color:var(--hl)}}
+@keyframes ts-shake{0%,100%{transform:none}20%{transform:translate(-4px,1px) rotate(-2deg)}40%{transform:translate(4px,-1px) rotate(2deg)}60%{transform:translate(-3px,0)}80%{transform:translate(3px,0)}}
+.tsh{font-weight:700;display:flex;gap:8px;align-items:baseline;margin-top:4px}
+.tsrecs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tsrec{border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;background:#0f1318;text-align:left;color:inherit;font:inherit}
+.tsrec:hover{border-color:#6b7686}
+.tsrec.on{border-color:#ffcc33;box-shadow:0 0 0 1px #ffcc33 inset}
+.tsrec .sw{height:46px;border-radius:6px;background:#2a303a;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tsrec .nm{font-weight:700;font-size:13px;display:flex;gap:6px;align-items:center}
+.tsrec .nm .bd{font-size:10px;background:#ffcc33;color:#14110a;border-radius:999px;padding:1px 6px}
+.tsrec .wy{font-size:11px;color:var(--dim);line-height:1.35}
+.tsgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.tsgrid input[type=color]{width:100%;height:32px;padding:2px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.tsgrid input[type=range]{width:100%}
+.tsgrid b{color:var(--fg);font-weight:700}
+#hub label.tsck{flex-direction:row;align-items:center;gap:6px;color:var(--fg)}
+.tssave{display:flex;gap:8px;flex-wrap:wrap}
+.tssave input{flex:1;min-width:160px}
+#tsMine .chip .x{margin-left:6px;opacity:.6}
+#tsMine .chip .x:hover{opacity:1}
+.etsrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}
+.etsrow .sw{padding:3px 10px;border-radius:6px;background:#2a303a}
 </style></head><body>
 
 <div class="bar">
@@ -490,12 +539,57 @@ body{height:auto;min-height:100%}
           <div class="rech"><span>✨ 이번 주 추천 스킬</span><span class="mono" id="recWeek"></span></div>
           <div class="plist" id="recList" style="gap:6px"></div>
         </div>
+        <div class="etsrow" id="eTs"></div>
         <label for="eNote">추가 지시<textarea id="eNote" placeholder="예: 훅에서 빨간 죽 사진 크게, 전체 45초 안으로"></textarea></label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn primary" type="submit" id="eSend">편집 요청</button><span class="how" id="eMsg"></span>
         </div>
       </form>
     </div>
+      <details class="box" id="tsBox" open>
+        <summary><h2>글자 상자 스타일</h2><span class="how" id="tsNow"></span><span class="car" aria-hidden="true">▾</span></summary>
+        <div class="tsx">
+          <div class="tsprev">
+            <div class="tsphone" id="tsPhone">
+              <svg class="tsfig" viewBox="0 0 100 160" aria-hidden="true"><circle cx="50" cy="40" r="14"/><circle cx="45" cy="37" r="1.6" class="f"/><circle cx="55" cy="37" r="1.6" class="f"/><ellipse cx="50" cy="46" rx="4" ry="2.5"/><path d="M50 54v42M50 64l-22 14M50 64l22 14M50 96l-14 30M50 96l14 30"/></svg>
+              <div class="tsui" aria-hidden="true"><i>♡</i><i>💬</i><i>↗</i></div>
+              <div class="tsline" id="tsLine"></div>
+            </div>
+            <label for="tsSample">미리보기 문장 <span class="how">(*단어* = 강조색)</span><input type="text" id="tsSample" value="Antes, en *Corea*, comían *팥죽*"></label>
+          </div>
+          <div class="tsctl">
+            <div class="sub tsh">✨ 추천 디자인 · 모션 <span class="how">눌러서 바로 적용</span></div>
+            <div class="tsrecs" id="tsRecs"></div>
+            <div class="sub tsh">내 스타일</div>
+            <div class="pick" id="tsMine"></div>
+            <div class="sub tsh">직접 수정</div>
+            <div class="tsgrid">
+              <label>글자체<select id="tsFont"></select></label>
+              <label>굵기<select id="tsWeight"><option value="400">보통</option><option value="700">굵게</option><option value="900">아주 굵게</option></select></label>
+              <label>글자 크기 <b id="tsSizeV"></b><input type="range" id="tsSize" min="40" max="150" step="2"></label>
+              <label>한 번에 보일 단어 수<select id="tsWpl"><option value="1">1단어</option><option value="2">2단어</option><option value="3">3단어</option><option value="4">4단어</option><option value="6">한 문장</option></select></label>
+              <label>글자색<input type="color" id="tsColor"></label>
+              <label>강조색 (*단어*)<input type="color" id="tsHl"></label>
+              <label>외곽선 두께 <b id="tsStrokeV"></b><input type="range" id="tsStroke" min="0" max="12"></label>
+              <label>외곽선 색<input type="color" id="tsStrokeC"></label>
+              <label>상자 모양<select id="tsBoxT"><option value="none">상자 없음</option><option value="solid">네모 상자</option><option value="bubble">말풍선</option><option value="bar">하단 바 (뉴스형)</option><option value="marker">단어별 형광펜</option></select></label>
+              <label>상자 색<input type="color" id="tsBoxC"></label>
+              <label>상자 투명도 <b id="tsOpV"></b><input type="range" id="tsOp" min="10" max="100" step="5"></label>
+              <label>모서리 둥글기 <b id="tsRadV"></b><input type="range" id="tsRad" min="0" max="40" step="2"></label>
+              <label>위치<select id="tsPos"><option value="top">위</option><option value="middle">가운데</option><option value="bottom">아래 (캡션 영역 위)</option></select></label>
+              <label>모션<select id="tsMotion"><option value="none">없음</option><option value="pop">톡 튀어나오기</option><option value="word">단어별 팝업</option><option value="fade">아래서 스르륵</option><option value="slide">옆에서 밀려오기</option><option value="type">타자기</option><option value="bounce">통통 튀기</option><option value="karaoke">노래방 하이라이트</option><option value="shake">흔들림 강조</option></select></label>
+              <label class="tsck"><input type="checkbox" id="tsShadow"> 그림자</label>
+              <label class="tsck"><input type="checkbox" id="tsUpper"> 영어·스페인어 대문자</label>
+            </div>
+            <div class="tssave">
+              <input type="text" id="tsName" placeholder="스타일 이름 (예: 학원 노랑 자막)" aria-label="스타일 이름">
+              <button class="btn" type="button" id="tsSave">💾 내 스타일로 저장</button>
+              <button class="btn" type="button" id="tsDef">⭐ 기본으로</button>
+            </div>
+            <div class="how">지금 고른 스타일이 <b>새 편집 요청</b>에 함께 들어가요.</div>
+          </div>
+        </div>
+      </details>
       <details class="box" id="skBox" open>
         <summary><h2>편집 스킬</h2><span class="how" id="skCount"></span><span class="car" aria-hidden="true">▾</span></summary>
         <div class="skx">
@@ -1100,7 +1194,7 @@ async function hubLoad(force){
 async function hubWrite(action,collection,id,data){
   const j=await api(action,{collection,id,data}); await hubLoad(true); return j;
 }
-function hubRender(){ if(hubTab==='home') renderHome(); if(hubTab==='edit') renderEdit() }
+function hubRender(){ if(hubTab==='home') renderHome(); if(hubTab==='edit'){ renderEdit(); renderTs() } }
 let hubSig='', hubPending=false;
 // never rebuild the page while a video is playing or the user is typing — that is what cut playback off midway
 function hubBusyUI(){ const h=hx('hub'); if([...h.querySelectorAll('video')].some(v=>!v.closest('.skprev')&&!v.paused&&!v.ended)) return true;
@@ -1502,10 +1596,116 @@ function renderRecs(){
     }catch(e){htoast('추가하지 못했어요'); b.disabled=false}};
     row.append(t,b); list.appendChild(row)});
 }
+
+/* ---------- 글자 상자 스타일 (Edit) ---------- */
+const TS_FONTS=[['Noto Sans KR','본고딕 (기본)'],['Black Han Sans','검은고딕 (아주 굵게)'],['Do Hyeon','도현 (각진 제목체)'],['Jua','주아 (둥글둥글)'],['Sunflower','해바라기 (깔끔)'],['Gowun Dodum','고운돋움 (부드럽게)'],['Nanum Pen Script','나눔펜 (손글씨)'],['Gaegu','개구 (귀여운 손글씨)']];
+const TS_BASE={font:'Noto Sans KR',weight:'900',size:84,wpl:'3',color:'#ffffff',hl:'#ffcc33',stroke:6,strokeC:'#000000',boxT:'none',boxC:'#000000',op:60,rad:12,pos:'bottom',motion:'word',shadow:true,upper:false};
+const TS_PRESETS=[
+  {pid:'p1',name:'클래식 팝업 자막',why:'말하는 순간 단어가 톡. 대부분 릴스에 무난',tags:['word'],s:{}},
+  {pid:'p2',name:'노랑 상자 제목',why:'훅·핵심 문장. 피드에서 눈에 확 띄어요',tags:['hook'],s:{font:'Black Han Sans',weight:'400',size:96,color:'#14110a',hl:'#d62f2f',stroke:0,boxT:'solid',boxC:'#ffcc33',op:100,rad:10,pos:'top',motion:'pop',shadow:false,wpl:'6'}},
+  {pid:'p3',name:'반투명 검정 상자',why:'설명이 긴 부분. 배경이 복잡해도 잘 읽혀요',tags:['long'],s:{font:'Sunflower',weight:'700',size:68,stroke:0,boxT:'solid',boxC:'#000000',op:55,rad:14,motion:'fade',shadow:false,wpl:'4'}},
+  {pid:'p4',name:'말풍선 대화',why:'1인 2역·학생 질문 장면에 딱',tags:['talk'],s:{font:'Jua',weight:'400',size:74,color:'#14110a',hl:'#e0457b',stroke:0,boxT:'bubble',boxC:'#ffffff',op:100,rad:22,pos:'top',motion:'bounce',shadow:true,wpl:'6'}},
+  {pid:'p5',name:'손글씨 메모',why:'꿀팁·혼잣말. 친근하고 귀여운 느낌',tags:['tip'],s:{font:'Nanum Pen Script',weight:'400',size:104,color:'#ffcc33',hl:'#ffffff',stroke:5,boxT:'none',motion:'type',wpl:'6',pos:'middle'}},
+  {pid:'p6',name:'노래방 하이라이트',why:'따라 말하기·발음 연습. 읽는 단어가 색으로 바뀜',tags:['lang'],s:{font:'Do Hyeon',weight:'400',size:88,color:'#ffffff',hl:'#43d17a',stroke:7,motion:'karaoke',wpl:'4'}},
+  {pid:'p7',name:'형광펜 단어 공부',why:'단어 뜻 정리. 강조 단어에 형광펜',tags:['lang'],s:{font:'Gowun Dodum',weight:'400',size:76,color:'#14110a',hl:'#14110a',stroke:0,boxT:'marker',boxC:'#fff27a',op:100,rad:4,motion:'slide',shadow:false,wpl:'4'}},
+  {pid:'p8',name:'뉴스 하단 바',why:'정보·통계·날짜 전달. 신뢰감 있는 느낌',tags:['info'],s:{font:'Noto Sans KR',weight:'700',size:64,color:'#ffffff',hl:'#ffcc33',stroke:0,boxT:'bar',boxC:'#111111',op:85,rad:0,motion:'slide',shadow:false,wpl:'6'}},
+  {pid:'p9',name:'충격 흔들림',why:'반전·놀라는 순간 한 번만',tags:['hook'],s:{font:'Black Han Sans',weight:'400',size:118,color:'#ff5252',hl:'#ffffff',stroke:8,motion:'shake',wpl:'2',pos:'middle'}}
+];
+let tsCur=null, tsInit=false, tsSel='p1';
+const tsMk=p=>Object.assign({},TS_BASE,p.s,{name:p.name});
+function tsSaved(){const s=hset('textStyles'); return {list:Array.isArray(s.list)?s.list:[],def:s.def||''}}
+function tsRecIds(){ // recommendation: from picked skills + always the classic
+  const names=(H.skills||[]).filter(s=>ePicked.has(s.id)).map(s=>s.name).join(' ');
+  const r=['p1']; const add=x=>{if(!r.includes(x))r.push(x)};
+  if(/훅|콜드|흔들/.test(names)) add('p2'); if(/1인 2역|대화/.test(names)) add('p4'); if(/음절|발음|이중 자막|따라/.test(names)) add('p6');
+  if(/숫자|진행|번호/.test(names)) add('p8'); if(/키워드|상단 그래픽/.test(names)) add('p7');
+  ['p2','p6','p4'].forEach(add); return r.slice(0,3);
+}
+function tsWords(){ let s=(hx('tsSample').value||'Antes, en *Corea*, comían *팥죽*').trim(); if(tsCur.upper) s=s.replace(/[A-Za-zÀ-ÿ]+/g,m=>m.toUpperCase());
+  return s.split(/\s+/).filter(Boolean).map(w=>{const hl=/\*/.test(w); return {t:w.replace(/\*/g,''),hl}}) }
+function tsHex(h,op){const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${op/100})`}
+function tsStyleBox(el,st,scale){
+  el.className='tb'+(st.boxT==='bar'?' bar':st.boxT==='bubble'?' bubble':'');
+  const f=el.style; f.fontFamily=`'${st.font}','Noto Sans KR',sans-serif`; f.fontWeight=st.weight; f.fontSize=(st.size*scale)+'px'; f.color=st.color;
+  f.setProperty('--hl',st.hl); f.setProperty('--bx',tsHex(st.boxC,st.op));
+  f.webkitTextStroke=st.stroke?(st.stroke*scale*2)+'px '+st.strokeC:'0'; f.textShadow=st.shadow?`0 ${2*scale*4}px ${6*scale*4}px rgba(0,0,0,.65)`:'none';
+  const boxed=st.boxT==='solid'||st.boxT==='bubble'||st.boxT==='bar';
+  f.background=boxed?tsHex(st.boxC,st.op):'none'; f.borderRadius=st.boxT==='bar'?'0':(st.rad*scale*2)+'px'; f.padding=boxed?`${.18*st.size*scale}px ${.38*st.size*scale}px`:'0';
+}
+function tsBuild(el,st,words,scale,anim){
+  tsStyleBox(el,st,scale); el.textContent='';
+  const step=st.motion==='karaoke'?0.42:0.32; let ci=0;
+  words.forEach((w,i)=>{const sp=hel('span','w'+(st.boxT==='marker'&&w.hl?' mk':''));
+    if(w.hl){sp.style.color=st.hl; if(st.boxT==='marker'){sp.style.background=tsHex(st.boxC,st.op)}}
+    if(anim&&st.motion==='type'){[...w.t].forEach(ch=>{const c=hel('span','c',ch); c.style.animationDelay=(ci++*0.06)+'s'; sp.appendChild(c)}); ci++}
+    else sp.textContent=w.t;
+    if(anim&&st.motion==='word'){sp.style.animation=`ts-pop .32s ${i*step}s both`}
+    if(anim&&st.motion==='karaoke'&&!w.hl){sp.style.animation=`ts-kara .15s ${i*step}s forwards`}
+    el.appendChild(sp)});
+  if(anim){const m={pop:'ts-pop .4s both',fade:'ts-fade .45s both',slide:'ts-slide .45s both',bounce:'ts-bounce .6s both',shake:'ts-shake .45s .25s 2'}[st.motion]; el.style.animation=m||'none'}
+}
+let tsChunk=0;
+function tsDraw(){
+  const line=hx('tsLine'); if(!line||!tsCur) return;
+  const all=tsWords(), n=+tsCur.wpl||3, chunks=[]; for(let i=0;i<all.length;i+=n) chunks.push(all.slice(i,i+n));
+  const words=chunks[tsChunk%chunks.length]||all; tsChunk++;
+  line.className='tsline '+tsCur.pos; line.textContent=''; const el=hel('div'); line.appendChild(el);
+  tsBuild(el,tsCur,words,240/1080,true);
+}
+function tsSwatch(st){const sw=hel('div','sw'); const el=hel('div'); sw.appendChild(el);
+  tsBuild(el,Object.assign({},st,{size:Math.min(st.size,110)}),[{t:'Hola',hl:false},{t:'한국어',hl:true}],0.2,false); return sw}
+function tsFill(){ // controls ← tsCur
+  const st=tsCur; const set=(id,v)=>{const e=hx(id); if(e.type==='checkbox') e.checked=!!v; else e.value=v};
+  set('tsFont',st.font); set('tsWeight',st.weight); set('tsSize',st.size); set('tsWpl',st.wpl); set('tsColor',st.color); set('tsHl',st.hl);
+  set('tsStroke',st.stroke); set('tsStrokeC',st.strokeC); set('tsBoxT',st.boxT); set('tsBoxC',st.boxC); set('tsOp',st.op); set('tsRad',st.rad);
+  set('tsPos',st.pos); set('tsMotion',st.motion); set('tsShadow',st.shadow); set('tsUpper',st.upper); tsLabels();
+}
+function tsLabels(){ hx('tsSizeV').textContent=tsCur.size+'px'; hx('tsStrokeV').textContent=tsCur.stroke; hx('tsOpV').textContent=tsCur.op+'%'; hx('tsRadV').textContent=tsCur.rad;
+  const mo=hx('tsMotion').selectedOptions[0]; const t=(tsCur.name||'내 스타일')+' · '+(mo?mo.textContent:''); hx('tsNow').textContent='지금: '+t;
+  const e=hx('eTs'); if(e){e.textContent=''; e.append(hel('span','',  '글자 상자: '),hel('b','',t)); const a=hel('a','','바꾸기'); a.href='#'; a.style.color='var(--accent)';
+    a.onclick=ev=>{ev.preventDefault(); hx('tsBox').open=true; hx('tsBox').scrollIntoView({behavior:'smooth',block:'start'})}; e.appendChild(a)} }
+function tsApply(st,sel){ tsCur=Object.assign({},TS_BASE,st); tsSel=sel; tsChunk=0; tsFill(); renderTs(); tsDraw() }
+function renderTs(){
+  if(!hx('tsRecs')) return;
+  if(!tsInit&&hubLoaded){ tsInit=true; const sv=tsSaved(); const d=sv.list.find(x=>x.id===sv.def); if(d){tsCur=Object.assign({},TS_BASE,d); tsSel=d.id} }
+  if(!tsCur) tsCur=tsMk(TS_PRESETS[0]);
+  const rec=tsRecIds(), box=hx('tsRecs'); box.textContent='';
+  [...TS_PRESETS].sort((a,b)=>(rec.includes(b.pid)?1:0)-(rec.includes(a.pid)?1:0)).forEach(p=>{
+    const st=tsMk(p), b=hel('button','tsrec'+(tsSel===p.pid?' on':'')); b.type='button';
+    const nm=hel('div','nm',p.name); if(rec.includes(p.pid)) nm.appendChild(hel('span','bd','추천'));
+    const mo=[...hx('tsMotion').options].find(o=>o.value===st.motion);
+    b.append(tsSwatch(st),nm,hel('div','wy',p.why+' · '+(mo?mo.textContent:'')));
+    b.onclick=()=>tsApply(st,p.pid); box.appendChild(b)});
+  const sv=tsSaved(), mine=hx('tsMine'); mine.textContent='';
+  if(!sv.list.length) mine.appendChild(hel('span','how','저장한 스타일이 없어요. 아래에서 고친 뒤 저장해 보세요.'));
+  sv.list.forEach(s=>{const c=hel('span','chip'+(tsSel===s.id?' on':''),(sv.def===s.id?'⭐ ':'')+s.name); c.tabIndex=0;
+    const x=hel('span','x','×'); x.title='삭제'; x.onclick=async ev=>{ev.stopPropagation(); if(!confirm('‘'+s.name+'’ 스타일을 지울까요?')) return;
+      const L=sv.list.filter(y=>y.id!==s.id); try{await hubWrite('set','settings','textStyles',{list:L,def:sv.def===s.id?'':sv.def}); htoast('지웠어요')}catch(e){htoast('지우지 못했어요')}};
+    c.appendChild(x); c.onclick=()=>tsApply(s,s.id); c.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();tsApply(s,s.id)}}; mine.appendChild(c)});
+  tsLabels();
+}
+(function tsSetup(){
+  if(!hx('tsFont')) return;
+  TS_FONTS.forEach(([v,t])=>{const o=document.createElement('option'); o.value=v; o.textContent=t; o.style.fontFamily=`'${v}'`; hx('tsFont').appendChild(o)});
+  const map={tsFont:'font',tsWeight:'weight',tsSize:'size',tsWpl:'wpl',tsColor:'color',tsHl:'hl',tsStroke:'stroke',tsStrokeC:'strokeC',tsBoxT:'boxT',tsBoxC:'boxC',tsOp:'op',tsRad:'rad',tsPos:'pos',tsMotion:'motion',tsShadow:'shadow',tsUpper:'upper'};
+  Object.entries(map).forEach(([id,k])=>{const e=hx(id); e.addEventListener('input',()=>{ if(!tsCur) tsCur=tsMk(TS_PRESETS[0]);
+    tsCur[k]=e.type==='checkbox'?e.checked:(e.type==='range'?+e.value:e.value);
+    if(!/ \(수정\)$/.test(tsCur.name||'')) tsCur.name=(tsCur.name||'스타일')+' (수정)';
+    if(tsSel){tsSel=''; [...document.querySelectorAll('#tsRecs .tsrec.on,#tsMine .chip.on')].forEach(x=>x.classList.remove('on'))}
+    tsLabels(); if(k!=='wpl'&&k!=='motion'){tsChunk=Math.max(0,tsChunk-1)} tsDraw() })});
+  hx('tsSample').addEventListener('input',()=>{tsChunk=0; tsDraw()});
+  async function save(asDef){ const sv=tsSaved(); let name=hx('tsName').value.trim()||String(tsCur.name||'내 스타일').replace(/ \(수정\)$/,'');
+    let id=sv.list.some(x=>x.id===tsSel)?tsSel:''; const L=sv.list.slice();
+    if(!id||hx('tsName').value.trim()){ id='t'+Date.now().toString(36); const st=Object.assign({},tsCur,{id,name}); L.push(st) } else { const i=L.findIndex(x=>x.id===id); L[i]=Object.assign({},tsCur,{id,name:L[i].name}) }
+    try{await hubWrite('set','settings','textStyles',{list:L,def:asDef?id:sv.def}); tsCur=Object.assign({},L.find(x=>x.id===id)); tsSel=id; hx('tsName').value=''; renderTs();
+      htoast(asDef?'기본 글자 상자 스타일로 정했어요':'내 스타일에 저장했어요')}catch(e){htoast('저장하지 못했어요')} }
+  hx('tsSave').onclick=()=>save(false); hx('tsDef').onclick=()=>save(true);
+  setInterval(()=>{ const b=hx('tsBox'); if(b&&b.open&&b.offsetParent&&!document.hidden) tsDraw() },2600);
+})();
 hx('eForm').addEventListener('submit',async e=>{e.preventDefault();
   const title=hx('eTitle').value.trim(); if(!title){hx('eTitle').focus();return}
   const job={title,script:hx('eScript').value,source:hx('eSource').value.trim(),takes:hx('eTakes').value.trim(),
-    skills:skillsSorted().filter(s=>ePicked.has(s.id)).map(s=>({name:s.name,desc:s.desc||''})),note:hx('eNote').value.trim(),
+    skills:skillsSorted().filter(s=>ePicked.has(s.id)).map(s=>({name:s.name,desc:s.desc||''})),note:hx('eNote').value.trim(),textStyle:tsCur?Object.assign({},tsCur):null,
     status:'requested',createdAt:Date.now(),updatedAt:Date.now(),versions:[],feedback:[]};
   hx('eSend').disabled=true;
   try{await hubWrite('add','jobs',null,job); hx('eTitle').value=''; hx('eTakes').value=''; hx('eNote').value=''; hx('eMsg').textContent='요청했어요. 채팅에 "편집해줘"라고 말해 주세요.'; htoast('편집 요청을 보냈어요')}
