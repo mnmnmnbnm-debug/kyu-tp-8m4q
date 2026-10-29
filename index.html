@@ -2,7 +2,7 @@
 <title>KYU 프롬프터</title>
 <meta name="robots" content="noindex,nofollow">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Sunflower:wght@700&family=Gowun+Dodum&family=Nanum+Pen+Script&family=Gaegu:wght@700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Sunflower:wght@700&family=Gowun+Dodum&family=Nanum+Pen+Script&family=Gaegu:wght@700&family=Nanum+Myeongjo:wght@700;800&family=Gowun+Batang:wght@700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 :root{
   --bg:#0d1014; --panel:#161b22; --line:#262d37; --fg:#f2f4f7; --dim:#6b7686;
@@ -360,7 +360,14 @@ body{height:auto;min-height:100%}
 @keyframes ts-kara{to{color:var(--hl)}}
 @keyframes ts-shake{0%,100%{transform:none}20%{transform:translate(-4px,1px) rotate(-2deg)}40%{transform:translate(4px,-1px) rotate(2deg)}60%{transform:translate(-3px,0)}80%{transform:translate(3px,0)}}
 .tsh{font-weight:700;display:flex;gap:8px;align-items:baseline;margin-top:4px}
-.tsrecs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tsrecs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:1100px){.tsrecs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:600px){.tsrecs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tsrec .sw{position:relative}
+.tsrec .sw .bd.hot{position:absolute;top:3px;left:3px;font-size:11px;background:rgba(0,0,0,.35);border-radius:999px;padding:0 4px;line-height:1.5}
+.tsref{margin-left:auto;padding:4px 12px;font-size:12px}
+.tsrecs.flip .tsrec{animation:ts-fade .35s both}
+.tsrecs.flip .tsrec:nth-child(2){animation-delay:.04s}.tsrecs.flip .tsrec:nth-child(3){animation-delay:.08s}.tsrecs.flip .tsrec:nth-child(4){animation-delay:.12s}.tsrecs.flip .tsrec:nth-child(5){animation-delay:.16s}
 .tsrec{border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;background:#0f1318;text-align:left;color:inherit;font:inherit}
 .tsrec:hover{border-color:#6b7686}
 .tsrec.on{border-color:#ffcc33;box-shadow:0 0 0 1px #ffcc33 inset}
@@ -560,6 +567,8 @@ body{height:auto;min-height:100%}
           <div class="tsctl">
             <div class="sub tsh">✨ 추천 디자인 · 모션 <span class="how">눌러서 바로 적용</span></div>
             <div class="tsrecs" id="tsRecs"></div>
+            <div class="sub tsh">🔥 오늘의 트렌드 <span class="how" id="tsTrDate"></span><button class="btn tsref" type="button" id="tsTrRef" title="다른 트렌드 보기">↻ 새로고침</button></div>
+            <div class="tsrecs" id="tsTrend"></div>
             <div class="sub tsh">내 스타일</div>
             <div class="pick" id="tsMine"></div>
             <div class="sub tsh">직접 수정</div>
@@ -572,7 +581,9 @@ body{height:auto;min-height:100%}
               <label>강조색 (*단어*)<input type="color" id="tsHl"></label>
               <label>외곽선 두께 <b id="tsStrokeV"></b><input type="range" id="tsStroke" min="0" max="12"></label>
               <label>외곽선 색<input type="color" id="tsStrokeC"></label>
-              <label>상자 모양<select id="tsBoxT"><option value="none">상자 없음</option><option value="solid">네모 상자</option><option value="bubble">말풍선</option><option value="bar">하단 바 (뉴스형)</option><option value="marker">단어별 형광펜</option></select></label>
+              <label>상자 모양<select id="tsBoxT"><option value="none">상자 없음</option><option value="solid">네모 상자</option><option value="bubble">말풍선</option><option value="bar">하단 바 (뉴스형)</option><option value="marker">단어별 형광펜</option><option value="pill">알약 (둥근 라벨)</option><option value="glass">유리 (반투명 블러)</option></select></label>
+              <label>글자 효과<select id="tsFx"><option value="none">없음</option><option value="glow">네온 글로우</option><option value="offset">어긋난 그림자</option><option value="double">두 겹 외곽선 (예능)</option><option value="hollow">속 빈 글자</option><option value="gradient">그라데이션</option></select></label>
+              <label>효과 색<input type="color" id="tsFxC"></label>
               <label>상자 색<input type="color" id="tsBoxC"></label>
               <label>상자 투명도 <b id="tsOpV"></b><input type="range" id="tsOp" min="10" max="100" step="5"></label>
               <label>모서리 둥글기 <b id="tsRadV"></b><input type="range" id="tsRad" min="0" max="40" step="2"></label>
@@ -1626,8 +1637,8 @@ function renderRecs(){
 }
 
 /* ---------- 글자 상자 스타일 (Edit) ---------- */
-const TS_FONTS=[['Noto Sans KR','본고딕 (기본)'],['Black Han Sans','검은고딕 (아주 굵게)'],['Do Hyeon','도현 (각진 제목체)'],['Jua','주아 (둥글둥글)'],['Sunflower','해바라기 (깔끔)'],['Gowun Dodum','고운돋움 (부드럽게)'],['Nanum Pen Script','나눔펜 (손글씨)'],['Gaegu','개구 (귀여운 손글씨)']];
-const TS_BASE={font:'Noto Sans KR',weight:'900',size:84,wpl:'3',color:'#ffffff',hl:'#ffcc33',stroke:6,strokeC:'#000000',boxT:'none',boxC:'#000000',op:60,rad:12,pos:'bottom',motion:'word',shadow:true,upper:false};
+const TS_FONTS=[['Noto Sans KR','본고딕 (기본)'],['Black Han Sans','검은고딕 (아주 굵게)'],['Do Hyeon','도현 (각진 제목체)'],['Jua','주아 (둥글둥글)'],['Sunflower','해바라기 (깔끔)'],['Gowun Dodum','고운돋움 (부드럽게)'],['Nanum Pen Script','나눔펜 (손글씨)'],['Gaegu','개구 (귀여운 손글씨)'],['Nanum Myeongjo','나눔명조 (고급 세리프)'],['Gowun Batang','고운바탕 (감성 세리프)']];
+const TS_BASE={font:'Noto Sans KR',weight:'900',size:84,wpl:'3',color:'#ffffff',hl:'#ffcc33',stroke:6,strokeC:'#000000',boxT:'none',boxC:'#000000',op:60,rad:12,pos:'bottom',motion:'word',shadow:true,upper:false,fx:'none',fxC:'#ff3df2'};
 const TS_PRESETS=[
   {pid:'p1',name:'클래식 팝업 자막',why:'말하는 순간 단어가 톡. 대부분 릴스에 무난',tags:['word'],s:{}},
   {pid:'p2',name:'노랑 상자 제목',why:'훅·핵심 문장. 피드에서 눈에 확 띄어요',tags:['hook'],s:{font:'Black Han Sans',weight:'400',size:96,color:'#14110a',hl:'#d62f2f',stroke:0,boxT:'solid',boxC:'#ffcc33',op:100,rad:10,pos:'top',motion:'pop',shadow:false,wpl:'6'}},
@@ -1639,6 +1650,33 @@ const TS_PRESETS=[
   {pid:'p8',name:'뉴스 하단 바',why:'정보·통계·날짜 전달. 신뢰감 있는 느낌',tags:['info'],s:{font:'Noto Sans KR',weight:'700',size:64,color:'#ffffff',hl:'#ffcc33',stroke:0,boxT:'bar',boxC:'#111111',op:85,rad:0,motion:'slide',shadow:false,wpl:'6'}},
   {pid:'p9',name:'충격 흔들림',why:'반전·놀라는 순간 한 번만',tags:['hook'],s:{font:'Black Han Sans',weight:'400',size:118,color:'#ff5252',hl:'#ffffff',stroke:8,motion:'shake',wpl:'2',pos:'middle'}}
 ];
+const TS_TRENDS=[
+  {pid:'t01',name:'호르모지 스타일',why:'1~2단어씩 크게, 핵심어만 초록. 요즘 정보형 릴스 최다',s:{font:'Black Han Sans',weight:'400',size:104,color:'#ffffff',hl:'#3cf06e',stroke:8,motion:'word',wpl:'2',upper:true}},
+  {pid:'t02',name:'미스터비스트 두꺼운 글씨',why:'아주 굵은 외곽선 + 그림자. 썸네일 같은 임팩트',s:{font:'Black Han Sans',weight:'400',size:116,color:'#ffffff',hl:'#ffd400',stroke:11,fx:'offset',fxC:'#000000',motion:'pop',wpl:'2',upper:true,shadow:false}},
+  {pid:'t03',name:'K-예능 자막',why:'두 겹 외곽선 둥근 글씨. 한국 문화 콘텐츠와 찰떡',s:{font:'Jua',weight:'400',size:92,color:'#ffffff',hl:'#ff8ac6',stroke:6,strokeC:'#2b2b6f',fx:'double',fxC:'#ffd400',motion:'bounce',wpl:'4',shadow:false}},
+  {pid:'t04',name:'네온 글로우',why:'밤·카페·감성 영상. 빛나는 글씨',s:{font:'Do Hyeon',weight:'400',size:92,color:'#ffffff',hl:'#38f3ff',stroke:0,fx:'glow',fxC:'#38f3ff',motion:'fade',wpl:'3',shadow:false}},
+  {pid:'t05',name:'그라데이션 글자',why:'핑크→노랑 그라데이션. 밝고 트렌디한 느낌',s:{font:'Black Han Sans',weight:'400',size:100,color:'#ff7ad9',hl:'#ffffff',stroke:0,fx:'gradient',fxC:'#ffd36b',motion:'pop',wpl:'3',shadow:true}},
+  {pid:'t06',name:'속 빈 아웃라인',why:'테두리만 있는 큰 글씨. 미니멀·패션 무드',s:{font:'Black Han Sans',weight:'400',size:118,color:'#ffffff',hl:'#ffcc33',stroke:0,fx:'hollow',motion:'slide',wpl:'2',upper:true,shadow:false}},
+  {pid:'t07',name:'글래스 상자',why:'반투명 유리 상자. 배경을 살리면서 잘 읽혀요',s:{font:'Sunflower',weight:'700',size:66,color:'#ffffff',hl:'#ffe27a',stroke:0,boxT:'glass',boxC:'#ffffff',op:22,rad:18,motion:'fade',wpl:'4',shadow:false}},
+  {pid:'t08',name:'알약 라벨',why:'둥근 흰 라벨. 깔끔한 정보 정리',s:{font:'Noto Sans KR',weight:'700',size:58,color:'#14110a',hl:'#e8432e',stroke:0,boxT:'pill',boxC:'#ffffff',op:100,motion:'pop',pos:'top',wpl:'6',shadow:false}},
+  {pid:'t09',name:'에디토리얼 세리프',why:'잡지 같은 고급 명조체. 역사·감성 이야기',s:{font:'Nanum Myeongjo',weight:'800',size:78,color:'#ffffff',hl:'#ffd36b',stroke:0,motion:'fade',wpl:'6',pos:'middle',shadow:true}},
+  {pid:'t10',name:'틱톡 클래식 흰 상자',why:'틱톡 기본 자막 느낌. 익숙해서 편하게 읽혀요',s:{font:'Noto Sans KR',weight:'700',size:62,color:'#111111',hl:'#e8432e',stroke:0,boxT:'solid',boxC:'#ffffff',op:100,rad:8,motion:'none',wpl:'6',shadow:false}},
+  {pid:'t11',name:'스티커 컷아웃',why:'흰 테두리 스티커처럼. 귀엽고 눈에 띄어요',s:{font:'Jua',weight:'400',size:92,color:'#ff5aa0',hl:'#7a5cff',stroke:10,strokeC:'#ffffff',fx:'offset',fxC:'#2a2a2a',motion:'bounce',wpl:'3',shadow:false}},
+  {pid:'t12',name:'카톡 말풍선',why:'카톡 대화 연출. 한국 문화 소개에 재미',s:{font:'Noto Sans KR',weight:'400',size:60,color:'#191919',hl:'#191919',stroke:0,boxT:'bubble',boxC:'#fee500',op:100,rad:26,motion:'pop',pos:'top',wpl:'6',shadow:false}},
+  {pid:'t13',name:'아이메시지 말풍선',why:'파란 말풍선 대화. 학생 질문·DM 재현',s:{font:'Noto Sans KR',weight:'400',size:60,color:'#ffffff',hl:'#ffe27a',stroke:0,boxT:'bubble',boxC:'#0a84ff',op:100,rad:26,motion:'pop',pos:'top',wpl:'6',shadow:false}},
+  {pid:'t14',name:'레트로 오프셋',why:'빨간 그림자가 어긋난 70년대 포스터 느낌',s:{font:'Do Hyeon',weight:'400',size:100,color:'#ffcc33',hl:'#ffffff',stroke:0,fx:'offset',fxC:'#e8432e',motion:'slide',wpl:'3',upper:true,shadow:false}},
+  {pid:'t15',name:'브루탈 검정 띠',why:'각진 검정 띠 + 타자기. 강한 한 문장',s:{font:'Black Han Sans',weight:'400',size:80,color:'#ffffff',hl:'#ffcc33',stroke:0,boxT:'solid',boxC:'#000000',op:100,rad:0,motion:'type',wpl:'4',shadow:false}},
+  {pid:'t16',name:'파스텔 알약',why:'부드러운 파스텔. 일상·브이로그',s:{font:'Gowun Dodum',weight:'400',size:64,color:'#5a2a3c',hl:'#d6336c',stroke:0,boxT:'pill',boxC:'#ffd6e7',op:100,motion:'bounce',wpl:'4',shadow:false}},
+  {pid:'t17',name:'미니멀 얇은 글씨',why:'광고처럼 조용하고 깔끔. 감성 엔딩',s:{font:'Noto Sans KR',weight:'400',size:60,color:'#ffffff',hl:'#ffe27a',stroke:0,motion:'fade',wpl:'6',shadow:true}},
+  {pid:'t18',name:'키네틱 한 단어',why:'한 단어씩 화면 가득. 빠른 템포',s:{font:'Black Han Sans',weight:'400',size:150,color:'#ffffff',hl:'#ffcc33',stroke:8,motion:'pop',wpl:'1',pos:'middle'}},
+  {pid:'t19',name:'노랑 로워서드',why:'이름표·정보 띠. 방송 같은 정돈감',s:{font:'Noto Sans KR',weight:'700',size:56,color:'#14110a',hl:'#14110a',stroke:0,boxT:'bar',boxC:'#ffcc33',op:100,motion:'slide',wpl:'6',shadow:false}},
+  {pid:'t20',name:'분필 칠판',why:'칠판 손글씨. 한국어 수업 콘텐츠에 딱',s:{font:'Gaegu',weight:'700',size:86,color:'#f4f4ec',hl:'#ffe27a',stroke:0,boxT:'solid',boxC:'#1f3b2d',op:92,rad:6,motion:'type',wpl:'4',shadow:false}},
+  {pid:'t21',name:'핑크 형광펜',why:'강조 단어에 핑크 마커. 밝은 단어 공부',s:{font:'Noto Sans KR',weight:'900',size:80,color:'#ffffff',hl:'#ffffff',stroke:6,boxT:'marker',boxC:'#ff4fa3',op:85,rad:4,motion:'word',wpl:'3'}},
+  {pid:'t22',name:'레트로 VHS',why:'보라 네온 + 흔들림. Y2K 무드',s:{font:'Do Hyeon',weight:'400',size:96,color:'#ffffff',hl:'#ff3df2',stroke:0,fx:'glow',fxC:'#ff3df2',motion:'shake',wpl:'2',upper:true,shadow:false}}
+];
+function tsSeed(n){return ()=>{n|=0;n=n+0x6D2B79F5|0;let t=Math.imul(n^n>>>15,1|n);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function tsToday(){const d=new Date(); return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
+let tsTrPage=0, tsTrSpin=false;
 let tsCur=null, tsInit=false, tsSel='p1';
 const tsMk=p=>Object.assign({},TS_BASE,p.s,{name:p.name});
 function tsSaved(){const s=hset('textStyles'); return {list:Array.isArray(s.list)?s.list:[],def:s.def||''}}
@@ -1654,17 +1692,28 @@ function tsWords(){ let s=(hx('tsSample').value||'Antes, en *Corea*, comían *�
 function tsHex(h,op){const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${op/100})`}
 function tsStyleBox(el,st,scale){
   el.className='tb'+(st.boxT==='bar'?' bar':st.boxT==='bubble'?' bubble':'');
+  ['webkitBackgroundClip','backgroundClip','backdropFilter','webkitBackdropFilter','border','backgroundImage'].forEach(k=>{el.style[k]=''});
   const f=el.style; f.fontFamily=`'${st.font}','Noto Sans KR',sans-serif`; f.fontWeight=st.weight; f.fontSize=(st.size*scale)+'px'; f.color=st.color;
   f.setProperty('--hl',st.hl); f.setProperty('--bx',tsHex(st.boxC,st.op));
   f.webkitTextStroke=st.stroke?(st.stroke*scale*2)+'px '+st.strokeC:'0'; f.textShadow=st.shadow?`0 ${2*scale*4}px ${6*scale*4}px rgba(0,0,0,.65)`:'none';
   const boxed=st.boxT==='solid'||st.boxT==='bubble'||st.boxT==='bar';
   f.background=boxed?tsHex(st.boxC,st.op):'none'; f.borderRadius=st.boxT==='bar'?'0':(st.rad*scale*2)+'px'; f.padding=boxed?`${.18*st.size*scale}px ${.38*st.size*scale}px`:'0';
+  if(st.boxT==='pill'||st.boxT==='glass'){ f.background=tsHex(st.boxC,st.op); f.padding=`${.2*st.size*scale}px ${.55*st.size*scale}px`; f.borderRadius=st.boxT==='pill'?'999px':(st.rad*scale*2)+'px';
+    if(st.boxT==='glass'){f.backdropFilter=f.webkitBackdropFilter='blur(6px)'; f.border='1px solid rgba(255,255,255,.35)'} }
+  const fs=st.size*scale, fc=st.fxC||'#ff3df2', sh=st.shadow?`0 ${fs*.08}px ${fs*.22}px rgba(0,0,0,.65)`:'';
+  let fx='';
+  if(st.fx==='glow') fx=`0 0 ${fs*.18}px ${fc},0 0 ${fs*.5}px ${fc}`;
+  else if(st.fx==='offset') fx=`${Math.max(1,fs*.07)}px ${Math.max(1,fs*.07)}px 0 ${fc}`;
+  else if(st.fx==='double'){const r=Math.max(1.5,fs*.1)+(st.stroke*scale); fx=[[r,0],[-r,0],[0,r],[0,-r],[r*.7,r*.7],[-r*.7,-r*.7],[r*.7,-r*.7],[-r*.7,r*.7]].map(([x,y])=>`${x}px ${y}px 0 ${fc}`).join(',')}
+  else if(st.fx==='hollow'){ f.color='transparent'; f.webkitTextStroke=Math.max(1,fs*.035)+'px '+st.color }
+  else if(st.fx==='gradient'&&!(boxed||st.boxT==='pill'||st.boxT==='glass')){ f.backgroundImage=`linear-gradient(90deg,${st.color},${fc})`; f.webkitBackgroundClip=f.backgroundClip='text'; f.color='transparent' }
+  f.textShadow=[fx,sh].filter(Boolean).join(',')||'none';
 }
 function tsBuild(el,st,words,scale,anim){
   tsStyleBox(el,st,scale); el.textContent='';
   const step=st.motion==='karaoke'?0.42:0.32; let ci=0;
   words.forEach((w,i)=>{const sp=hel('span','w'+(st.boxT==='marker'&&w.hl?' mk':''));
-    if(w.hl){sp.style.color=st.hl; if(st.boxT==='marker'){sp.style.background=tsHex(st.boxC,st.op)}}
+    if(w.hl){ if(st.fx==='hollow'){sp.style.webkitTextStroke=Math.max(1,st.size*scale*.035)+'px '+st.hl} else sp.style.color=st.hl; if(st.boxT==='marker'){sp.style.background=tsHex(st.boxC,st.op)}}
     if(anim&&st.motion==='type'){[...w.t].forEach(ch=>{const c=hel('span','c',ch); c.style.animationDelay=(ci++*0.06)+'s'; sp.appendChild(c)}); ci++}
     else sp.textContent=w.t;
     if(anim&&st.motion==='word'){sp.style.animation=`ts-pop .32s ${i*step}s both`}
@@ -1686,7 +1735,7 @@ function tsFill(){ // controls ← tsCur
   const st=tsCur; const set=(id,v)=>{const e=hx(id); if(e.type==='checkbox') e.checked=!!v; else e.value=v};
   set('tsFont',st.font); set('tsWeight',st.weight); set('tsSize',st.size); set('tsWpl',st.wpl); set('tsColor',st.color); set('tsHl',st.hl);
   set('tsStroke',st.stroke); set('tsStrokeC',st.strokeC); set('tsBoxT',st.boxT); set('tsBoxC',st.boxC); set('tsOp',st.op); set('tsRad',st.rad);
-  set('tsPos',st.pos); set('tsMotion',st.motion); set('tsShadow',st.shadow); set('tsUpper',st.upper); tsLabels();
+  set('tsPos',st.pos); set('tsMotion',st.motion); set('tsShadow',st.shadow); set('tsUpper',st.upper); set('tsFx',st.fx||'none'); set('tsFxC',st.fxC||'#ff3df2'); tsLabels();
 }
 function tsLabels(){ hx('tsSizeV').textContent=tsCur.size+'px'; hx('tsStrokeV').textContent=tsCur.stroke; hx('tsOpV').textContent=tsCur.op+'%'; hx('tsRadV').textContent=tsCur.rad;
   const mo=hx('tsMotion').selectedOptions[0]; const t=(tsCur.name||'내 스타일')+' · '+(mo?mo.textContent:''); hx('tsNow').textContent='지금: '+t;
@@ -1698,12 +1747,20 @@ function renderTs(){
   if(!tsInit&&hubLoaded){ tsInit=true; const sv=tsSaved(); const d=sv.list.find(x=>x.id===sv.def); if(d){tsCur=Object.assign({},TS_BASE,d); tsSel=d.id} }
   if(!tsCur) tsCur=tsMk(TS_PRESETS[0]);
   const rec=tsRecIds(), box=hx('tsRecs'); box.textContent='';
-  [...TS_PRESETS].sort((a,b)=>(rec.includes(b.pid)?1:0)-(rec.includes(a.pid)?1:0)).forEach(p=>{
-    const st=tsMk(p), b=hel('button','tsrec'+(tsSel===p.pid?' on':'')); b.type='button';
-    const nm=hel('div','nm',p.name); if(rec.includes(p.pid)) nm.appendChild(hel('span','bd','추천'));
-    const mo=[...hx('tsMotion').options].find(o=>o.value===st.motion);
-    b.append(tsSwatch(st),nm,hel('div','wy',p.why+' · '+(mo?mo.textContent:'')));
-    b.onclick=()=>tsApply(st,p.pid); box.appendChild(b)});
+  const mo=v=>{const o=[...hx('tsMotion').options].find(o=>o.value===v); return o?o.textContent:''};
+  const card=(p,badge,cls)=>{ const st=tsMk(p), b=hel('button','tsrec'+(tsSel===p.pid?' on':'')); b.type='button';
+    const nm=hel('div','nm',p.name), sw=tsSwatch(st); if(badge) (cls?sw:nm).appendChild(hel('span','bd'+(cls?' '+cls:''),badge));
+    b.append(sw,nm,hel('div','wy',p.why+' · '+mo(st.motion))); b.onclick=()=>tsApply(st,p.pid); return b };
+  const first=[...TS_PRESETS].sort((a,b)=>(rec.includes(b.pid)?1:0)-(rec.includes(a.pid)?1:0)).slice(0,5);
+  first.forEach(p=>box.appendChild(card(p,rec.includes(p.pid)?'추천':'')));
+  // 오늘의 트렌드: 날짜로 섞고, 새로고침마다 다음 5개
+  const pool=TS_TRENDS.concat(TS_PRESETS.filter(p=>!first.includes(p))), rnd=tsSeed(tsToday());
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]}
+  const tb=hx('tsTrend'); tb.textContent=''; const per=5, pages=Math.ceil(pool.length/per), pg=((tsTrPage%pages)+pages)%pages;
+  const show=pool.slice(pg*per,pg*per+per); while(show.length<per) show.push(pool[show.length]);
+  show.forEach(p=>tb.appendChild(card(p,p.pid[0]==='t'?'🔥':'',p.pid[0]==='t'?'hot':'')));
+  const d=new Date(); hx('tsTrDate').textContent=(d.getMonth()+1)+'/'+d.getDate()+' · '+(pg+1)+'/'+pages;
+  if(tsTrSpin){tsTrSpin=false; tb.classList.remove('flip'); void tb.offsetWidth; tb.classList.add('flip')}
   const sv=tsSaved(), mine=hx('tsMine'); mine.textContent='';
   if(!sv.list.length) mine.appendChild(hel('span','how','저장한 스타일이 없어요. 아래에서 고친 뒤 저장해 보세요.'));
   sv.list.forEach(s=>{const c=hel('span','chip'+(tsSel===s.id?' on':''),(sv.def===s.id?'⭐ ':'')+s.name); c.tabIndex=0;
@@ -1715,13 +1772,14 @@ function renderTs(){
 (function tsSetup(){
   if(!hx('tsFont')) return;
   TS_FONTS.forEach(([v,t])=>{const o=document.createElement('option'); o.value=v; o.textContent=t; o.style.fontFamily=`'${v}'`; hx('tsFont').appendChild(o)});
-  const map={tsFont:'font',tsWeight:'weight',tsSize:'size',tsWpl:'wpl',tsColor:'color',tsHl:'hl',tsStroke:'stroke',tsStrokeC:'strokeC',tsBoxT:'boxT',tsBoxC:'boxC',tsOp:'op',tsRad:'rad',tsPos:'pos',tsMotion:'motion',tsShadow:'shadow',tsUpper:'upper'};
+  const map={tsFont:'font',tsWeight:'weight',tsSize:'size',tsWpl:'wpl',tsColor:'color',tsHl:'hl',tsStroke:'stroke',tsStrokeC:'strokeC',tsBoxT:'boxT',tsBoxC:'boxC',tsOp:'op',tsRad:'rad',tsPos:'pos',tsMotion:'motion',tsShadow:'shadow',tsUpper:'upper',tsFx:'fx',tsFxC:'fxC'};
   Object.entries(map).forEach(([id,k])=>{const e=hx(id); e.addEventListener('input',()=>{ if(!tsCur) tsCur=tsMk(TS_PRESETS[0]);
     tsCur[k]=e.type==='checkbox'?e.checked:(e.type==='range'?+e.value:e.value);
     if(!/ \(수정\)$/.test(tsCur.name||'')) tsCur.name=(tsCur.name||'스타일')+' (수정)';
     if(tsSel){tsSel=''; [...document.querySelectorAll('#tsRecs .tsrec.on,#tsMine .chip.on')].forEach(x=>x.classList.remove('on'))}
     tsLabels(); if(k!=='wpl'&&k!=='motion'){tsChunk=Math.max(0,tsChunk-1)} tsDraw() })});
   hx('tsSample').addEventListener('input',()=>{tsChunk=0; tsDraw()});
+  hx('tsTrRef').onclick=()=>{tsTrPage++; tsTrSpin=true; renderTs()};
   async function save(asDef){ const sv=tsSaved(); let name=hx('tsName').value.trim()||String(tsCur.name||'내 스타일').replace(/ \(수정\)$/,'');
     let id=sv.list.some(x=>x.id===tsSel)?tsSel:''; const L=sv.list.slice();
     if(!id||hx('tsName').value.trim()){ id='t'+Date.now().toString(36); const st=Object.assign({},tsCur,{id,name}); L.push(st) } else { const i=L.findIndex(x=>x.id===id); L[i]=Object.assign({},tsCur,{id,name:L[i].name}) }
