@@ -1203,7 +1203,7 @@ function audioNav(){
 audioNav();
 async function hubLoad(force){
   if(hubBusy&&!force) return; hubBusy=true; hx('hubSync').textContent='불러오는 중…';
-  try{const j=await api('all'); const sig=JSON.stringify(j.data); const changed=sig!==hubSig; hubSig=sig; Object.assign(H,j.data); hubLoaded=true; hubErr('');
+  try{const j=await api('all'); const sig=JSON.stringify(j.data); const changed=sig!==hubSig; hubSig=sig; const keep=(H.skills||[]).filter(x=>x._new&&Date.now()-x._new<60000&&!(j.data.skills||[]).some(y=>y.id===x.id)); Object.assign(H,j.data); if(keep.length&&H.skills) H.skills.push(...keep); hubLoaded=true; hubErr('');
     const d=new Date(j.at||Date.now()); hx('hubSync').textContent=hpad(d.getHours())+':'+hpad(d.getMinutes())+' 기준';
     saveEdited(); if(force||changed) safeRender()}
   catch(e){ if(e.message!=='auth'){hubErr('저장소에 연결하지 못했어요. 인터넷을 확인하고 ↻를 눌러 주세요.'); } hx('hubSync').textContent='' }
@@ -1618,7 +1618,7 @@ function renderEPick(){
     const tg=()=>{ePicked.has(s.id)?ePicked.delete(s.id):ePicked.add(s.id); renderEPick()}; c.onclick=tg; c.onkeydown=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();tg()}}; p.appendChild(c)});
 }
 hx('sAdd').onclick=async()=>{const name=hx('sName').value.trim(), desc=hx('sDesc').value.trim(); if(!name){hx('sName').focus();return}
-  try{const order=H.skills.reduce((m,s)=>Math.max(m,s.order||0),0)+1; const j=await hubWrite('add','skills',null,{name,desc,on:true,order}); ePicked.add(j.id); renderEPick(); hx('sName').value=''; hx('sDesc').value=''; htoast('스킬을 추가했어요')}catch(e){htoast('추가하지 못했어요')}};
+  try{const order=H.skills.reduce((m,s)=>Math.max(m,s.order||0),0)+1; const data={name,desc,on:true,order}; const j=await api('add',{collection:'skills',data}); if(j&&j.id&&!H.skills.some(x=>x.id===j.id)) H.skills.push({id:j.id,...data,_new:Date.now()}); ePicked.add(j.id); skSel=j.id; hx('sName').value=''; hx('sDesc').value=''; renderEdit(); hubLoad(true); htoast('스킬을 추가했어요')}catch(e){htoast('추가하지 못했어요')}};
 function renderRecs(){
   const box=hx('recBox'), list=hx('recList'); list.textContent='';
   if(!H.recs.length){box.hidden=true;return}
@@ -1630,7 +1630,8 @@ function renderRecs(){
     const b=hel('button','btn','사용'); b.type='button';
     b.onclick=async()=>{b.disabled=true; try{
       let s=H.skills.find(x=>x.name===r.name);
-      if(!s){const order=H.skills.reduce((m,x)=>Math.max(m,x.order||0),0)+1; const j=await api('add',{collection:'skills',data:{name:r.name,desc:r.desc||'',on:true,order,fromRec:r.week}}); s={id:j.id}}
+      if(!s){const order=H.skills.reduce((m,x)=>Math.max(m,x.order||0),0)+1, data={name:r.name,desc:r.desc||'',on:true,order,fromRec:r.week}; const j=await api('add',{collection:'skills',data}); s={id:j.id,...data,_new:Date.now()}; if(!H.skills.some(x=>x.id===j.id)) H.skills.push(s)}
+      ePicked.add(s.id); r.used=true; renderEdit();
       ePicked.add(s.id); await hubWrite('update','recs',r.id,{used:true,usedAt:Date.now()}); htoast('‘'+r.name+'’을 스킬에 추가하고 켰어요')
     }catch(e){htoast('추가하지 못했어요'); b.disabled=false}};
     row.append(t,b); list.appendChild(row)});
