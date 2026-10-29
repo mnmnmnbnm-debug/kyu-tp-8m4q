@@ -1523,7 +1523,7 @@ function renderHome(){
 }
 
 /* ----- EDIT ----- */
-const JST={requested:'⏳ 대기 중',editing:'✂️ 편집 중',review:'👀 확인해 주세요',revise:'⏳ 수정 대기 중',done:'✓ 완료'};
+const JST={requested:'⏳ 대기 중',editing:'✂️ 편집 중',review:'👀 확인해 주세요',revise:'⏳ 새 버전 요청됨',done:'✓ 완료'};
 const JSTEP=['requested','editing','review','done'];
 function workingBox(j){
   const b=hel('div','ph working'); b.setAttribute('role','status');
@@ -1830,15 +1830,16 @@ function jobDiff(j){
 }
 function diffText(d){ const L=[]; if(d.add.length) L.push('스킬 추가: '+d.add.map(s=>s.name).join(', ')); if(d.rm.length) L.push('스킬 빼기: '+d.rm.map(s=>s.name).join(', '));
   if(d.style){const f=(TS_FONTS.find(x=>x[0]===d.style.font)||[,d.style.font])[1]; L.push('글자 상자: '+(d.style.name||'내 스타일')+' ('+f+', '+d.style.size+'px)')} return L }
+const CLAUDE_CHAT='https://claude.ai/code/session_01JT4nwytb84ghgPkkBQYFYZ';
 function updStart(){ document.querySelectorAll('button[data-start]').forEach(b=>{ const j=(H.jobs||[]).find(x=>x.id===b.dataset.start); if(!j) return;
-  const d=jobDiff(j); b.disabled=!d.any||b.dataset.busy==='1'; const L=diffText(d); b.title=d.any?L.join('\n'):'v'+(b.dataset.v||'')+' 버전과 바뀐 스킬·글자 상자가 없어요. 스킬을 켜거나 글자 상자를 바꾸면 켜져요';
+  const d=jobDiff(j), t=document.getElementById('fb-'+j.id), note=!!(t&&t.value.trim()); b.disabled=!(d.any||note)||b.dataset.busy==='1'; const L=diffText(d); b.title=(d.any||note)?(L.concat(note?['수정 지시 포함']:[])).join('\n'):'v'+(b.dataset.v||'')+' 버전과 바뀐 점이 없어요. 수정 지시를 쓰거나, 스킬·글자 상자를 바꾸면 켜져요';
   const box=b.closest('.info')&&b.closest('.info').querySelector('.sdiff'); if(box){box.hidden=!d.any; box.textContent=d.any?'바뀐 점 → '+L.join(' · '):''} }) }
 function jobCard(j){
   const card=hel('article','job'), vers=j.versions||[], vi=Math.min(jSel[j.id]??vers.length-1, vers.length-1);
   const vs=hel('div','vid');
   if(j.status==='editing') vs.appendChild(workingBox(j));
   else if(vers.length&&j.status!=='revise') vs.appendChild(videoBox(vers[vi]));
-  else if(!vers.length||j.status==='revise'){ vs.appendChild(j.status==='revise'&&vers.length?videoBox(vers[vi]):waitingBox(j)); if(j.status==='revise'&&vers.length) vs.appendChild(hel('div','sub','수정 대기 중 · 채팅에 "편집해줘"라고 말하면 v'+(vers.length+1)+'을 만들어요')) }
+  else if(!vers.length||j.status==='revise'){ vs.appendChild(j.status==='revise'&&vers.length?videoBox(vers[vi]):waitingBox(j)); if(j.status==='revise'&&vers.length) {const w=hel('div','sub','v'+(vers.length+1)+' 요청됨 · Claude가 시작하면 "편집 중"으로 바뀌어요 '); const l=hel('a',null,'Claude 채팅 열기 ↗'); l.href=CLAUDE_CHAT; l.target='kyu-claude'; l.style.color='var(--accent)'; w.appendChild(l); vs.appendChild(w)} }
   if(vers.length>1&&j.status!=='editing'){const t=hel('div','pick'); vers.forEach((x,k)=>{const c=hel('span','chip'+(k===vi?' on':''),'v'+(x.v??k+1)); c.tabIndex=0; c.onclick=()=>{jSel[j.id]=k; renderJobs()}; t.appendChild(c)}); vs.appendChild(t)}
   const info=hel('div','info'), jt=hel('div','jt');
   jt.append(hel('h3',null,j.title||'(제목 없음)'),hel('span','st '+(j.status||'requested'),JST[j.status]||j.status)); info.appendChild(jt); info.appendChild(stepsRow(j));
@@ -1852,23 +1853,24 @@ function jobCard(j){
   const ta=hel('textarea'); ta.id='fb-'+j.id; ta.placeholder='결과를 보고 바꿀 점을 적어 주세요. 예: 자막 더 아래로, 0:12 효과음 빼기';
   const lab=hel('label'); lab.htmlFor=ta.id; lab.textContent='수정 지시'; lab.appendChild(ta); if(hasV&&j.status!=='editing') info.appendChild(lab);
   const row=hel('div','fbrow');
-  const go=hel('button','btn go','▶ 수정 시작'); go.type='button'; go.dataset.start=j.id; go.dataset.v=vers.length?(vers[vi].v??vi+1):''; go.disabled=true;
-  go.onclick=async()=>{ const d=jobDiff(j); if(!d.any) return; go.dataset.busy='1'; go.disabled=true;
-    const text=['[수정 시작] '+diffText(d).join(' / '),ta.value.trim()].filter(Boolean).join('\n');
+  const nv=vers.length+1;
+  const go=hel('button','btn go','▶ v'+nv+' 만들기'); go.type='button'; go.dataset.start=j.id; go.dataset.v=vers.length?(vers[vi].v??vi+1):''; go.disabled=true;
+  ta.addEventListener('input',()=>updStart());
+  go.onclick=async()=>{ const d=jobDiff(j), note=ta.value.trim(); if(!d.any&&!note){ta.focus();return} go.dataset.busy='1'; go.disabled=true;
+    const text=[d.any?'[바뀐 설정] '+diffText(d).join(' / '):'',note].filter(Boolean).join('\n');
     const up={feedback:[...(j.feedback||[]),{text,at:Date.now(),forV:vers.length?(vers[vi].v??vi+1):null}],status:'revise',updatedAt:Date.now()};
     if(d.skills) up.skills=d.skills; if(d.style) up.textStyle=d.style;
-    try{await hubWrite('update','jobs',j.id,up); htoast('v'+(vers.length+1)+' 수정을 시작했어요. 채팅에 "편집해줘"라고 말해 주세요.')}
+    try{ await hubWrite('update','jobs',j.id,up); ta.value='';
+      const msg='편집해줘 — '+(j.title||'')+' v'+nv; try{await navigator.clipboard.writeText(msg)}catch(e){}
+      window.open(CLAUDE_CHAT,'kyu-claude');
+      htoast('v'+nv+' 요청 완료! Claude 채팅이 열렸어요 — 붙여넣기(⌘V) 후 Enter만 누르세요')}
     catch(e){htoast('보내지 못했어요'); go.dataset.busy=''; updStart()} };
-  const send=hel('button','btn primary','수정 요청'); send.type='button';
-  send.onclick=async()=>{const text=ta.value.trim(); if(!text){ta.focus();return} send.disabled=true;
-    try{await hubWrite('update','jobs',j.id,{feedback:[...(j.feedback||[]),{text,at:Date.now(),forV:vers.length?(vers[vi].v??vi+1):null}],status:'revise',updatedAt:Date.now()}); htoast('수정 요청을 보냈어요. 채팅에 "편집해줘"라고 말해 주세요.')}
-    catch(e){htoast('보내지 못했어요'); send.disabled=false}};
   const done=hel('button','btn',j.status==='done'?'다시 열기':'이걸로 완료'); done.type='button';
   done.onclick=()=>hubWrite('update','jobs',j.id,{status:j.status==='done'?'review':'done',updatedAt:Date.now()}).catch(()=>htoast('바꾸지 못했어요'));
   const del=hel('button','btn danger','작업 삭제'); del.type='button'; harm(del,'정말 삭제?',()=>hubWrite('delete','jobs',j.id).then(()=>htoast('작업을 지웠어요')));
   const sch=hel('button','btn','📅 예약하기'); sch.type='button'; sch.hidden=!vers.length;
   sch.onclick=()=>{showHub('home'); setTimeout(()=>{hx('pVideo').value=j.id+'|'+vi; pUserPath=false; pOnVideo(); hx('pCap').focus()},50)};
-  if(hasV&&j.status!=='editing'){const au=hel('a','btn','🎚 소리 보정'); au.href='audio.html?job='+encodeURIComponent(j.id)+'&i='+vi; au.style.textDecoration='none'; row.append(go,send,done,sch,au)} row.append(del); info.appendChild(row);
+  if(hasV&&j.status!=='editing'){const au=hel('a','btn','🎚 소리 보정'); au.href='audio.html?job='+encodeURIComponent(j.id)+'&i='+vi; au.style.textDecoration='none'; row.append(go,done,sch,au)} row.append(del); info.appendChild(row);
   if(hasV&&j.status!=='editing'){const sd=hel('div','sdiff'); sd.hidden=true; info.appendChild(sd); setTimeout(updStart,0)}
   card.append(vs,info); return card;
 }
