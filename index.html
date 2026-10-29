@@ -1560,14 +1560,14 @@ let skSel=null;
 const exCache={};
 function exGet(key,tries){ // small clips: fetch whole file as blob (avoids slow/aborted range requests), retry, cache
   if(exCache[key]) return exCache[key];
-  const go=n=>{const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),8000);
+  const go=n=>{const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),3500);
     return fetch(EXBASE+key+'.mp4',{signal:ac.signal}).then(r=>{clearTimeout(t); if(r.status===404) return {miss:true}; if(!r.ok) throw new Error(r.status); return r.blob().then(b=>({url:URL.createObjectURL(b)}))})
-      .catch(e=>{clearTimeout(t); if(n>0) return new Promise(ok=>setTimeout(ok,600)).then(()=>go(n-1)); return {fail:true}})};
-  const pr=go(tries==null?3:tries).then(r=>{if(!r.url) delete exCache[key]; return r}); exCache[key]=pr; return pr;
+      .catch(e=>{clearTimeout(t); if(n>0) return new Promise(ok=>setTimeout(ok,300)).then(()=>go(n-1)); return {fail:true}})};
+  const pr=go(tries==null?5:tries).then(r=>{if(!r.url) delete exCache[key]; return r}); exCache[key]=pr; return pr;
 }
 let exPre=false;
 function exPreload(){ if(exPre) return; exPre=true; const keys=(H.skills||[]).map(s=>EXV[s.id]||s.id); let i=0;
-  const next=()=>{ if(i>=keys.length) return; const k=keys[i++]; exGet(k,1).finally(()=>setTimeout(next,80)) }; next(); next(); }
+  const next=()=>{ if(i>=keys.length) return; const k=keys[i++]; exGet(k,2).finally(()=>setTimeout(next,50)) }; next(); next(); next(); }
 function renderSkPrev(){
   const box=hx('skPrev'); if(!box) return; const s=H.skills.find(x=>x.id===skSel);
   box.querySelectorAll('video').forEach(v=>{v.pause(); v.removeAttribute('src'); v.load()}); box.textContent=''; if(!s) return;
