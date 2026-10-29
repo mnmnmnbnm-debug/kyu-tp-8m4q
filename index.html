@@ -322,7 +322,7 @@ body{height:auto;min-height:100%}
 @media (max-width:760px){#hub .skx{grid-template-columns:1fr}}
 #hub .skprev{position:sticky;top:76px;display:flex;flex-direction:column;gap:8px}
 #hub .skprev video{width:100%;aspect-ratio:9/16;background:#000;border-radius:14px;border:2px solid var(--accent);object-fit:cover;display:block}
-#hub .skprev .noex{aspect-ratio:9/16;border-radius:14px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;text-align:center;color:var(--dim);font-size:13px;padding:16px}
+#hub .skprev .noex{flex-direction:column;aspect-ratio:9/16;border-radius:14px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;text-align:center;color:var(--dim);font-size:13px;padding:16px}
 #hub .skprev .pn{font-weight:900;font-size:16px}
 #hub .skprev .pd{font-size:13px;color:var(--dim)}
 #hub #skBox .skills{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
@@ -1557,13 +1557,30 @@ const EXV={'ac73a20a9ede':'s15','8cef415a3b34':'s16','46f87e64544c':'r1','a0527d
 const SKICO={s01:'✂️',s02:'🎬',s03:'📱',s04:'🎥',s05:'💬',s06:'🟨',s07:'🏷️',s08:'🔊',s09:'🎨',s10:'⏩',s11:'💭',s12:'📶',s13:'🎚️',s14:'🎤',s15:'🔁',s16:'✨',s17:'🇰🇷',s18:'🔤',s19:'🔍',s20:'↔️',s21:'🖼️',s22:'😆',s23:'⭕',s24:'⏱️',s25:'⌨️',s26:'💨',s27:'🥁',s28:'🎵',s29:'⏸️',s30:'🐢',s31:'🪟',s32:'🔢',s33:'📕',s34:'📳',s35:'👥',s36:'📌',r1:'🍲',r2:'💥',r3:'📅'};
 const EXBASE='https://mnmnmnbnm-debug.github.io/kyu-tp-8m4q/ex/';
 let skSel=null;
+const exCache={};
+function exGet(key,tries){ // small clips: fetch whole file as blob (avoids slow/aborted range requests), retry, cache
+  if(exCache[key]) return exCache[key];
+  const go=n=>{const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),8000);
+    return fetch(EXBASE+key+'.mp4',{signal:ac.signal}).then(r=>{clearTimeout(t); if(r.status===404) return {miss:true}; if(!r.ok) throw new Error(r.status); return r.blob().then(b=>({url:URL.createObjectURL(b)}))})
+      .catch(e=>{clearTimeout(t); if(n>0) return new Promise(ok=>setTimeout(ok,600)).then(()=>go(n-1)); return {fail:true}})};
+  const pr=go(tries==null?3:tries).then(r=>{if(!r.url) delete exCache[key]; return r}); exCache[key]=pr; return pr;
+}
+let exPre=false;
+function exPreload(){ if(exPre) return; exPre=true; const keys=(H.skills||[]).map(s=>EXV[s.id]||s.id); let i=0;
+  const next=()=>{ if(i>=keys.length) return; const k=keys[i++]; exGet(k,1).finally(()=>setTimeout(next,80)) }; next(); next(); }
 function renderSkPrev(){
-  const box=hx('skPrev'); if(!box) return; const s=H.skills.find(x=>x.id===skSel); box.textContent=''; if(!s) return;
-  const key=EXV[s.id]||s.id;
-  const v=hel('video'); v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true; v.src=EXBASE+key+'.mp4';
-  v.onerror=()=>{ const n=hel('div','noex','이 스킬은 아직 예시 영상이 없어요.'+(s.ex?'\n\n'+s.ex:'')); n.style.whiteSpace='pre-line'; v.replaceWith(n) };
-  box.append(v,hel('div','pn',(SKICO[key]||'✨')+' '+s.name),hel('div','pd',s.desc||''));
-  v.play().catch(()=>{});
+  const box=hx('skPrev'); if(!box) return; const s=H.skills.find(x=>x.id===skSel);
+  box.querySelectorAll('video').forEach(v=>{v.pause(); v.removeAttribute('src'); v.load()}); box.textContent=''; if(!s) return;
+  const key=EXV[s.id]||s.id, my=s.id;
+  const slot=hel('div','noex','예시 영상 불러오는 중…');
+  box.append(slot,hel('div','pn',(SKICO[key]||'✨')+' '+s.name),hel('div','pd',s.desc||''));
+  exGet(key).then(r=>{ if(skSel!==my||!slot.isConnected) return;
+    if(r.url){ const v=hel('video'); v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true; v.src=r.url; slot.replaceWith(v); v.play().catch(()=>{}); return }
+    slot.style.whiteSpace='pre-line';
+    if(r.miss){ slot.textContent='이 스킬은 아직 예시 영상이 없어요.'+(s.ex?'\n\n'+s.ex:''); return }
+    slot.textContent='예시 영상을 불러오지 못했어요 (인터넷 연결).'; const rb=hel('button','btn','다시 불러오기'); rb.type='button'; rb.style.marginTop='10px';
+    rb.onclick=()=>renderSkPrev(); slot.appendChild(document.createElement('br')); slot.appendChild(rb) });
+  exPreload();
 }
 function renderEdit(){
   const sk=skillsSorted();
