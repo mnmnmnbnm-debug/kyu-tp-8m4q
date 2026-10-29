@@ -1824,7 +1824,8 @@ function jobDiff(j){
     out.add=pick.filter(s=>!have.has(s.name)); out.rm=(j.skills||[]).filter(s=>lib.has(s.name)&&!pickN.has(s.name));
     if(out.add.length||out.rm.length){ const rmN=new Set(out.rm.map(s=>s.name));
       out.skills=(j.skills||[]).filter(s=>!rmN.has(s.name)).concat(out.add.map(s=>({name:s.name,desc:s.desc||''}))) } }
-  if(tsCur&&tsLoad&&!(j.textStyle?tsSame(tsCur,j.textStyle):tsSame(tsCur,tsLoad))) out.style=Object.assign({},tsCur);
+  // 글자 상자는 이번에 직접 바꿨을 때만 (패널 기본값이 작업 스타일과 달라도 바뀐 걸로 보지 않음)
+  if(tsCur&&tsLoad&&!tsSame(tsCur,tsLoad)&&!tsSame(tsCur,j.textStyle)) out.style=Object.assign({},tsCur);
   out.any=!!(out.skills||out.style); return out;
 }
 function diffText(d){ const L=[]; if(d.add.length) L.push('스킬 추가: '+d.add.map(s=>s.name).join(', ')); if(d.rm.length) L.push('스킬 빼기: '+d.rm.map(s=>s.name).join(', '));
