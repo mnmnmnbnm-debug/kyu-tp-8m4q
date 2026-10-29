@@ -238,6 +238,11 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
 #hub .notes{font-size:13px;background:var(--bg);border-radius:8px;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere}
 #hub .notes .who{font-weight:700;font-size:12px;color:var(--dim);display:block;margin-bottom:2px}
 #hub .fbrow{display:flex;flex-wrap:wrap;gap:6px}
+#hub .btn.go{background:#2fbf71;border-color:#2fbf71;color:#06150c;font-weight:800}
+#hub .btn.go:disabled{background:transparent;border-color:var(--line);color:var(--dim);font-weight:500;cursor:not-allowed;opacity:.7}
+#hub .btn.go:not(:disabled){box-shadow:0 0 0 0 rgba(47,191,113,.6);animation:go-pulse 1.6s infinite}
+@keyframes go-pulse{70%{box-shadow:0 0 0 8px rgba(47,191,113,0)}100%{box-shadow:0 0 0 0 rgba(47,191,113,0)}}
+#hub .sdiff{font-size:12px;color:#7ee2a8;background:rgba(47,191,113,.08);border:1px solid rgba(47,191,113,.3);border-radius:8px;padding:6px 10px}
 #hub .mono{font-family:var(--mono);font-size:12px;color:var(--dim)}
 #hub .empty{color:var(--dim);font-size:13px;padding:22px;text-align:center;border:1px dashed var(--line);border-radius:12px}
 #hub .checks{display:flex;flex-wrap:wrap;gap:8px}
@@ -1595,7 +1600,7 @@ function renderSkPrev(){
 }
 function renderEdit(){
   const sk=skillsSorted();
-  if(!ePickInit&&sk.length){sk.forEach(s=>{if(s.on)ePicked.add(s.id)}); ePickInit=true}
+  if(!ePickInit&&sk.length){sk.forEach(s=>{if(s.on)ePicked.add(s.id)}); ePickInit=true; ePickBase=new Set(ePicked)}
   // skills manager
   hx('skCount').textContent=sk.length?sk.filter(s=>s.on).length+'개 기본 켜짐 · 전체 '+sk.length+'개':'';
   const box=hx('skills'); box.textContent='';
@@ -1603,7 +1608,7 @@ function renderEdit(){
   if(!skSel||!sk.find(x=>x.id===skSel)) skSel=sk.length?sk[0].id:null;
   sk.forEach(s=>{const r=hel('div','skill'+(s.id===skSel?' sel':'')); r.tabIndex=0;
     const cb=hel('input'); cb.type='checkbox'; cb.checked=!!s.on; cb.setAttribute('aria-label',s.name+' 기본으로 켜기'); cb.title='새 요청에 기본으로 켜기';
-    cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>hubWrite('update','skills',s.id,{on:cb.checked}).catch(()=>htoast('저장하지 못했어요'));
+    cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>{ cb.checked?ePicked.add(s.id):ePicked.delete(s.id); renderEPick(); hubWrite('update','skills',s.id,{on:cb.checked}).catch(()=>htoast('저장하지 못했어요')) };
     const t=hel('div'); t.append(hel('div','nm',(SKICO[EXV[s.id]||s.id]||'✨')+' '+s.name),hel('div','ds',s.desc||''));
     const x=hel('button','btn danger','삭제'); x.type='button'; x.style.cssText='font-size:12px;padding:3px 8px'; x.onmousedown=e=>e.stopPropagation(); harm(x,'정말?',()=>hubWrite('delete','skills',s.id).then(()=>htoast('스킬을 지웠어요')));
     r.onclick=e=>{ if(e.target.closest('button')) return; skSel=s.id; [...box.children].forEach(c=>c.classList.toggle('sel',c===r)); renderSkPrev() };
@@ -1612,7 +1617,7 @@ function renderEdit(){
   renderSkPrev();
   renderEPick(); renderRecs(); renderJobs();
 }
-function renderEPick(){
+function renderEPick(){ setTimeout(updStart,0);
   const p=hx('ePick'); p.textContent='';
   skillsSorted().forEach(s=>{const c=hel('span','chip'+(ePicked.has(s.id)?' on':''),s.name); c.tabIndex=0; c.title=(s.desc||'')+(s.ex?'\n예: '+s.ex:'');
     const tg=()=>{ePicked.has(s.id)?ePicked.delete(s.id):ePicked.add(s.id); renderEPick()}; c.onclick=tg; c.onkeydown=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();tg()}}; p.appendChild(c)});
@@ -1742,11 +1747,12 @@ function tsLabels(){ hx('tsSizeV').textContent=tsCur.size+'px'; hx('tsStrokeV').
   const mo=hx('tsMotion').selectedOptions[0]; const t=(tsCur.name||'내 스타일')+' · '+(mo?mo.textContent:''); hx('tsNow').textContent='지금: '+t;
   const e=hx('eTs'); if(e){e.textContent=''; e.append(hel('span','',  '글자 상자: '),hel('b','',t)); const a=hel('a','','바꾸기'); a.href='#'; a.style.color='var(--accent)';
     a.onclick=ev=>{ev.preventDefault(); hx('tsBox').open=true; hx('tsBox').scrollIntoView({behavior:'smooth',block:'start'})}; e.appendChild(a)} }
-function tsApply(st,sel){ tsCur=Object.assign({},TS_BASE,st); tsSel=sel; tsChunk=0; tsFill(); renderTs(); tsDraw() }
+function tsApply(st,sel){ tsCur=Object.assign({},TS_BASE,st); tsSel=sel; tsChunk=0; tsFill(); renderTs(); tsDraw(); updStart() }
 function renderTs(){
   if(!hx('tsRecs')) return;
   if(!tsInit&&hubLoaded){ tsInit=true; const sv=tsSaved(); const d=sv.list.find(x=>x.id===sv.def); if(d){tsCur=Object.assign({},TS_BASE,d); tsSel=d.id} }
   if(!tsCur) tsCur=tsMk(TS_PRESETS[0]);
+  if(tsInit&&!tsLoad) tsLoad=Object.assign({},tsCur);
   const rec=tsRecIds(), box=hx('tsRecs'); box.textContent='';
   const mo=v=>{const o=[...hx('tsMotion').options].find(o=>o.value===v); return o?o.textContent:''};
   const card=(p,badge,cls)=>{ const st=tsMk(p), b=hel('button','tsrec'+(tsSel===p.pid?' on':'')); b.type='button';
@@ -1778,7 +1784,7 @@ function renderTs(){
     tsCur[k]=e.type==='checkbox'?e.checked:(e.type==='range'?+e.value:e.value);
     if(!/ \(수정\)$/.test(tsCur.name||'')) tsCur.name=(tsCur.name||'스타일')+' (수정)';
     if(tsSel){tsSel=''; [...document.querySelectorAll('#tsRecs .tsrec.on,#tsMine .chip.on')].forEach(x=>x.classList.remove('on'))}
-    tsLabels(); if(k!=='wpl'&&k!=='motion'){tsChunk=Math.max(0,tsChunk-1)} tsDraw() })});
+    tsLabels(); if(k!=='wpl'&&k!=='motion'){tsChunk=Math.max(0,tsChunk-1)} tsDraw(); updStart() })});
   hx('tsSample').addEventListener('input',()=>{tsChunk=0; tsDraw()});
   hx('tsTrRef').onclick=()=>{tsTrPage++; tsTrSpin=true; renderTs()};
   async function save(asDef){ const sv=tsSaved(); let name=hx('tsName').value.trim()||String(tsCur.name||'내 스타일').replace(/ \(수정\)$/,'');
@@ -1807,6 +1813,26 @@ function renderJobs(){
   if(!list.length){box.appendChild(hel('div','empty',jFilter==='done'?'완료한 작업이 아직 없어요.':'진행 중인 편집이 없어요. 위에서 새 편집을 요청하세요.'));return}
   list.forEach(j=>box.appendChild(jobCard(j)));
 }
+/* ----- 수정 시작: 스킬·글자 상자를 바꾸면 그 작업에 바로 적용 ----- */
+let ePickBase=null, tsLoad=null;
+const TS_KEYS=Object.keys(TS_BASE);
+const tsSame=(a,b)=>!!a&&!!b&&TS_KEYS.every(k=>String(a[k]??TS_BASE[k])===String(b[k]??TS_BASE[k]));
+function jobDiff(j){
+  const out={add:[],rm:[],skills:null,style:null};
+  if(ePickBase){ const byId=Object.fromEntries((H.skills||[]).map(s=>[s.id,s])), have=new Set((j.skills||[]).map(s=>s.name));
+    const added=[...ePicked].filter(id=>!ePickBase.has(id)).map(id=>byId[id]).filter(Boolean);
+    const removed=[...ePickBase].filter(id=>!ePicked.has(id)).map(id=>byId[id]).filter(Boolean);
+    out.add=added.filter(s=>!have.has(s.name)); out.rm=removed.filter(s=>have.has(s.name));
+    if(out.add.length||out.rm.length){ const rmN=new Set(out.rm.map(s=>s.name));
+      out.skills=(j.skills||[]).filter(s=>!rmN.has(s.name)).concat(out.add.map(s=>({name:s.name,desc:s.desc||''}))) } }
+  if(tsCur&&tsLoad&&!tsSame(tsCur,tsLoad)&&!tsSame(tsCur,j.textStyle)) out.style=Object.assign({},tsCur);
+  out.any=!!(out.skills||out.style); return out;
+}
+function diffText(d){ const L=[]; if(d.add.length) L.push('스킬 추가: '+d.add.map(s=>s.name).join(', ')); if(d.rm.length) L.push('스킬 빼기: '+d.rm.map(s=>s.name).join(', '));
+  if(d.style){const f=(TS_FONTS.find(x=>x[0]===d.style.font)||[,d.style.font])[1]; L.push('글자 상자: '+(d.style.name||'내 스타일')+' ('+f+', '+d.style.size+'px)')} return L }
+function updStart(){ document.querySelectorAll('button[data-start]').forEach(b=>{ const j=(H.jobs||[]).find(x=>x.id===b.dataset.start); if(!j) return;
+  const d=jobDiff(j); b.disabled=!d.any||b.dataset.busy==='1'; const L=diffText(d); b.title=d.any?L.join('\n'):'v'+(b.dataset.v||'')+' 버전과 바뀐 스킬·글자 상자가 없어요. 스킬을 켜거나 글자 상자를 바꾸면 켜져요';
+  const box=b.closest('.info')&&b.closest('.info').querySelector('.sdiff'); if(box){box.hidden=!d.any; box.textContent=d.any?'바뀐 점 → '+L.join(' · '):''} }) }
 function jobCard(j){
   const card=hel('article','job'), vers=j.versions||[], vi=Math.min(jSel[j.id]??vers.length-1, vers.length-1);
   const vs=hel('div','vid');
@@ -1826,6 +1852,13 @@ function jobCard(j){
   const ta=hel('textarea'); ta.id='fb-'+j.id; ta.placeholder='결과를 보고 바꿀 점을 적어 주세요. 예: 자막 더 아래로, 0:12 효과음 빼기';
   const lab=hel('label'); lab.htmlFor=ta.id; lab.textContent='수정 지시'; lab.appendChild(ta); if(hasV&&j.status!=='editing') info.appendChild(lab);
   const row=hel('div','fbrow');
+  const go=hel('button','btn go','▶ 수정 시작'); go.type='button'; go.dataset.start=j.id; go.dataset.v=vers.length?(vers[vi].v??vi+1):''; go.disabled=true;
+  go.onclick=async()=>{ const d=jobDiff(j); if(!d.any) return; go.dataset.busy='1'; go.disabled=true;
+    const text=['[수정 시작] '+diffText(d).join(' / '),ta.value.trim()].filter(Boolean).join('\n');
+    const up={feedback:[...(j.feedback||[]),{text,at:Date.now(),forV:vers.length?(vers[vi].v??vi+1):null}],status:'revise',updatedAt:Date.now()};
+    if(d.skills) up.skills=d.skills; if(d.style) up.textStyle=d.style;
+    try{await hubWrite('update','jobs',j.id,up); htoast('v'+(vers.length+1)+' 수정을 시작했어요. 채팅에 "편집해줘"라고 말해 주세요.')}
+    catch(e){htoast('보내지 못했어요'); go.dataset.busy=''; updStart()} };
   const send=hel('button','btn primary','수정 요청'); send.type='button';
   send.onclick=async()=>{const text=ta.value.trim(); if(!text){ta.focus();return} send.disabled=true;
     try{await hubWrite('update','jobs',j.id,{feedback:[...(j.feedback||[]),{text,at:Date.now(),forV:vers.length?(vers[vi].v??vi+1):null}],status:'revise',updatedAt:Date.now()}); htoast('수정 요청을 보냈어요. 채팅에 "편집해줘"라고 말해 주세요.')}
@@ -1835,7 +1868,8 @@ function jobCard(j){
   const del=hel('button','btn danger','작업 삭제'); del.type='button'; harm(del,'정말 삭제?',()=>hubWrite('delete','jobs',j.id).then(()=>htoast('작업을 지웠어요')));
   const sch=hel('button','btn','📅 예약하기'); sch.type='button'; sch.hidden=!vers.length;
   sch.onclick=()=>{showHub('home'); setTimeout(()=>{hx('pVideo').value=j.id+'|'+vi; pUserPath=false; pOnVideo(); hx('pCap').focus()},50)};
-  if(hasV&&j.status!=='editing'){const au=hel('a','btn','🎚 소리 보정'); au.href='audio.html?job='+encodeURIComponent(j.id)+'&i='+vi; au.style.textDecoration='none'; row.append(send,done,sch,au)} row.append(del); info.appendChild(row);
+  if(hasV&&j.status!=='editing'){const au=hel('a','btn','🎚 소리 보정'); au.href='audio.html?job='+encodeURIComponent(j.id)+'&i='+vi; au.style.textDecoration='none'; row.append(go,send,done,sch,au)} row.append(del); info.appendChild(row);
+  if(hasV&&j.status!=='editing'){const sd=hel('div','sdiff'); sd.hidden=true; info.appendChild(sd); setTimeout(updStart,0)}
   card.append(vs,info); return card;
 }
 
