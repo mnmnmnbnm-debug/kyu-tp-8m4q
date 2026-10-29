@@ -116,8 +116,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     <div class="lab2">소음 지우는 방법</div>
     <div class="chips" id="methods">
       <button class="chip" data-m="rnn">① 카페 잡음</button>
-      <button class="chip" data-m="dfn">② AI 최고 음질</button>
-      <button class="chip" data-m="music">③ 음악까지 제거</button>
+      <button class="chip" data-m="music">② 카페 음악 제거</button>
+      <button class="chip" data-m="both">③ 음악 + 잡음 모두</button>
       <button class="chip" data-m="basic">기본 (가벼움)</button>
     </div>
     <p class="how" id="mDesc" style="margin-top:-4px"></p>
@@ -176,16 +176,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 const $=id=>document.getElementById(id);
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const PRESETS={voice:{nr:60,gate:45,clar:60,lev:70},noisy:{nr:90,gate:70,clar:55,lev:75},natural:{nr:35,gate:20,clar:30,lev:45},off:{nr:0,gate:0,clar:0,lev:0}};
-const DEF={preset:'voice',...PRESETS.voice,method:'dfn',vol:0,style:'lofi',seed:1,mmode:'gen',mvol:35,duck:70};
+const DEF={preset:'voice',...PRESETS.voice,method:'rnn',vol:0,style:'lofi',seed:1,mmode:'gen',mvol:35,duck:70};
 let S=Object.assign({},DEF); try{Object.assign(S,JSON.parse(store.get('kyu-audio')||'{}'))}catch(e){}
 if(S.mmode==='file') S.mmode='gen';
+if(!['basic','rnn','music','both'].includes(S.method)) S.method='rnn';
 const save=()=>store.set('kyu-audio',JSON.stringify(S));
 
 /* ---------- state ---------- */
 const SR=48000;
 let actx=null, orig=null, origBuf=null, music=null, userMusic=null, songCache=null;
 let events=[], sel=null, listen='new', fileName='audio', fileKey='';
-const WET={basic:null,rnn:null,music:null}; // full-strength cleaned voice per method (Float32Array)
+const WET={basic:null,rnn:null,music:null,both:null}; // full-strength cleaned voice per method (Float32Array)
 const vid=$('vid');
 const status=(t,busy)=>{const s=$('status'); s.textContent=t||''; s.classList.toggle('busy',!!busy)};
 const mstat=(t,busy)=>{const s=$('mStatus'); s.textContent=t||''; s.classList.toggle('busy',!!busy)};
@@ -243,23 +244,15 @@ let ST={thr:0.01,speech:0.1};
 const METHODS={
   basic:{name:'기본',desc:'가볍고 빨라요. 에어컨처럼 일정한 소음에 맞아요.'},
   rnn:{name:'① 카페 잡음 (RNNoise)',desc:'말소리만 남기는 AI(Xiph RNNoise). 사람들 말소리, 그릇 소리 같은 카페 잡음에 강해요. 처음 한 번만 몇 초 계산해요.'},
-  dfn:{name:'② AI 최고 음질 (DeepFilterNet3)',desc:'음질이 가장 자연스러운 AI 잡음 제거예요. 재생하면서 바로 적용돼요. 약한 배경 음악도 꽤 줄여요.'},
-  music:{name:'③ 음악까지 제거 (Demucs + DeepFilterNet3)',desc:'노래와 목소리를 분리하는 AI(Meta Demucs)로 카페 음악을 빼고, 남은 잡음은 ②로 한 번 더 지워요. 처음 한 번은 모델(약 170MB)을 받고 영상 길이의 3~10배 시간이 걸려요. 결과는 저장돼서 다음부턴 바로 열려요.'}
+  music:{name:'② 카페 음악 제거 (Demucs)',desc:'노래와 목소리를 나누는 AI(Meta HT-Demucs)로 카페에 흐르는 음악을 빼요. 처음 한 번은 모델(약 170MB)을 받고 계산 시간이 좀 걸려요. 결과는 저장돼서 다음부턴 바로 열려요.'},
+  both:{name:'③ 음악 + 잡음 모두 (Demucs → RNNoise)',desc:'②로 음악을 뺀 뒤 ①로 남은 잡음까지 지워요. 가장 깨끗하지만 목소리가 조금 얇아질 수 있어요. 세기로 조절하세요.'}
 };
 async function ensureWet(m){
-  if(!orig||m==='dfn') return true;
+  if(!orig) return true;
   if(WET[m]) return true;
   if(m==='basic'){mstat('기본 소음 제거 계산 중…',true); await tick(); WET.basic=denoise(orig,100); mstat(''); return true}
-  if(m==='rnn'){
-    mstat('RNNoise 불러오는 중…',true);
-    try{
-      const {Rnnoise}=await import('https://cdn.jsdelivr.net/npm/@shiguredo/rnnoise-wasm/+esm');
-      const rn=await Rnnoise.load(), st=rn.createDenoiseState(), F=rn.frameSize, L=orig.length, out=new Float32Array(L), fr=new Float32Array(F);
-      for(let o=0;o<L;o+=F){ for(let i=0;i<F;i++) fr[i]=(orig[o+i]||0)*32768; st.processFrame(fr); for(let i=0;i<F&&o+i<L;i++) out[o+i]=fr[i]/32768;
-        if((o/F)%400===0){mstat('RNNoise 계산 중… '+Math.round(o/L*100)+'%',true); await tick()} }
-      st.destroy(); WET.rnn=out; mstat(''); return true;
-    }catch(e){console.error(e); mstat('RNNoise를 불러오지 못했어요: '+e.message); return false}
-  }
+  if(m==='rnn'){const o=await rnnoise(orig); if(!o) return false; WET.rnn=o; mstat(''); return true}
+  if(m==='both'){if(!(await ensureWet('music'))) return false; const o=await rnnoise(WET.music); if(!o) return false; WET.both=o; mstat('음악과 잡음을 모두 지웠어요.'); return true}
   if(m==='music'){
     const cached=await cacheGet('demucs:'+fileKey); if(cached){WET.music=cached; mstat('저장해 둔 분리 결과를 불러왔어요.'); return true}
     mstat('Demucs 준비 중…',true);
@@ -281,6 +274,16 @@ async function ensureWet(m){
     }catch(e){console.error(e); mstat('음악 분리를 하지 못했어요: '+e.message+' (Chrome 최신 버전에서 다시 해 주세요)'); return false}
   }
   return true;
+}
+async function rnnoise(x){
+  mstat('RNNoise 불러오는 중…',true);
+  try{
+    const {Rnnoise}=await import('https://cdn.jsdelivr.net/npm/@shiguredo/rnnoise-wasm/+esm');
+    const rn=await Rnnoise.load(), st=rn.createDenoiseState(), F=rn.frameSize, L=x.length, out=new Float32Array(L), fr=new Float32Array(F);
+    for(let o=0;o<L;o+=F){ for(let i=0;i<F;i++) fr[i]=(x[o+i]||0)*32768; st.processFrame(fr); for(let i=0;i<F&&o+i<L;i++) out[o+i]=fr[i]/32768;
+      if((o/F)%400===0){mstat('잡음 지우는 중… '+Math.round(o/L*100)+'%',true); await tick()} }
+    st.destroy(); return out;
+  }catch(e){console.error(e); mstat('RNNoise를 불러오지 못했어요: '+e.message); return null}
 }
 async function resample(x,from,to){const L=Math.round(x.length*to/from), c=new OfflineAudioContext(1,L,to), b=c.createBuffer(1,x.length,from); b.copyToChannel(x,0); const s=c.createBufferSource(); s.buffer=b; s.connect(c.destination); s.start(); return (await c.startRendering()).getChannelData(0).slice()}
 function cacheDB(){return new Promise(res=>{try{const r=indexedDB.open('kyu-audio',1); r.onupgradeneeded=()=>r.result.createObjectStore('c'); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null)}catch(e){res(null)}})}
@@ -341,9 +344,7 @@ async function buildGraph(c,dest,at){
   const ev=evBuffers();
   const dyn=new AudioWorkletNode(c,'kyu-dyn',{numberOfInputs:2,numberOfOutputs:2,outputChannelCount:[1,1]}); out.dyn=dyn;
   const voiceIn=c.createGain(); voiceIn.connect(dyn,0,0);
-  if(m==='basic'||m==='rnn'){out.dryG=c.createGain(); out.wetG=c.createGain(); out.dryG.connect(voiceIn); out.wetG.connect(voiceIn); src(ev.dry,out.dryG); src(ev.wet||ev.dry,out.wetG)}
-  else{const d=await dfnNode(c); const inS=m==='music'?(ev.wet||ev.dry):ev.dry;
-    if(d){out.dfn=d; d.node.connect(voiceIn); src(inS,d.node)} else src(inS,voiceIn)}
+  out.dryG=c.createGain(); out.wetG=c.createGain(); out.dryG.connect(voiceIn); out.wetG.connect(voiceIn); src(ev.dry,out.dryG); src(ev.wet||ev.dry,out.wetG);
   const musicIn=c.createGain(); musicIn.connect(dyn,0,1); if(music&&S.mmode!=='none') src(music,musicIn);
   const hp=c.createBiquadFilter(); hp.type='highpass'; hp.Q.value=0.7;
   const mud=c.createBiquadFilter(); mud.type='peaking'; mud.frequency.value=280; mud.Q.value=1;
@@ -364,7 +365,7 @@ function stopGraph(){if(!G) return; G.srcs.forEach(s=>{try{s.stop()}catch(e){} s
 /* events applied to source buffers (mute / lower / move) + separate sfx track */
 let EVC=null;
 function evBuffers(){
-  const wet=S.method==='dfn'?null:WET[S.method==='music'?'music':S.method];
+  const wet=WET[S.method]||null;
   const key=JSON.stringify(events)+'|'+S.method+'|'+(wet?wet.length:0);
   if(EVC&&EVC.key===key) return EVC;
   const L=orig.length, dry=orig.slice(), w=wet?wet.slice():null, sfx=new Float32Array(L), fade=Math.round(SR*0.012);
