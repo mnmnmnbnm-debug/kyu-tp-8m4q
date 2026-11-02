@@ -1542,6 +1542,9 @@ async function folderVideos(src){
     if(!dirOK){ const p=await dirH.queryPermission({mode:'readwrite'}); if(p!=='granted') return null; dirOK=true }
     let parts=nf(src||'').replace(/^.*?콘텐츠\/?/,'').split('/').filter(Boolean), d=dirH;
     if(parts.length&&nf(parts[0])===nf(dirH.name)) parts=parts.slice(1);
+    const want=parts[parts.length-1];
+    if(want&&nf(want)===nf(dirH.name)) parts=[];          // connected folder is already this script folder
+    else if(isScriptDir(dirH)) return 'sub';               // connected to another script folder, not 콘텐츠
     for(const n of parts){ d=await hchild(d,n,'dir'); if(!d) return [] }
     const out=[]; for await (const [n,h] of d.entries()) if(h.kind==='file'&&/\.(mp4|mov|webm|m4v)$/i.test(n)) out.push(n);
     return out.sort();
@@ -1554,6 +1557,7 @@ function waitingBox(j){
   const chk=hel('div','vchk','📂 폴더 확인 중…'); b.appendChild(chk);
   folderVideos(j.source).then(r=>{
     if(r==null){chk.textContent='📂 영상이 있는지 보려면 Studio의 저장 폴더(콘텐츠)를 연결해 주세요.'; return}
+    if(r==='sub'){chk.textContent='📂 지금 Studio에 ‘'+dirH.name+'’ 폴더가 연결돼 있어서 확인을 못 했어요. Studio에서 ‘상위 폴더 바꾸기’로 콘텐츠 폴더를 연결하면 보여요. (편집은 그대로 할 수 있어요)'; return}
     if(!r.length){chk.className='vchk warn'; chk.textContent='⚠️ 폴더에 영상이 없어요. Studio에서 녹화하거나 영상 파일을 넣어 주세요.'; return}
     chk.className='vchk ok'; chk.textContent='✅ 영상 '+r.length+'개 있음 · '+r.slice(0,3).join(', ')+(r.length>3?' 외':'');
   });
