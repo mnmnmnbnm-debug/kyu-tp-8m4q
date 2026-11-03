@@ -709,7 +709,7 @@ function synthSfx(kind,sr){ const n=Math.round(sr*({pop:0.13,ding:0.85,buzz:0.32
     else {y[i]=(Math.random()*2-1)*0.25*Math.sin(Math.PI*i/n)**2} }
   if(kind==='whoosh'){let a=0,b=0; for(let i=0;i<n;i++){const c=0.03+0.25*Math.sin(Math.PI*i/n); a+=c*(y[i]-a); b+=c*(a-b); y[i]=b*2}} return y }
 async function buildAudio(prog){ const SR=48000, L=Math.ceil(S.total*SR)+SR, out=new Float32Array(L);
-  for(let i=0;i<S.tl.length;i++){ const s=S.tl[i], x=await takeBuf(s.m.take); const seg=x.subarray(Math.max(0,Math.round(s.a*SR)),Math.min(x.length,Math.round(s.b*SR)));
+  for(let i=0;i<S.tl.length;i++){ const s=S.tl[i], x=await takeBuf(s.m.take); const AO=0.045; /* AAC priming (source decode + output encode) */ const seg=x.subarray(Math.max(0,Math.round((s.a+AO)*SR)),Math.min(x.length,Math.round((s.b+AO)*SR)));
     let y=wsola(seg,S.data.speed); const n=Math.round(s.d*SR), g=takeGain(s.m.take), o=Math.round(s.o*SR), fd=Math.round(0.006*SR);
     const contPrev=i>0&&S.tl[i-1].bk===s.bk&&Math.abs(S.tl[i-1].b-s.a)<0.01, contNext=S.tl[i+1]&&S.tl[i+1].bk===s.bk&&Math.abs(S.tl[i+1].a-s.b)<0.01;
     for(let j=0;j<n&&o+j<L;j++){ let v=(y[j]||0)*g; if(!contPrev&&j<fd) v*=j/fd; if(!contNext&&j>n-fd) v*=(n-j)/fd; out[o+j]+=v }
