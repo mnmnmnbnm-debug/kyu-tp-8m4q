@@ -718,7 +718,7 @@ async function buildAudio(prog){ const SR=48000, L=Math.ceil(S.total*SR)+SR, out
   if(S.data.sfx) overlaysAll().forEach(ov=>{ const w=synthSfx(ov.type==='red'?'buzz':ov.type==='big'?'ding':'pop',SR), st=Math.round(ov.t*SR); for(let j=0;j<w.length&&st+j<L;j++) out[st+j]+=w[j] });
   // loudness: gated RMS to target, then look-ahead peak limiter
   const W=Math.round(0.4*SR); let pw=0,cn=0; for(let i=0;i+W<=L;i+=W){ let q=0; for(let j=i;j<i+W;j++) q+=out[j]*out[j]; q/=W; if(q>1e-5){pw+=q;cn++} }
-  const lvl=10*Math.log10(pw/Math.max(1,cn)+1e-12), gain=Math.pow(10,(-18.5-lvl)/20); for(let i=0;i<L;i++) out[i]*=gain;
+  const lvl=10*Math.log10(pw/Math.max(1,cn)+1e-12), gain=Math.pow(10,(-17-lvl)/20); for(let i=0;i<L;i++) out[i]*=gain;
   const la=Math.round(0.005*SR), rel=Math.exp(-1/(0.08*SR)), ceil=0.89; let g=1; const pk=new Float32Array(L);
   for(let i=L-1,m=0,c=0;i>=0;i--){ pk[i]=Math.abs(out[i]) } const need=new Float32Array(L);
   for(let i=0;i<L;i+=64){ let m=0; for(let j=i;j<Math.min(L,i+64+la);j++) m=Math.max(m,pk[j]); const v=m>ceil?ceil/m:1; need.fill(v,i,Math.min(L,i+64)) }
@@ -774,6 +774,6 @@ $('claudeSend').onclick=async e=>{ e.preventDefault(); const note=$('claudeNote'
 window.addEventListener('beforeunload',e=>{ if(S.dirty||S.exporting){e.preventDefault(); e.returnValue=''} });
 document.fonts.load('900 80px "Noto Sans KR"');
 initRoot();
-window.KYU=S;
+window.KYU=S; window.KYU_API={draft,buildTL,renderBlocks,save,openProject,listProjects};
 </script>
 </body></html>
