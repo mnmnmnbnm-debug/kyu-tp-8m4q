@@ -374,9 +374,9 @@ function b2pk(s){const b=atob(s), p=new Uint8Array(b.length); for(let i=0;i<b.le
 const PK={}; // take -> Uint8Array (100/s, 0..255 = -80..0 dB)
 function pkGet(take){ if(PK[take]) return PK[take]; const t=S.data.takes[take]; if(t&&t.peaks) PK[take]=b2pk(t.peaks); return PK[take]||null }
 const dbAt=(p,t)=>p?p[Math.max(0,Math.min(p.length-1,Math.round(t*100)))]*80/255-80:-80;
-function speechStats(p){const v=Array.from(p).map(x=>x*80/255-80).sort((a,b)=>a-b); const p80=v[Math.floor(v.length*.8)]||-30; const thr=Math.max(p80-28,-55);
+function speechStats(p){const v=Array.from(p).map(x=>x*80/255-80).sort((a,b)=>a-b); const q=f=>v[Math.floor(v.length*f)]??-40; const lo=q(0.1), hi=q(0.9); const thr=lo+Math.max(5,(hi-lo)*0.42);
   const sp=v.filter(x=>x>thr); const med=sp.length?sp[Math.floor(sp.length/2)]:-30; return {thr,med}}
-async function ensurePeaks(){ for(const k of Object.keys(takeList())){ const t=S.data.takes[k]=S.data.takes[k]||{}; if(t.peaks) continue;
+async function ensurePeaks(){ for(const k of Object.keys(takeList())){ const t=S.data.takes[k]=S.data.takes[k]||{}; if(t.peaks){ const p=pkGet(k); if(p) Object.assign(t,speechStats(p)); continue }
   $('trInfo').textContent='파형 만드는 중… '+k; try{const x=await decodeTake(k); const p=peaksOf(x); t.peaks=pk2b(p); PK[k]=p; Object.assign(t,speechStats(p))}catch(e){console.warn(e)} }
   $('trInfo').textContent=''; renderMedia() }
 let ASR=null;
