@@ -1,0 +1,704 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KYU Editor</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{--bg:#0d1014;--panel:#161b22;--panel2:#1c222b;--line:#262d37;--fg:#f2f4f7;--dim:#8a95a5;--accent:#ffcc33;--red:#ff5c5c;--ok:#4cd28a;--blue:#5aa9ff;
+  --sans:"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;color-scheme:dark}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px}
+button,select,input,textarea{font:inherit;color:inherit}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:20}
+.hubnav{display:inline-flex;gap:2px;padding:3px;border:1px solid #2a313b;border-radius:999px}
+.hubnav a{color:#9aa4b2;text-decoration:none;font-weight:700;font-size:13px;padding:5px 12px;border-radius:999px}
+.hubnav a:hover{color:#fff}.hubnav a.on{background:var(--accent);color:#14110a}
+.ptitle{font-weight:900;font-size:16px}
+.pill{font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px;border:1px solid var(--line);color:var(--dim);display:inline-flex;gap:6px;align-items:center}
+.pill.claude{border-color:#b38bff;color:#d6c2ff}.pill.render{border-color:var(--accent);color:var(--accent)}.pill.ok{border-color:var(--ok);color:var(--ok)}.pill.work{border-color:var(--blue);color:var(--blue)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.claude .dot,.pill.render .dot,.pill.work .dot{animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.25}}
+.grow{flex:1}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--dim)}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:#14110a;border-color:var(--accent);font-weight:700}
+.btn.on{border-color:var(--accent);color:var(--accent)}
+.btn.sm{padding:4px 9px;font-size:12px}
+.btn.claude{border-color:#b38bff;color:#d6c2ff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select,input[type=text],input[type=number],textarea{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+textarea{width:100%;resize:vertical}
+.layout{display:grid;grid-template-columns:230px minmax(320px,430px) minmax(0,1fr);gap:14px;padding:14px 16px;align-items:start}
+@media (max-width:1180px){.layout{grid-template-columns:200px 1fr}.blocks{grid-column:1/-1}}
+@media (max-width:760px){.layout{grid-template-columns:1fr}}
+.side .box,.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.side h3,.box h3{margin:0 0 8px;font-size:13px;color:var(--dim);font-weight:700;display:flex;align-items:center;gap:8px}
+.plist{display:flex;flex-direction:column;gap:4px}
+.pitem{display:flex;gap:8px;align-items:center;padding:8px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.pitem:hover{background:var(--panel2)}.pitem.on{border-color:var(--accent);background:var(--panel2)}
+.pitem .n{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pitem .s{font-size:11px;color:var(--dim)}
+.prev{position:sticky;top:64px}
+.stage{position:relative;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.stage canvas{display:block;width:100%;height:auto;cursor:grab}
+.stage .ovl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);font-weight:700;text-align:center;padding:20px}
+.trans{display:flex;gap:6px;align-items:center;margin-top:8px}
+.tc{font-family:var(--mono);font-size:12px;color:var(--dim);min-width:92px;text-align:right}
+.scrub{position:relative;height:26px;background:var(--panel2);border-radius:6px;cursor:pointer;flex:1;overflow:hidden}
+.scrub i{position:absolute;top:3px;bottom:3px;border-radius:3px;background:#2d3644}
+.scrub i.sel{background:#5b4b14}
+.scrub b{position:absolute;top:0;bottom:0;width:2px;background:var(--accent)}
+.hint{font-size:12px;color:var(--dim);line-height:1.5}
+.blocks .head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.blk{border:1px solid var(--line);background:var(--panel);border-radius:10px;margin-bottom:6px}
+.blk.sel{border-color:var(--accent)}
+.blk.off{opacity:.45}
+.blk.miss{border-color:var(--red)}
+.brow{display:grid;grid-template-columns:22px 28px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 10px;cursor:pointer}
+.brow .no{font-family:var(--mono);color:var(--dim);font-size:12px}
+.brow .tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow .meta{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--dim)}
+.chip{border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:12px;background:var(--panel2)}
+.chip.k{color:var(--accent);border-color:#5b4b14}
+.bedit{border-top:1px solid var(--line);padding:10px;display:flex;flex-direction:column;gap:10px}
+.cands{display:flex;flex-wrap:wrap;gap:6px}
+.cand{border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;background:var(--panel2)}
+.cand.on{border-color:var(--accent);color:var(--accent)}
+.wave{position:relative}
+.wave canvas{width:100%;height:120px;display:block;background:#0a0d11;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lab{font-size:12px;color:var(--dim)}
+.ovs{display:flex;flex-direction:column;gap:6px}
+.ov{display:grid;grid-template-columns:110px 1fr 1fr 130px 28px;gap:6px;align-items:center}
+@media (max-width:900px){.ov{grid-template-columns:1fr 1fr}}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222a35;border:1px solid var(--line);padding:10px 16px;border-radius:10px;z-index:99;font-weight:700}
+.prog{height:6px;background:#0a0d11;border-radius:6px;overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+dialog{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;max-width:560px;width:92vw}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+.renders a{color:var(--accent)}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;align-items:center}
+.empty{color:var(--dim);padding:20px;text-align:center}
+</style></head><body>
+<div class="bar">
+  <nav class="hubnav" aria-label="KYU 메뉴"><a href="./#home">Home</a><a href="./#studio">Studio</a><a href="./#edit">Edit</a><a class="on" aria-current="page" href="editor.html">Editor</a><a href="audio.html">Audio</a></nav>
+  <span class="ptitle" id="pTitle">KYU Editor</span>
+  <span class="pill" id="pState"><span class="dot"></span><span id="pStateT">프로젝트를 고르세요</span></span>
+  <span class="grow"></span>
+  <button class="btn claude" id="askClaude" disabled title="이 프로젝트를 Claude에게 맡기기">🤖 Claude에게 맡기기</button>
+  <button class="btn primary" id="expBtn" disabled>🎬 내보내기</button>
+</div>
+
+<div class="layout">
+  <aside class="side">
+    <div class="box">
+      <h3>프로젝트 <span class="grow"></span><button class="btn sm" id="newProj" title="새 프로젝트 폴더 만들기">＋</button></h3>
+      <div class="plist" id="plist"><div class="hint">콘텐츠 폴더를 연결하면 프로젝트가 보여요.</div></div>
+      <div class="row" style="margin-top:10px"><button class="btn sm" id="connect">📂 콘텐츠 폴더 연결</button></div>
+      <div class="hint" id="rootInfo" style="margin-top:6px"></div>
+    </div>
+    <div class="box" style="margin-top:12px" id="setBox" hidden>
+      <h3>설정</h3>
+      <div class="kv">
+        <span class="lab">형식</span><select id="sFormat"><option value="reel">릴스 9:16</option><option value="long">롱폼 16:9</option></select>
+        <span class="lab">대본</span><select id="sScript"></select>
+        <span class="lab">속도</span><select id="sSpeed"><option>1</option><option>1.05</option><option>1.1</option><option>1.15</option><option>1.2</option><option>1.25</option></select>
+        <span class="lab">쉼 줄이기</span><select id="sGap"><option value="0">끄기</option><option value="0.5">0.5초 넘으면</option><option value="0.4">0.4초 넘으면</option><option value="0.3">0.3초 넘으면</option></select>
+        <span class="lab">자막</span><select id="sCap"><option value="pop">단어별 팝업</option><option value="line">한 줄 통째로</option><option value="off">없음</option></select>
+        <span class="lab">자막 크기</span><input type="range" id="sCapSize" min="56" max="120" step="2">
+        <span class="lab">자막 위치</span><input type="range" id="sCapY" min="55" max="88" step="1">
+        <span class="lab">필터</span><select id="sFilter"><option value="mid">중</option><option value="off">없음</option><option value="warm">따뜻하게</option></select>
+        <span class="lab">효과음</span><select id="sSfx"><option value="1">켜기</option><option value="0">끄기</option></select>
+        <span class="lab">언어</span><select id="sLang"><option value="spanish">스페인어</option><option value="korean">한국어</option><option value="english">영어</option></select>
+      </div>
+    </div>
+    <div class="box" style="margin-top:12px" id="medBox" hidden>
+      <h3>영상 파일</h3>
+      <div id="mlist" class="hint"></div>
+      <button class="btn sm" id="trBtn" style="margin-top:8px">📝 받아쓰기</button>
+      <div class="prog" id="trProg" hidden><i></i></div>
+      <div class="hint" id="trInfo"></div>
+    </div>
+  </aside>
+
+  <section class="prev">
+    <div class="stage" id="stage"><canvas id="cv" width="1080" height="1920"></canvas><div class="ovl" id="stOvl">왼쪽에서 프로젝트를 고르세요</div></div>
+    <div class="trans">
+      <button class="btn" id="playBtn" disabled>▶</button>
+      <div class="scrub" id="scrub"></div>
+      <span class="tc" id="tc">0:00.0 / 0:00.0</span>
+    </div>
+    <div class="hint" style="margin-top:6px">멈춘 상태에서 화면을 끌면 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지</div>
+    <div class="box" style="margin-top:12px" id="expBox" hidden>
+      <h3>내보내기 · 업로드</h3>
+      <div class="hint" id="expInfo">지금 미리보기 그대로 처음부터 끝까지 재생하면서 저장해요. 그동안 이 탭을 화면에 띄워 두세요.</div>
+      <div class="prog" id="expProg" hidden><i></i></div>
+      <div class="renders hint" id="renders" style="margin-top:8px"></div>
+      <label class="lab" style="display:block;margin-top:10px">캡션 (업로드용)</label>
+      <textarea id="caption" rows="4" placeholder="캡션을 적거나 Claude에게 부탁하세요"></textarea>
+      <div class="row" style="margin-top:6px">
+        <button class="btn sm" id="capCopy">캡션 복사</button>
+        <a class="btn sm" href="https://app.metricool.com/planner" target="_blank" rel="noopener" style="text-decoration:none">Metricool 열기</a>
+        <button class="btn sm" id="chapCopy" title="롱폼: 블록에 적은 챕터로 YouTube 설명용 시간표 만들기">YouTube 챕터 복사</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="blocks" id="blocks">
+    <div class="head">
+      <h2 style="margin:0;font-size:18px">문장 블록</h2>
+      <span class="hint" id="bInfo"></span>
+      <span class="grow"></span>
+      <button class="btn sm" id="draftBtn" disabled title="받아쓰기를 바탕으로 대본 줄마다 가장 좋은 테이크를 다시 고르기">✨ 자동 초안 다시 만들기</button>
+      <button class="btn sm" id="addBlk" disabled>＋ 블록</button>
+    </div>
+    <div id="blist"><div class="empty">프로젝트를 열면 대본 줄마다 블록이 생겨요.<br>블록을 누르면 테이크를 들어 보고, 파형에서 시작·끝을 맞출 수 있어요.</div></div>
+  </section>
+</div>
+
+<dialog id="dlgClaude"><form method="dialog" style="display:flex;flex-direction:column;gap:10px">
+  <h3 style="margin:0">🤖 Claude에게 맡기기</h3>
+  <div class="hint">부탁할 내용을 적고 보내면, Claude 채팅에 붙여 넣을 메시지가 복사돼요. Claude가 작업하는 동안 위에 <b>Claude 편집 중</b>이 표시되고, 끝나면 이 화면이 자동으로 바뀌어요.</div>
+  <textarea id="claudeNote" rows="4" placeholder="예: 훅을 더 강하게, 3번 블록 테이크 다시 골라줘, 캡션 써줘"></textarea>
+  <div class="row"><span class="grow"></span><button class="btn" value="cancel">취소</button><button class="btn primary" id="claudeSend" value="ok">보내기</button></div>
+</form></dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script type="module">
+'use strict';
+const $=id=>document.getElementById(id);
+const el=(t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e};
+const nf=s=>String(s||'').normalize('NFC');
+const fmt=t=>{t=Math.max(0,t||0); const m=Math.floor(t/60), s=t-m*60; return m+':'+(s<10?'0':'')+s.toFixed(1)};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const toast=(t,ms=2600)=>{const e=$('toast'); e.textContent=t; e.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>e.hidden=true,ms)};
+const VIDRE=/\.(mp4|webm|m4v|mov)$/i, OUTRE=/(릴스|reels|소리보정|_final|^\.)/i;
+const FOLDERS={sarang:'#3 사랑하다',konglish:'#4 콩글리시',dongji:'#5 동지 팥죽',buffet:'#4 한식뷔페',baek:'백년가게',seul:'seul',han:'han'};
+
+/* ================= storage ================= */
+function idb(name,store){return new Promise((res,rej)=>{const r=indexedDB.open(name,1); r.onupgradeneeded=()=>r.result.createObjectStore(store); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error)})}
+async function kvGet(db,store,k){try{const d=await idb(db,store); return await new Promise(r=>{const q=d.transaction(store).objectStore(store).get(k); q.onsuccess=()=>r(q.result??null); q.onerror=()=>r(null)})}catch(e){return null}}
+async function kvSet(db,store,k,v){try{const d=await idb(db,store); d.transaction(store,'readwrite').objectStore(store).put(v,k)}catch(e){}}
+async function perm(h,ask){try{let p=await h.queryPermission({mode:'readwrite'}); if(p!=='granted'&&ask) p=await h.requestPermission({mode:'readwrite'}); return p==='granted'}catch(e){return false}}
+async function child(d,name,kind){try{return kind==='dir'?await d.getDirectoryHandle(name):await d.getFileHandle(name)}catch(e){}
+  for await(const [n,h] of d.entries()) if(h.kind===(kind==='dir'?'directory':'file')&&nf(n)===nf(name)) return h; return null}
+async function readJSON(d,name){const h=await child(d,name,'file'); if(!h) return null; const f=await h.getFile(); try{return {data:JSON.parse(await f.text()),mtime:f.lastModified}}catch(e){return null}}
+async function writeFile(d,name,blob){const h=await d.getFileHandle(name,{create:true}); const w=await h.createWritable(); await w.write(blob); await w.close(); return (await h.getFile()).lastModified}
+
+/* ================= scripts from the prompter (encrypted payload in index.html) ================= */
+let SCRIPTS=null;
+async function loadScripts(){
+  if(SCRIPTS) return SCRIPTS;
+  try{const html=await (await fetch('./?nc='+Date.now(),{cache:'no-store'})).text(); const enc=JSON.parse(html.match(/const ENC=(\{.*?\});/s)[1]);
+    const pw=localStorage.getItem('kyu-gate'); if(!pw) throw new Error('nopw');
+    const b64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
+    const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(enc.s),iterations:310000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['decrypt']);
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(enc.i)},key,b64(enc.d)); const d=JSON.parse(new TextDecoder().decode(pt));
+    SCRIPTS={list:d.options.map(([id,name,cat])=>({id,name,cat})),text:d.scripts};
+  }catch(e){SCRIPTS={list:[],text:{}}}
+  return SCRIPTS;
+}
+const scriptLines=t=>String(t||'').split('\n').map(l=>l.replace(/^\s*\d+:\d+(\.\d+)?\s*/,'').trim()).filter(l=>l&&!/✂/.test(l));
+
+/* ================= text utils ================= */
+const CHO=['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h'],
+      JUNG=['a','ae','ya','yae','eo','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'],
+      JONG=['','k','k','k','n','n','n','t','l','k','m','l','l','l','p','l','m','p','p','t','t','ng','t','t','k','t','p','t'];
+function romanize(s,hy){const out=[]; for(const ch of s){const c=ch.charCodeAt(0)-0xAC00; if(c<0||c>11171){out.push(ch);continue} out.push(CHO[Math.floor(c/588)]+JUNG[Math.floor(c%588/28)]+JONG[c%28])}
+  if(!hy) return out.join(''); const r=out.join('-'); return r.charAt(0).toUpperCase()+r.slice(1)}
+const HANG=/[가-힣]/;
+const norm=w=>romanize(String(w)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+function lev(a,b){const m=a.length,n=b.length; if(!m) return n; if(!n) return m; let p=new Uint16Array(n+1),c=new Uint16Array(n+1); for(let j=0;j<=n;j++) p[j]=j;
+  for(let i=1;i<=m;i++){c[0]=i; const ai=a.charCodeAt(i-1); for(let j=1;j<=n;j++){c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(ai===b.charCodeAt(j-1)?0:1))} [p,c]=[c,p]} return p[n]}
+// map each char of b (script) to a char index of a (transcript) via edit-distance backtrace
+function charMap(a,b){const m=a.length,n=b.length,D=[]; for(let i=0;i<=m;i++){D.push(new Uint16Array(n+1)); D[i][0]=i} for(let j=0;j<=n;j++) D[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) D[i][j]=Math.min(D[i-1][j]+1,D[i][j-1]+1,D[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  const map=new Int32Array(n).fill(-1); let i=m,j=n;
+  while(i>0&&j>0){ if(D[i][j]===D[i-1][j-1]+(a[i-1]===b[j-1]?0:1)){map[j-1]=i-1;i--;j--} else if(D[i][j]===D[i-1][j]+1) i--; else {map[j-1]=Math.max(0,i-1); j--} }
+  return map}
+
+/* ================= state ================= */
+const S={root:null,single:false,projects:[],dir:null,folder:'',data:null,mtime:0,files:{},urls:{},tl:[],total:0,sel:null,playing:false,outT:0,exporting:false,dirty:false};
+const DEF={version:1,format:'reel',speed:1.15,gap:0.4,cap:{mode:'pop',size:84,y:78,wpl:3},filter:'mid',sfx:1,lang:'spanish',media:[],takes:{},blocks:[],renders:[],caption:'',status:{state:'idle'}};
+const SHOTS={wide:'와이드',close:'클로즈업',punch:'펀치인',zoomin:'천천히 줌'};
+const OVT={card:'카드',red:'빨간 카드',emoji:'이모지',big:'큰 글씨',cta:'질문 (위쪽)'};
+
+/* ================= root & project list ================= */
+async function initRoot(){
+  let h=await kvGet('kyu-editor','kv','root'); if(!h) h=await kvGet('kyu-fs','h','root');
+  if(h) await setRoot(h,false);
+}
+async function setRoot(h,ask){
+  S.root=h; const ok=await perm(h,ask);
+  $('rootInfo').textContent='연결됨: '+h.name+(ok?'':' (허락 필요 — 버튼을 눌러 주세요)');
+  if(!ok){$('connect').textContent='🔓 폴더 사용 허락'; return}
+  $('connect').textContent='📂 다른 폴더 연결';
+  await listProjects();
+}
+$('connect').onclick=async()=>{
+  if(S.root&&!(await perm(S.root,false))){ if(await perm(S.root,true)) return setRoot(S.root,false) }
+  try{const h=await showDirectoryPicker({id:'kyu-content',mode:'readwrite',startIn:'desktop'}); await kvSet('kyu-editor','kv','root',h); await setRoot(h,true)}catch(e){}
+};
+async function listProjects(){
+  const out=[]; let rootVids=0;
+  for await(const [n,h] of S.root.entries()){
+    if(h.kind==='file'&&VIDRE.test(n)&&!OUTRE.test(n)) rootVids++;
+    if(h.kind!=='directory'||/^[._]/.test(n)||n==='renders') continue;
+    let vids=0, pj=null;
+    for await(const [m,x] of h.entries()){ if(x.kind==='file'&&VIDRE.test(m)&&!OUTRE.test(m)) vids++; if(m==='project.json') pj=x }
+    let st='';
+    if(pj){try{const d=JSON.parse(await (await pj.getFile()).text()); st=d.status&&d.status.state!=='idle'?stateText(d.status):(d.renders||[]).length?'v'+d.renders.length+' 있음':'편집 중'}catch(e){}}
+    if(vids||pj) out.push({name:nf(n),h,vids,st,has:!!pj});
+  }
+  S.single=rootVids>0&&!out.length;
+  if(S.single) out.push({name:nf(S.root.name),h:S.root,vids:rootVids,st:'',has:false,self:true});
+  out.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  S.projects=out; renderPlist();
+  const last=localStorage.getItem('kyu-editor-last'); const q=new URLSearchParams(location.search).get('p');
+  const want=out.find(p=>p.name===nf(q))||out.find(p=>p.name===last);
+  if(want&&!S.dir) openProject(want);
+}
+function renderPlist(){
+  const b=$('plist'); b.textContent='';
+  if(!S.projects.length){b.appendChild(el('div','hint','영상이 든 폴더가 없어요. 콘텐츠 폴더를 연결했는지 확인해 주세요.'));return}
+  if(S.single) b.appendChild(el('div','hint','지금은 대본 폴더 하나만 연결돼 있어요. 다른 영상도 편집하려면 상위 폴더(콘텐츠)를 연결하세요.'));
+  S.projects.forEach(p=>{const r=el('div','pitem'+(S.folder===p.name?' on':'')); r.tabIndex=0;
+    const t=el('div'); t.style.minWidth='0'; t.style.flex='1'; t.append(el('div','n',p.name),el('div','s',p.vids+'개 영상'+(p.st?' · '+p.st:'')));
+    r.append(t); r.onclick=()=>openProject(p); r.onkeydown=e=>{if(e.key==='Enter') openProject(p)}; b.appendChild(r)});
+}
+$('newProj').onclick=async()=>{ if(!S.root||S.single){toast('먼저 콘텐츠 폴더를 연결하세요');return}
+  const n=prompt('새 프로젝트(폴더) 이름'); if(!n) return; try{await S.root.getDirectoryHandle(n.trim(),{create:true}); await listProjects(); toast('폴더를 만들었어요. Studio에서 녹화하거나 영상 파일을 넣어 주세요.')}catch(e){toast('만들지 못했어요')}};
+
+/* ================= project open/save ================= */
+function stateText(st){return {'claude-requested':'Claude 요청됨','claude-editing':'Claude 편집 중',transcribing:'받아쓰는 중',rendering:'내보내는 중',idle:'대기'}[st.state]||st.state}
+function setPill(){
+  const p=$('pState'), st=(S.data&&S.data.status)||{state:'idle'}; p.className='pill';
+  let t=stateText(st);
+  if(st.state==='claude-editing'||st.state==='claude-requested'){p.classList.add('claude'); t='🤖 '+t+(st.at?' · '+new Date(st.at).toLocaleTimeString().slice(0,5):'')}
+  else if(st.state==='rendering'){p.classList.add('render')}
+  else if(st.state==='transcribing'){p.classList.add('work')}
+  else if(S.data){p.classList.add('ok'); t=S.dirty?'저장 중…':'저장됨'}
+  else t='프로젝트를 고르세요';
+  $('pStateT').textContent=t; p.title=st.note||'';
+}
+async function openProject(p){
+  stop(); S.dir=p.h; S.folder=p.name; localStorage.setItem('kyu-editor-last',p.name); renderPlist();
+  $('pTitle').textContent=p.name; $('stOvl').hidden=false; $('stOvl').textContent='여는 중…';
+  const r=await readJSON(S.dir,'project.json');
+  S.data=Object.assign(structuredClone(DEF),r?r.data:{}); S.mtime=r?r.mtime:0;
+  S.data.cap=Object.assign({},DEF.cap,S.data.cap||{});
+  if(!S.data.title) S.data.title=p.name;
+  // media scan
+  S.files={}; Object.values(S.urls).forEach(u=>URL.revokeObjectURL(u)); S.urls={};
+  const seen=new Set();
+  for await(const [n,h] of S.dir.entries()){
+    if(h.kind!=='file'||!VIDRE.test(n)||OUTRE.test(n)) continue; const name=nf(n); seen.add(name);
+    S.files[name]=h;
+    if(!S.data.media.find(m=>m.file===name)){
+      const base=name.replace(/\.\w+$/,''), cam=(base.match(/_cam(\d)$/)||[])[1];
+      S.data.media.push({file:name,take:base.replace(/_cam\d$/,''),cam:cam?'cam'+cam:'',cx:0.5,cy:0.36});
+    }
+  }
+  S.data.media=S.data.media.filter(m=>seen.has(m.file));
+  for(const m of S.data.media){ const f=await S.files[m.file].getFile(); S.urls[m.file]=URL.createObjectURL(f);
+    if(!m.dur||m.ok==null){ const v=await probe(S.urls[m.file]); Object.assign(m,v) } }
+  // script
+  await loadScripts(); fillScriptSel();
+  if(!S.data.script){ const id=Object.entries(FOLDERS).find(([k,v])=>nf(v)===nf(p.name))?.[0]||SCRIPTS.list.find(o=>nf(o.name).includes(nf(p.name).replace(/^#\d+\s*/,'')))?.id;
+    if(id) S.data.script={id,name:SCRIPTS.list.find(o=>o.id===id)?.name||id,text:SCRIPTS.text[id]||''} }
+  syncSettings(); renderMedia(); $('setBox').hidden=$('medBox').hidden=$('expBox').hidden=false;
+  ['askClaude','expBtn','playBtn','draftBtn','addBlk'].forEach(id=>$(id).disabled=false);
+  $('caption').value=S.data.caption||'';
+  await ensurePeaks();
+  if(Object.keys(S.data.takes).some(k=>S.data.takes[k].words)) S.data.blocks.forEach(bk=>{ if(bk.take&&!(bk.cands||[]).length) bk.cands=findCands(bk.text) });
+  if(!S.data.blocks.length){
+    if(Object.keys(S.data.takes).some(k=>S.data.takes[k].words)) draft();
+    else seedBlocksFromScript();
+  }
+  buildTL(); renderBlocks(); renderRenders(); setPill(); S.outT=0; drawAt(0);
+  $('stOvl').hidden=!!S.tl.length; if(!S.tl.length) $('stOvl').textContent=Object.keys(S.data.takes).some(k=>S.data.takes[k].words)?'블록에 테이크가 없어요':'먼저 왼쪽 아래 📝 받아쓰기를 눌러 주세요';
+  if(!r) save();
+}
+function probe(url){return new Promise(res=>{const v=document.createElement('video'); v.preload='metadata'; v.muted=true; v.src=url;
+  const done=ok=>{res({dur:v.duration||0,w:v.videoWidth||0,h:v.videoHeight||0,ok:ok&&v.videoWidth>0}); v.removeAttribute('src'); v.load()};
+  v.onloadedmetadata=()=>done(true); v.onerror=()=>done(false); setTimeout(()=>done(false),8000)})}
+let saveT=null, ownWrite=0;
+function save(){S.dirty=true; setPill(); clearTimeout(saveT); saveT=setTimeout(saveNow,700)}
+async function saveNow(){ if(!S.dir||!S.data) return; S.data.updated=Date.now();
+  try{ownWrite=Date.now(); S.mtime=await writeFile(S.dir,'project.json',new Blob([JSON.stringify(S.data,null,1)],{type:'application/json'})); S.dirty=false}catch(e){toast('저장하지 못했어요: '+e.message)} setPill()}
+// watch for Claude's edits
+setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
+  try{const h=await child(S.dir,'project.json','file'); if(!h) return; const f=await h.getFile(); if(f.lastModified<=S.mtime) return;
+    S.mtime=f.lastModified; if(Date.now()-ownWrite<1500) return;
+    const d=JSON.parse(await f.text()); const wasPlaying=S.playing; stop();
+    const keep=S.data.media; S.data=Object.assign(structuredClone(DEF),d); S.data.cap=Object.assign({},DEF.cap,d.cap||{});
+    for(const m of S.data.media){const o=keep.find(x=>x.file===m.file); if(o) Object.assign(m,{dur:o.dur,w:o.w,h:o.h,ok:o.ok})}
+    syncSettings(); buildTL(); renderBlocks(); renderRenders(); setPill(); drawAt(S.outT); $('caption').value=S.data.caption||'';
+    toast(d.status&&d.status.state==='claude-editing'?'🤖 Claude가 편집 중이에요':'🤖 Claude가 바꾼 내용을 불러왔어요');
+  }catch(e){}
+},2500);
+
+/* ================= settings ================= */
+function fillScriptSel(){const s=$('sScript'); s.textContent=''; s.appendChild(el('option',null,'(대본 없음)')).value='';
+  SCRIPTS.list.forEach(o=>{const x=el('option',null,o.name); x.value=o.id; s.appendChild(x)})}
+function syncSettings(){const d=S.data; $('sFormat').value=d.format; $('sSpeed').value=String(d.speed); $('sGap').value=String(d.gap); $('sCap').value=d.cap.mode; $('sCapSize').value=d.cap.size; $('sCapY').value=d.cap.y;
+  $('sFilter').value=d.filter; $('sSfx').value=String(d.sfx); $('sLang').value=d.lang; $('sScript').value=d.script?d.script.id:'';
+  const cv=$('cv'); const [W,H]=d.format==='long'?[1920,1080]:[1080,1920]; if(cv.width!==W){cv.width=W; cv.height=H}}
+const onSet=(id,fn)=>$(id).addEventListener('change',()=>{fn($(id).value); buildTL(); renderBlocks(); save(); drawAt(S.outT)});
+onSet('sFormat',v=>{S.data.format=v; syncSettings()}); onSet('sSpeed',v=>S.data.speed=+v); onSet('sGap',v=>{S.data.gap=+v; S.data.blocks.forEach(autoCuts)});
+onSet('sCap',v=>S.data.cap.mode=v); onSet('sFilter',v=>S.data.filter=v); onSet('sSfx',v=>S.data.sfx=+v); onSet('sLang',v=>S.data.lang=v);
+$('sCapSize').addEventListener('input',()=>{S.data.cap.size=+$('sCapSize').value; drawAt(S.outT); save()});
+$('sCapY').addEventListener('input',()=>{S.data.cap.y=+$('sCapY').value; drawAt(S.outT); save()});
+onSet('sScript',v=>{ if(!v){S.data.script=null; return} S.data.script={id:v,name:SCRIPTS.list.find(o=>o.id===v)?.name||v,text:SCRIPTS.text[v]||''};
+  if(confirm('대본을 바꿨어요. 대본 줄 기준으로 블록을 다시 만들까요? (지금 블록 설정은 사라져요)')) draft(true) });
+$('caption').addEventListener('input',()=>{S.data.caption=$('caption').value; save()});
+
+/* ================= media / transcription ================= */
+function takeList(){const t={}; S.data.media.filter(m=>m.ok).forEach(m=>{(t[m.take]=t[m.take]||[]).push(m)}); Object.values(t).forEach(a=>a.sort((x,y)=>(x.cam||'').localeCompare(y.cam||''))); return t}
+const prim=take=>{const a=takeList()[take]; return a?a[0]:null};
+function renderMedia(){const b=$('mlist'); b.textContent=''; const T=takeList();
+  Object.entries(T).forEach(([k,ms])=>{const tr=S.data.takes[k]; const r=el('div',null); r.style.margin='4px 0';
+    r.append(el('b',null,k),document.createTextNode(' · '+fmt(ms[0].dur)+(ms.length>1?' · 카메라 '+ms.length+'대':'')+(tr&&tr.words?' · 받아쓰기 ✓':' · 받아쓰기 전'))); b.appendChild(r)});
+  const bad=S.data.media.filter(m=>!m.ok); if(bad.length){const r=el('div',null,'⚠️ 브라우저에서 못 여는 파일 '+bad.length+'개 (ProRes mov 등): '+bad.map(m=>m.file).join(', ')); r.style.color='var(--red)'; b.appendChild(r)}
+  if(!Object.keys(T).length) b.appendChild(el('div',null,'영상이 없어요. Studio에서 녹화하거나 mp4를 이 폴더에 넣어 주세요.'));
+}
+async function decodeTake(take){const m=prim(take); const f=await S.files[m.file].getFile(); const ab=await f.arrayBuffer();
+  const ac=new AudioContext({sampleRate:16000}); let buf; try{buf=await ac.decodeAudioData(ab)}finally{ac.close()}
+  const x=buf.getChannelData(0); if(buf.numberOfChannels>1){const y=buf.getChannelData(1); for(let i=0;i<x.length;i++) x[i]=(x[i]+y[i])/2} return x}
+function peaksOf(x){const fr=160, n=Math.floor(x.length/fr), p=new Uint8Array(n); for(let i=0;i<n;i++){let s=0; for(let j=i*fr;j<(i+1)*fr;j++) s+=x[j]*x[j]; const db=10*Math.log10(s/fr+1e-12); p[i]=Math.max(0,Math.min(255,Math.round((db+80)*255/80)))} return p}
+const pk2b=p=>{let s=''; for(let i=0;i<p.length;i+=8192) s+=String.fromCharCode.apply(null,p.subarray(i,i+8192)); return btoa(s)};
+function b2pk(s){const b=atob(s), p=new Uint8Array(b.length); for(let i=0;i<b.length;i++) p[i]=b.charCodeAt(i); return p}
+const PK={}; // take -> Uint8Array (100/s, 0..255 = -80..0 dB)
+function pkGet(take){ if(PK[take]) return PK[take]; const t=S.data.takes[take]; if(t&&t.peaks) PK[take]=b2pk(t.peaks); return PK[take]||null }
+const dbAt=(p,t)=>p?p[Math.max(0,Math.min(p.length-1,Math.round(t*100)))]*80/255-80:-80;
+function speechStats(p){const v=Array.from(p).map(x=>x*80/255-80).sort((a,b)=>a-b); const p80=v[Math.floor(v.length*.8)]||-30; const thr=Math.max(p80-28,-55);
+  const sp=v.filter(x=>x>thr); const med=sp.length?sp[Math.floor(sp.length/2)]:-30; return {thr,med}}
+async function ensurePeaks(){ for(const k of Object.keys(takeList())){ const t=S.data.takes[k]=S.data.takes[k]||{}; if(t.peaks) continue;
+  $('trInfo').textContent='파형 만드는 중… '+k; try{const x=await decodeTake(k); const p=peaksOf(x); t.peaks=pk2b(p); PK[k]=p; Object.assign(t,speechStats(p))}catch(e){console.warn(e)} }
+  $('trInfo').textContent=''; renderMedia() }
+let ASR=null;
+async function asrLoad(){ if(ASR) return ASR; const T=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1'); T.env.allowLocalModels=false;
+  const dev=navigator.gpu?'webgpu':'wasm';
+  ASR=await T.pipeline('automatic-speech-recognition','onnx-community/whisper-small_timestamped',{device:dev,dtype:dev==='webgpu'?{encoder_model:'fp32',decoder_model_merged:'q4'}:'q8',
+    progress_callback:p=>{if(p.status==='progress'&&p.progress) $('trInfo').textContent='받아쓰기 모델 받는 중 (처음 한 번) '+Math.round(p.progress)+'%'}});
+  return ASR}
+function vadSegs(p,thr){const segs=[]; let s=null; for(let i=0;i<p.length;i++){const on=p[i]*80/255-80>thr; if(on&&s==null) s=i; if(!on&&s!=null){segs.push([s/100,i/100]); s=null}} if(s!=null) segs.push([s/100,p.length/100]);
+  const m=[]; for(const [a,b] of segs){ if(m.length&&a-m[m.length-1][1]<0.35) m[m.length-1][1]=b; else m.push([a,b]) }
+  const out=[]; for(let [a,b] of m){ if(b-a<0.25) continue; while(b-a>26){out.push([a,a+25]); a+=25} out.push([a,b]) } return out}
+$('trBtn').onclick=()=>transcribeAll(true);
+async function transcribeAll(force){
+  const T=takeList(); const todo=Object.keys(T).filter(k=>force||!(S.data.takes[k]&&S.data.takes[k].words)); if(!todo.length){toast('모두 받아썼어요');return}
+  S.data.status={state:'transcribing',at:Date.now()}; setPill(); $('trBtn').disabled=true; const pr=$('trProg'),bar=pr.firstElementChild; pr.hidden=false;
+  try{ const asr=await asrLoad();
+    for(let ti=0;ti<todo.length;ti++){ const k=todo[ti]; $('trInfo').textContent='받아쓰는 중: '+k;
+      const x=await decodeTake(k); const p=peaksOf(x); const st=speechStats(p); const segs=vadSegs(p,st.thr); const words=[];
+      for(let si=0;si<segs.length;si++){ const [a,b]=segs[si]; const s=Math.max(0,Math.floor((a-0.15)*16000)), e=Math.min(x.length,Math.ceil((b+0.15)*16000)), off=s/16000;
+        const r=await asr(x.slice(s,e),{language:S.data.lang,task:'transcribe',return_timestamps:'word'});
+        (r.chunks||[]).forEach(c=>{const w=c.text.trim(); if(!w||/^\[|^>>|^\(/.test(w)) return; words.push([w,+(c.timestamp[0]+off).toFixed(2),+((c.timestamp[1]??c.timestamp[0])+off).toFixed(2)])});
+        bar.style.width=((ti+(si+1)/segs.length)/todo.length*100)+'%'; }
+      S.data.takes[k]=Object.assign(S.data.takes[k]||{},{words,peaks:pk2b(p),thr:st.thr,med:st.med,at:Date.now()}); PK[k]=p; save(); renderMedia();
+    }
+    S.data.status={state:'idle'}; $('trInfo').textContent='받아쓰기 끝. 블록을 만들었어요.';
+    draft(!S.data.blocks.some(b=>b.take));
+  }catch(e){console.error(e); $('trInfo').textContent='받아쓰기 실패: '+e.message; S.data.status={state:'idle'}}
+  $('trBtn').disabled=false; pr.hidden=true; setPill(); save();
+}
+
+/* ================= automatic draft ================= */
+function seedBlocksFromScript(){const L=S.data.script?scriptLines(S.data.script.text):[]; S.data.blocks=L.map((t,i)=>({id:'b'+i+Date.now().toString(36),text:t,take:null,cam:'',a:0,b:0,cuts:[],shot:'wide',ov:autoOv(t),on:true,cands:[]}))}
+function findCands(line,usedAfter){
+  const ln=norm(line.replace(/\*/g,'')); if(ln.length<2) return [];
+  const toks=line.split(/\s+/).map(norm).filter(Boolean), tset=new Set(toks), Lt=toks.length; const out=[];
+  for(const [k,t] of Object.entries(S.data.takes)){ if(!t.words||!prim(k)) continue; const W=t.words, wn=W.map(w=>norm(w[0])); const pre=[];
+    for(let i=0;i<W.length;i++){ let hit=0; for(let j=i;j<Math.min(W.length,i+Math.ceil(Lt*1.6)+2);j++){ if(tset.has(wn[j])) hit++; const len=j-i+1; if(len<Math.max(1,Math.floor(Lt*0.5))) continue;
+        const f=2*hit/(len+Lt); pre.push([f,i,j]) } }
+    pre.sort((a,b)=>b[0]-a[0]); const top=pre.slice(0,40); const scored=[];
+    for(const [,i,j] of top){ const s=wn.slice(i,j+1).join(''); const sc=1-lev(s,ln)/Math.max(s.length,ln.length); scored.push({take:k,i,j,score:sc}) }
+    scored.sort((a,b)=>b.score-a.score);
+    const keep=[]; for(const c of scored){ if(c.score<0.45) break; if(keep.some(x=>!(c.j<x.i||c.i>x.j))) continue; keep.push(c); if(keep.length>=3) break }
+    keep.forEach(c=>{c.a=W[c.i][1]; c.b=W[c.j][2]; out.push(c)});
+  }
+  // prefer best score; among near-ties prefer later attempts (re-reads are usually better)
+  out.sort((x,y)=>(y.score-x.score)||(y.a-x.a));
+  if(out.length>1){ const best=out[0]; const alt=out.filter(c=>c!==best&&best.score-c.score<0.05&&c.take===best.take&&c.a>best.a); if(alt.length) out.unshift(out.splice(out.indexOf(alt[0]),1)[0]) }
+  return out.map(c=>({take:c.take,i:c.i,j:c.j,score:+c.score.toFixed(2),a:c.a,b:c.b}));
+}
+function refineEdges(take,a,b,w0,wN){ const p=pkGet(take), thr=(S.data.takes[take]||{}).thr??-45;
+  if(!p) return [Math.max(0,a-0.1),b+0.15];
+  if(w0&&w0[2]-w0[1]>0.7) a=Math.max(a,w0[2]-0.7);
+  let A=a; for(let t=a;t<a+0.9;t+=0.01){ if(dbAt(p,t)>thr){A=t;break} }
+  let B=b; for(let t=b+0.6;t>b-0.4;t-=0.01){ if(dbAt(p,t)>thr){B=t;break} }
+  return [+Math.max(0,A-0.1).toFixed(2),+(B+0.14).toFixed(2)] }
+function autoCuts(bk){ bk.cuts=[]; if(!bk.take||!S.data.gap) return; const p=pkGet(bk.take), thr=(S.data.takes[bk.take]||{}).thr??-45; if(!p) return;
+  let s=null; for(let t=bk.a+0.15;t<bk.b-0.15;t+=0.01){ const q=dbAt(p,t)<thr; if(q&&s==null) s=t; if((!q||t>=bk.b-0.16)&&s!=null){ if(t-s>S.data.gap) bk.cuts.push([+(s+0.1).toFixed(2),+(t-0.1).toFixed(2)]); s=null } } }
+function alignWords(bk){ // script tokens -> source times
+  const t=S.data.takes[bk.take]; const toks=bk.text.split(/\s+/).filter(Boolean); if(!t||!t.words||!toks.length){bk.words=[];return}
+  const W=t.words.filter(w=>w[1]>=bk.a-0.3&&w[1]<bk.b); if(!W.length){ bk.words=toks.map((w,i)=>[w,bk.a+(bk.b-bk.a)*i/toks.length]); return }
+  let A='',own=[]; W.forEach((w,wi)=>{const n=norm(w[0]); for(let c=0;c<n.length;c++){A+=n[c]; own.push([wi,c/Math.max(1,n.length)])}});
+  let B='',start=[]; toks.forEach(w=>{start.push(B.length); B+=norm(w)});
+  const map=charMap(A,B);
+  bk.words=toks.map((w,k)=>{ let ci=start[k], j=-1; for(let c=ci;c<Math.min(B.length,ci+3);c++){ if(map[c]>=0){j=map[c];break} }
+    if(j<0) return [w,null]; const [wi,fr]=own[j]; const x=W[wi]; return [w,+(x[1]+(x[2]-x[1])*fr).toFixed(2)] });
+  // fill gaps
+  for(let k=0;k<bk.words.length;k++){ if(bk.words[k][1]!=null) continue; const p=bk.words.slice(0,k).reverse().find(x=>x[1]!=null), n=bk.words.slice(k+1).find(x=>x[1]!=null);
+    bk.words[k][1]=+(((p?p[1]:bk.a+0.05)+(n?n[1]:bk.b-0.2))/2).toFixed(2) }
+  for(let k=1;k<bk.words.length;k++) bk.words[k][1]=Math.max(bk.words[k][1],bk.words[k-1][1]+0.06);
+  bk.words[0][1]=Math.max(bk.words[0][1],bk.a+0.02);
+}
+function autoOv(text){ const ov=[]; const toks=text.split(/\s+/);
+  toks.forEach((w,i)=>{ const h=w.replace(/[^가-힣]/g,''); if(h&&!ov.some(o=>o.text===h)) ov.push({type:'card',text:h,sub:romanize(h,true),at:i}) ;
+    if(/^\D*\d{4}\D*$/.test(w)&&!ov.some(o=>o.type==='big')) ov.push({type:'big',text:w.replace(/[^\d]/g,''),at:i}) });
+  return ov.slice(0,2) }
+const SHOTROT=['wide','close','wide','punch','close','wide','zoomin'];
+function draft(rebuild){
+  const L=S.data.script?scriptLines(S.data.script.text):[];
+  if(!L.length&&!S.data.blocks.length){ // no script: one block per speech segment of first take
+    const k=Object.keys(takeList())[0]; const t=S.data.takes[k]; if(t&&t.words){ const segs=vadSegs(pkGet(k),t.thr); S.data.blocks=segs.map((s,i)=>{const ws=t.words.filter(w=>w[1]>=s[0]-0.2&&w[1]<s[1]); return {id:'b'+i,text:ws.map(w=>w[0]).join(' ')||'…',take:k,cam:'',a:+Math.max(0,s[0]-0.1).toFixed(2),b:+(s[1]+0.15).toFixed(2),cuts:[],shot:SHOTROT[i%SHOTROT.length],ov:[],on:true,cands:[]}}) } }
+  else{
+    if(rebuild||!S.data.blocks.length) seedBlocksFromScript();
+    S.data.blocks.forEach((bk,i)=>{ const c=findCands(bk.text); bk.cands=c; if(c.length){ pickCand(bk,c[0],true) } else {bk.take=null} if(rebuild) bk.shot=SHOTROT[i%SHOTROT.length] });
+    if(S.data.blocks.length) S.data.blocks[S.data.blocks.length-1].shot='close';
+  }
+  buildTL(); renderBlocks(); save(); drawAt(0); $('stOvl').hidden=!!S.tl.length;
+  const miss=S.data.blocks.filter(b=>!b.take).length; toast('초안을 만들었어요'+(miss?' · 못 찾은 줄 '+miss+'개 (빨간 블록)':''));
+}
+function pickCand(bk,c,keepShot){ const t=S.data.takes[c.take]; const W=t.words; const [a,b]=refineEdges(c.take,c.a,c.b,W[c.i],W[c.j]);
+  bk.take=c.take; bk.a=a; bk.b=b; const ms=takeList()[c.take]||[]; if(!ms.find(m=>m.cam===bk.cam)) bk.cam=ms[0]?ms[0].cam:''; autoCuts(bk); alignWords(bk) }
+
+/* ================= timeline ================= */
+function partsOf(bk){ let ps=[[bk.a,bk.b]]; (bk.cuts||[]).slice().sort((x,y)=>x[0]-y[0]).forEach(([x,y])=>{ const n=[]; ps.forEach(([a,b])=>{ if(y<=a||x>=b) n.push([a,b]); else { if(x>a) n.push([a,x]); if(y<b) n.push([y,b]) } }); ps=n }); return ps.filter(([a,b])=>b-a>0.04) }
+function mediaOf(bk){ const ms=takeList()[bk.take]||[]; return ms.find(m=>m.cam===bk.cam)||ms[0]||null }
+function buildTL(){ const sp=S.data.speed; S.tl=[]; let o=0;
+  S.data.blocks.forEach((bk,bi)=>{ bk._o=o; if(!bk.on||!bk.take||!mediaOf(bk)){bk._d=0; return}
+    partsOf(bk).forEach(([a,b],pi)=>{ const d=(b-a)/sp; S.tl.push({bi,bk,m:mediaOf(bk),a,b,o,d,pi}); o+=d }); bk._d=o-bk._o });
+  S.total=o; renderScrub(); }
+function srcToOut(bk,t){ const segs=S.tl.filter(s=>s.bk===bk); for(const s of segs){ if(t>=s.a-1e-3&&t<=s.b+1e-3) return s.o+(t-s.a)/S.data.speed; if(t<s.a) return s.o } return segs.length?segs[segs.length-1].o+segs[segs.length-1].d:0 }
+function segAt(t){ for(let i=0;i<S.tl.length;i++){ const s=S.tl[i]; if(t<s.o+s.d) return i } return S.tl.length-1 }
+
+/* ================= audio graph ================= */
+let AC=null, MASTER=null, REC=null;
+function audio(){ if(AC) return AC; AC=new AudioContext({sampleRate:48000});
+  const comp=AC.createDynamicsCompressor(); comp.threshold.value=-24; comp.ratio.value=3; comp.attack.value=0.005; comp.release.value=0.15; comp.knee.value=6;
+  const make=AC.createGain(); make.gain.value=1.6; const lim=AC.createDynamicsCompressor(); lim.threshold.value=-2; lim.ratio.value=20; lim.attack.value=0.001; lim.release.value=0.08; lim.knee.value=0;
+  MASTER=AC.createGain(); MASTER.connect(comp).connect(make).connect(lim); lim.connect(AC.destination); REC=AC.createMediaStreamDestination(); lim.connect(REC); return AC }
+function takeGain(take){ const t=S.data.takes[take]||{}; const med=t.med??-28; return Math.max(0.35,Math.min(4,Math.pow(10,(-22-med)/20))) }
+function sfx(kind){ if(!S.data.sfx) return; const c=audio(), t=c.currentTime, g=c.createGain(); g.connect(MASTER);
+  if(kind==='pop'){const o=c.createOscillator(); o.frequency.setValueAtTime(900,t); o.frequency.exponentialRampToValueAtTime(240,t+0.1); g.gain.setValueAtTime(0.28,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.12); o.connect(g); o.start(t); o.stop(t+0.13)}
+  else if(kind==='ding'){[1568,2352,3136].forEach((f,i)=>{const o=c.createOscillator(); o.frequency.value=f; const gg=c.createGain(); gg.gain.setValueAtTime(0.16/(i+1),t); gg.gain.exponentialRampToValueAtTime(0.001,t+0.8); o.connect(gg).connect(g); o.start(t); o.stop(t+0.82)}); g.gain.value=1}
+  else if(kind==='buzz'){const o=c.createOscillator(); o.type='square'; o.frequency.value=150; g.gain.setValueAtTime(0.08,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.3); o.connect(g); o.start(t); o.stop(t+0.32)}
+  else if(kind==='whoosh'){const n=c.createBuffer(1,c.sampleRate*0.35,c.sampleRate), d=n.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.sin(Math.PI*i/d.length)**2; const s=c.createBufferSource(); s.buffer=n; const bp=c.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(400,t); bp.frequency.exponentialRampToValueAtTime(3000,t+0.3); g.gain.value=0.35; s.connect(bp).connect(g); s.start(t)} }
+
+/* ================= video pool & playback ================= */
+const POOL=[]; // {v, src, g}
+function slot(i){ while(POOL.length<4){ const v=document.createElement('video'); v.playsInline=true; v.preload='auto'; v.crossOrigin='anonymous'; v.preservesPitch=true;
+    const c=audio(); const src=c.createMediaElementSource(v); const g=c.createGain(); g.gain.value=0; src.connect(g).connect(MASTER); POOL.push({v,g,file:null,seg:-1}) } return POOL[i%4] }
+async function prep(i,offset=0){ const s=S.tl[i]; if(!s) return null; const p=slot(i); const url=S.urls[s.m.file];
+  if(p.file!==s.m.file){ p.file=s.m.file; p.v.src=url; await new Promise(r=>{ if(p.v.readyState>=1) return r(); p.v.onloadedmetadata=()=>r(); setTimeout(r,4000) }) }
+  p.seg=i; p.v.playbackRate=S.data.speed; p.v.pause(); const want=s.a+offset*S.data.speed;
+  if(Math.abs(p.v.currentTime-want)>0.02){ p.v.currentTime=want; await new Promise(r=>{p.v.onseeked=()=>r(); setTimeout(r,2500)}) } return p }
+let cur=-1, raf=0, ovFired=new Set();
+async function play(from){ if(!S.tl.length) return; const c=audio(); await c.resume(); stop(true);
+  let t=from??S.outT; if(t>=S.total-0.05) t=0; S.outT=t; cur=segAt(t); const s=S.tl[cur];
+  const p=await prep(cur,t-s.o); prep(cur+1); prep(cur+2);
+  ovFired=new Set(overlaysAll().filter(o=>o.t<=t).map(o=>o.key));
+  S.playing=true; $('playBtn').textContent='❚❚'; p.g.gain.setValueAtTime(0,c.currentTime); p.g.gain.linearRampToValueAtTime(takeGain(s.m.take),c.currentTime+0.008);
+  await p.v.play(); loop(); }
+function stop(){ S.playing=false; cancelAnimationFrame(raf); POOL.forEach(p=>{p.v.pause(); try{p.g.gain.setValueAtTime(0,AC.currentTime)}catch(e){}}); $('playBtn').textContent='▶' }
+async function advance(){ const c=AC; const old=slot(cur); old.g.gain.setValueAtTime(old.g.gain.value,c.currentTime); old.g.gain.linearRampToValueAtTime(0,c.currentTime+0.006); setTimeout(()=>old.v.pause(),8);
+  cur++; if(cur>=S.tl.length){ S.outT=S.total; stop(); if(S.onEnd){const f=S.onEnd; S.onEnd=null; f()} return }
+  const s=S.tl[cur], p=slot(cur); if(p.seg!==cur||p.file!==s.m.file) await prep(cur);
+  if(S.tl[cur-1]&&S.tl[cur-1].m.take!==s.m.take) sfx('whoosh');
+  p.v.playbackRate=S.data.speed; p.g.gain.setValueAtTime(0,c.currentTime); p.g.gain.linearRampToValueAtTime(takeGain(s.m.take),c.currentTime+0.006); p.v.play(); prep(cur+1); prep(cur+2) }
+function loop(){ if(!S.playing) return; const s=S.tl[cur], p=slot(cur); const st=p.v.currentTime;
+  if(st>=s.b-0.012||p.v.ended){ advance().then(()=>{ if(S.playing) raf=requestAnimationFrame(loop) }); return }
+  S.outT=s.o+Math.max(0,st-s.a)/S.data.speed; draw(S.outT,p.v,s);
+  if(S.stopAt!=null&&S.outT>=S.stopAt){S.stopAt=null; stop(); return}
+  raf=requestAnimationFrame(loop) }
+$('playBtn').onclick=()=>S.playing?stop():play();
+document.addEventListener('keydown',e=>{ if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault(); S.playing?stop():play()} });
+async function drawAt(t){ if(!S.tl.length){clearCv(); return} S.outT=t; const i=segAt(t), s=S.tl[i]; if(S.playing) return; const p=await prep(i,t-s.o); draw(t,p.v,s); updTC() }
+
+/* ================= drawing ================= */
+const cv=$('cv'), ctx=cv.getContext('2d');
+function clearCv(){ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height)}
+const ZOOM={wide:1,close:1.32,punch:1.62};
+function cropFor(m,v,shot,prog){ const W=cv.width,H=cv.height, vw=v.videoWidth||1920, vh=v.videoHeight||1080; let z=shot==='zoomin'?1.08+0.22*prog:(ZOOM[shot]||1);
+  if(S.data.format==='long'&&shot==='wide') z=1;
+  let ch=vh/z, cw=ch*W/H; if(cw>vw){cw=vw; ch=cw*H/W}
+  let sx=m.cx*vw-cw/2, sy=m.cy*vh-0.38*ch; sx=Math.max(0,Math.min(vw-cw,sx)); sy=Math.max(0,Math.min(vh-ch,sy)); return [sx,sy,cw,ch] }
+const FILT={mid:'brightness(1.03) contrast(1.06) saturate(1.12)',warm:'brightness(1.04) contrast(1.05) saturate(1.15) sepia(0.08)',off:'none'};
+function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); if(!v||!s) return;
+  const bk=s.bk, prog=bk._d?(t-bk._o)/bk._d:0; const [sx,sy,cw,ch]=cropFor(s.m,v,bk.shot,prog);
+  ctx.save(); ctx.filter=FILT[S.data.filter]||'none'; try{ctx.drawImage(v,sx,sy,cw,ch,0,0,W,H)}catch(e){} ctx.restore();
+  drawOverlays(t); drawCaptions(t,bk); updTC(); }
+function rr(x,y,w,h,r){ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath()}
+const pop=(dt)=>dt<0.11?0.55+0.53*(dt/0.11):dt<0.19?1.08-0.08*((dt-0.11)/0.08):1;
+function overlaysAll(){ const out=[]; S.data.blocks.forEach((bk,bi)=>{ if(!bk.on||!bk._d) return; const end=bk._o+bk._d;
+  (bk.ov||[]).forEach((o,oi)=>{ const at=o.at==null||o.at==='start'?bk._o:(bk.words&&bk.words[o.at]?srcToOut(bk,bk.words[o.at][1]):bk._o);
+    const un=o.until!=null&&bk.words&&bk.words[o.until]?srcToOut(bk,bk.words[o.until][1]):end; out.push(Object.assign({},o,{t:at,e:Math.max(at+0.3,un),key:bi+':'+oi})) }) }); return out }
+function drawOverlays(t){ const W=cv.width,H=cv.height, sc=S.data.format==='long'?0.62:1; const live=overlaysAll().filter(o=>t>=o.t&&t<o.e);
+  if(S.playing) live.forEach(o=>{ if(!ovFired.has(o.key)){ ovFired.add(o.key); sfx(o.type==='red'?'buzz':o.type==='big'?'ding':'pop') } });
+  let cardY=H*(S.data.format==='long'?0.06:0.085);
+  live.forEach(o=>{ const dt=t-o.t, k=pop(dt), fade=Math.min(1,(o.e-t)/0.15); ctx.save(); ctx.globalAlpha=Math.max(0,fade);
+    if(o.type==='card'||o.type==='red'||o.type==='cta'){ const fs=(o.type==='cta'?62:118)*sc; ctx.font=`900 ${fs}px "Noto Sans KR"`; const tw=ctx.measureText(o.text).width; const pw=tw+fs*0.5, ph=fs*1.35;
+      ctx.translate(W/2,cardY+ph/2); ctx.scale(k,k); ctx.fillStyle=o.type==='red'?'#e64040':o.type==='cta'?'#ffffff':'#ffcc33'; rr(-pw/2,-ph/2,pw,ph,fs*0.18); ctx.fill();
+      ctx.fillStyle=o.type==='red'?'#fff':'#14110a'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(o.text,0,fs*0.04); ctx.restore();
+      if(o.sub){ ctx.save(); ctx.globalAlpha=Math.max(0,Math.min(1,(dt-0.08)/0.12))*Math.max(0,fade); const fs2=50*sc; ctx.font=`700 ${fs2}px "Noto Sans KR"`; const w2=ctx.measureText(o.sub).width+fs2*0.7, h2=fs2*1.5;
+        ctx.fillStyle='rgba(0,0,0,.72)'; rr(W/2-w2/2,cardY+ph+14,w2,h2,10); ctx.fill(); ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(o.sub,W/2,cardY+ph+14+h2/2+2); ctx.restore(); cardY+=h2+14 }
+      cardY+=ph+24; return }
+    if(o.type==='emoji'){ const fs=190*sc; ctx.translate(W*0.79,H*(S.data.format==='long'?0.3:0.33)); ctx.rotate(-0.12*(1-Math.min(1,dt/0.2))); ctx.scale(k,k); ctx.font=`${fs}px "Apple Color Emoji","Noto Color Emoji",sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(o.text,0,0); ctx.restore(); return }
+    if(o.type==='big'){ const fs=230*sc; ctx.translate(W/2,Math.max(cardY,H*0.12)+fs*0.6); ctx.scale(k,k); ctx.font=`900 ${fs}px "Noto Sans KR"`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.lineWidth=fs*0.09; ctx.strokeStyle='#000'; ctx.strokeText(o.text,0,0); ctx.fillStyle='#ffcc33'; ctx.fillText(o.text,0,0); ctx.restore(); return }
+    ctx.restore() }) }
+function capGroups(bk){ if(bk._g) return bk._g; const g=[]; let c=[]; const wpl=S.data.cap.wpl||3;
+  (bk.words||[]).forEach(w=>{ c.push(w); if(c.length>=wpl||/[.,?!:;…]$/.test(w[0].replace(/\*/g,''))){g.push(c); c=[]} }); if(c.length) g.push(c); return g }
+function drawCaptions(t,bk){ if(S.data.cap.mode==='off'||!bk||!bk.words||!bk.words.length) return; const W=cv.width,H=cv.height, fs=S.data.cap.size*(S.data.format==='long'?0.75:1), y=H*S.data.cap.y/100;
+  let words=[]; const G=capGroups(bk);
+  if(S.data.cap.mode==='line'){ const g=G.find((g,i)=>{const a=srcToOut(bk,g[0][1]), b=G[i+1]?srcToOut(bk,G[i+1][0][1]):bk._o+bk._d; return t>=a&&t<b}); if(!g) return; words=g.map(w=>[w[0],0]) }
+  else{ for(let i=0;i<G.length;i++){ const a=srcToOut(bk,G[i][0][1]), b=G[i+1]?srcToOut(bk,G[i+1][0][1]):Math.min(bk._o+bk._d,srcToOut(bk,G[i][G[i].length-1][1])+1.4);
+      if(t>=a&&t<b){ words=G[i].filter(w=>srcToOut(bk,w[1])<=t+0.001).map(w=>[w[0],t-srcToOut(bk,w[1])]); break } } }
+  if(!words.length) return;
+  ctx.save(); ctx.font=`900 ${fs}px "Noto Sans KR"`; ctx.textBaseline='middle'; ctx.lineJoin='round';
+  const parts=words.map(([w,dt])=>({w:w.replace(/\*/g,''),hl:/\*/.test(w)||HANG.test(w)||/\d{3,}/.test(w),dt})); const sp=fs*0.28;
+  let tot=parts.reduce((a,p)=>a+ctx.measureText(p.w).width,0)+sp*(parts.length-1); const k=Math.min(1,W*0.88/tot); let x=W/2-tot*k/2;
+  parts.forEach(p=>{ const w=ctx.measureText(p.w).width*k; const s=p.dt<0.09?1.25-0.25*(p.dt/0.09):1; ctx.save(); ctx.translate(x+w/2,y); ctx.scale(k*s,k*s);
+    ctx.shadowColor='rgba(0,0,0,.55)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4; ctx.lineWidth=fs*0.14; ctx.strokeStyle='#000'; ctx.textAlign='center'; ctx.strokeText(p.w,0,0); ctx.shadowColor='transparent';
+    ctx.fillStyle=p.hl?'#ffcc33':'#fff'; ctx.fillText(p.w,0,0); ctx.restore(); x+=w+sp*k });
+  ctx.restore() }
+// drag to reposition face (paused)
+let drag=null;
+cv.addEventListener('pointerdown',e=>{ if(S.playing||!S.tl.length) return; const s=S.tl[segAt(S.outT)]; drag={x:e.clientX,y:e.clientY,m:s.m,cx:s.m.cx,cy:s.m.cy}; cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing' });
+cv.addEventListener('pointermove',e=>{ if(!drag) return; const r=cv.getBoundingClientRect(); const dx=(e.clientX-drag.x)/r.width, dy=(e.clientY-drag.y)/r.height; drag.m.cx=Math.max(0.05,Math.min(0.95,drag.cx-dx*0.35)); drag.m.cy=Math.max(0.1,Math.min(0.9,drag.cy-dy*0.6)); drawAt(S.outT) });
+cv.addEventListener('pointerup',()=>{ if(drag){drag=null; cv.style.cursor='grab'; save()} });
+
+/* ================= scrub & time ================= */
+function renderScrub(){ const b=$('scrub'); b.textContent=''; if(!S.total) return;
+  S.data.blocks.forEach((bk,i)=>{ if(!bk._d) return; const x=el('i',S.sel===i?'sel':''); x.style.left=(bk._o/S.total*100)+'%'; x.style.width=Math.max(0.3,bk._d/S.total*100-0.25)+'%'; x.title=(i+1)+'. '+bk.text; b.appendChild(x) });
+  b.appendChild(el('b')); updTC() }
+function updTC(){ $('tc').textContent=fmt(S.outT)+' / '+fmt(S.total); const h=$('scrub').querySelector('b'); if(h) h.style.left=(S.outT/Math.max(0.01,S.total)*100)+'%' }
+$('scrub').addEventListener('pointerdown',e=>{ const r=$('scrub').getBoundingClientRect(); const t=(e.clientX-r.left)/r.width*S.total; const was=S.playing; stop(); drawAt(t); if(was) play(t) });
+
+/* ================= block list UI ================= */
+function renderBlocks(){ const box=$('blist'); box.textContent=''; const B=S.data.blocks;
+  $('bInfo').textContent=B.length?`${B.filter(b=>b.on&&b.take).length}/${B.length}개 사용 · ${fmt(S.total)}`:'';
+  if(!B.length){box.appendChild(el('div','empty',Object.keys(S.data.takes).some(k=>S.data.takes[k].words)?'대본이 없어요. 왼쪽 설정에서 대본을 고르거나 ✨ 자동 초안을 누르세요.':'먼저 왼쪽 아래 📝 받아쓰기를 눌러 주세요. 받아쓰기가 끝나면 대본 줄마다 블록이 자동으로 생겨요.'));return}
+  B.forEach((bk,i)=>{ const c=el('div','blk'+(S.sel===i?' sel':'')+(bk.on?'':' off')+(bk.take?'':' miss'));
+    const r=el('div','brow'); const cb=el('input'); cb.type='checkbox'; cb.checked=bk.on; cb.title='이 블록 쓰기'; cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>{bk.on=cb.checked; buildTL(); renderBlocks(); save()};
+    const tx=el('div','tx'); tx.textContent=bk.text.replace(/\*/g,''); if(bk.chapter){const ch=el('span','chip k','📑 '+bk.chapter); ch.style.marginRight='6px'; tx.prepend(ch)}
+    const meta=el('div','meta'); if(bk.take){ meta.append(el('span','chip',bk.take.replace(/^kyu_[^_]+_/,'')+(bk.cam?' '+bk.cam:'')),el('span',null,((bk._d||0)).toFixed(1)+'s'),el('span','chip',SHOTS[bk.shot]||bk.shot)) } else meta.append(el('span','chip','⚠️ 테이크 없음'));
+    const pb=el('button','btn sm','▶'); pb.title='이 블록 결과 듣기'; pb.onclick=e=>{e.stopPropagation(); playBlock(i)}; meta.appendChild(pb);
+    r.append(cb,el('span','no',String(i+1)),tx,meta); r.onclick=()=>{S.sel=S.sel===i?null:i; renderBlocks(); renderScrub(); if(S.sel!=null&&bk._d) drawAt(bk._o+0.01)};
+    c.appendChild(r); if(S.sel===i) c.appendChild(blockEditor(bk,i)); box.appendChild(c) }) }
+function playBlock(i){ const bk=S.data.blocks[i]; if(!bk._d){toast('이 블록은 테이크가 없어요');return} S.stopAt=bk._o+bk._d; play(bk._o) }
+// raw audition (1x, with breathing room)
+let raw=null;
+function audition(take,a,b,file){ const ms=takeList()[take]; const m=file?S.data.media.find(x=>x.file===file):ms&&ms[0]; if(!m) return; stopAud(); stop();
+  const c=audio(); c.resume(); raw=document.createElement('video'); raw.src=S.urls[m.file]; raw.preload='auto'; const src=c.createMediaElementSource(raw); const g=c.createGain(); g.gain.value=takeGain(take); src.connect(g).connect(MASTER);
+  raw.currentTime=Math.max(0,a); raw.onseeked=()=>{raw.onseeked=null; raw.play()}; const h=()=>{ if(!raw) return; if(raw.currentTime>=b){stopAud();return} audPos=raw.currentTime; if(waveCtx) waveCtx.redraw(); requestAnimationFrame(h)}; requestAnimationFrame(h) }
+let audPos=null; function stopAud(){ if(raw){raw.pause(); raw.removeAttribute('src'); raw.load(); raw=null} audPos=null; if(waveCtx) waveCtx.redraw() }
+let waveCtx=null;
+function blockEditor(bk,i){ const box=el('div','bedit');
+  // text
+  const tr=el('div','row'); const ti=el('input'); ti.type='text'; ti.value=bk.text; ti.style.flex='1'; ti.title='자막 문장 (한글·*단어*는 노란색)';
+  ti.onchange=()=>{bk.text=ti.value; delete bk._g; alignWords(bk); save(); drawAt(S.outT)}; tr.append(el('span','lab','문장'),ti); box.appendChild(tr);
+  // candidates
+  const cr=el('div','cands'); cr.appendChild(el('span','lab','테이크 후보'));
+  const cands=(bk.cands||[]); if(!cands.length) cr.appendChild(el('span','hint','자동으로 못 찾았어요. 아래 테이크를 고르고 파형에서 구간을 지정하세요.'));
+  cands.forEach(cd=>{ const x=el('button','cand'+(bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2?' on':'')); x.textContent=`${cd.take.replace(/^kyu_[^_]+_/,'')} · ${(cd.b-cd.a).toFixed(1)}초 · ${Math.round(cd.score*100)}%`; x.title='누르면 이 테이크로 바꾸고 들려줘요';
+    x.onclick=()=>{ pickCand(bk,cd); buildTL(); renderBlocks(); save(); audition(cd.take,bk.a,bk.b) }; cr.appendChild(x) });
+  const tsel=el('select'); Object.keys(takeList()).forEach(k=>{const o=el('option',null,k); o.value=k; tsel.appendChild(o)}); tsel.value=bk.take||''; tsel.title='테이크 직접 고르기';
+  tsel.onchange=()=>{ bk.take=tsel.value; if(!bk.b||bk.b<=bk.a){bk.a=0; bk.b=Math.min(3,prim(bk.take).dur)} autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save() }; cr.appendChild(tsel);
+  box.appendChild(cr);
+  if(!bk.take) return box;
+  // waveform
+  const wv=el('div','wave'); const c=el('canvas'); c.height=240; wv.appendChild(c); box.appendChild(wv);
+  const hint=el('div','hint','파형을 누르면 그 위치부터 원본 소리로 들려줘요. 노란 손잡이를 끌어 시작·끝을 맞추고, 회색 띠(잘라낸 쉼)는 눌러서 되살릴 수 있어요.'); box.appendChild(hint);
+  const g=c.getContext('2d'); const pad=1.6; let v0=Math.max(0,bk.a-pad), v1=Math.min(prim(bk.take).dur||bk.b+pad,bk.b+pad);
+  const X=t=>(t-v0)/(v1-v0)*c.width, T=x=>v0+x/c.width*(v1-v0);
+  function redraw(){ const w=c.clientWidth||600; if(c.width!==w*2) c.width=w*2; const W=c.width,H=c.height; g.clearRect(0,0,W,H); const p=pkGet(bk.take), thr=(S.data.takes[bk.take]||{}).thr??-45;
+    g.fillStyle='rgba(255,204,51,.08)'; g.fillRect(X(bk.a),0,X(bk.b)-X(bk.a),H);
+    if(p){ for(let x=0;x<W;x+=2){ const t=T(x), db=dbAt(p,t), h=Math.max(1,(db+80)/80*(H*0.42)); g.fillStyle=t<bk.a||t>bk.b?'#2b323d':db>thr?'#9fb3c8':'#4a5566'; g.fillRect(x,H*0.45-h,2,h*2) } }
+    (bk.cuts||[]).forEach(([a,b])=>{ g.fillStyle='rgba(13,16,20,.78)'; g.fillRect(X(a),0,X(b)-X(a),H); g.strokeStyle='#ff5c5c'; g.setLineDash([6,6]); g.strokeRect(X(a),2,X(b)-X(a),H-4); g.setLineDash([]) });
+    const ws=(S.data.takes[bk.take].words||[]).filter(w=>w[2]>v0&&w[1]<v1); g.font='22px "Noto Sans KR"'; g.textBaseline='bottom';
+    ws.forEach((w,k)=>{ const x=X(w[1]); g.fillStyle='rgba(255,255,255,.18)'; g.fillRect(x,H-46,1,46); g.fillStyle=w[1]>=bk.a&&w[1]<bk.b?'#dfe6ee':'#5f6b7b'; g.fillText(w[0],x+3,H-(k%2?6:26)) });
+    [bk.a,bk.b].forEach(t=>{ g.fillStyle='#ffcc33'; g.fillRect(X(t)-3,0,6,H); g.fillRect(X(t)-12,0,24,18) });
+    if(audPos!=null){ g.fillStyle='#4cd28a'; g.fillRect(X(audPos)-1,0,3,H) } }
+  waveCtx={redraw}; requestAnimationFrame(redraw);
+  let dragH=null;
+  c.addEventListener('pointerdown',e=>{ const r=c.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width*c.width, t=T(x);
+    if(Math.abs(x-X(bk.a))<22) dragH='a'; else if(Math.abs(x-X(bk.b))<22) dragH='b';
+    if(dragH){ c.setPointerCapture(e.pointerId); return }
+    const ci=(bk.cuts||[]).findIndex(([a,b])=>t>=a&&t<=b); if(ci>=0){ bk.cuts.splice(ci,1); buildTL(); renderBlocks(); save(); return }
+    audition(bk.take,t,Math.max(t+1.5,bk.b+0.5)) });
+  c.addEventListener('pointermove',e=>{ if(!dragH) return; const r=c.getBoundingClientRect(); const t=+T((e.clientX-r.left)/r.width*c.width).toFixed(2);
+    if(dragH==='a') bk.a=Math.min(t,bk.b-0.2); else bk.b=Math.max(t,bk.a+0.2); redraw() });
+  c.addEventListener('pointerup',()=>{ if(!dragH) return; const h=dragH; dragH=null; autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save(); audition(bk.take,h==='a'?bk.a:Math.max(bk.a,bk.b-1.5),h==='a'?bk.a+1.6:bk.b+0.3) });
+  // nudges & audition
+  const nr=el('div','row');
+  const nb=(lab,fn)=>{const b=el('button','btn sm',lab); b.onclick=()=>{fn(); autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save()}; return b};
+  nr.append(el('span','lab','시작'),nb('−0.1',()=>bk.a=+Math.max(0,bk.a-0.1).toFixed(2)),nb('+0.1',()=>bk.a=+(bk.a+0.1).toFixed(2)),
+    el('span','lab','끝'),nb('−0.1',()=>bk.b=+(bk.b-0.1).toFixed(2)),nb('+0.1',()=>bk.b=+(bk.b+0.1).toFixed(2)));
+  const a1=el('button','btn sm','🔊 원본 듣기'); a1.title='쉼까지 포함해 원본 그대로'; a1.onclick=()=>audition(bk.take,Math.max(0,bk.a-0.6),bk.b+0.6);
+  const a2=el('button','btn sm','▶ 결과 듣기'); a2.onclick=()=>playBlock(i); const a3=el('button','btn sm','■'); a3.onclick=()=>{stopAud(); stop()};
+  nr.append(el('span','grow'),a1,a2,a3); box.appendChild(nr);
+  // shot / cam / chapter
+  const sr=el('div','row'); const ss=el('select'); Object.entries(SHOTS).forEach(([k,v])=>{const o=el('option',null,v); o.value=k; ss.appendChild(o)}); ss.value=bk.shot; ss.onchange=()=>{bk.shot=ss.value; renderBlocks(); save(); drawAt(bk._o+0.05)};
+  sr.append(el('span','lab','화면'),ss); const ms=takeList()[bk.take]||[];
+  if(ms.length>1){ const cs=el('select'); ms.forEach(m=>{const o=el('option',null,m.cam||'기본'); o.value=m.cam; cs.appendChild(o)}); cs.value=bk.cam; cs.onchange=()=>{bk.cam=cs.value; buildTL(); save(); drawAt(bk._o+0.05)}; sr.append(el('span','lab','카메라'),cs) }
+  const chi=el('input'); chi.type='text'; chi.placeholder='챕터 제목 (롱폼)'; chi.value=bk.chapter||''; chi.onchange=()=>{bk.chapter=chi.value.trim()||undefined; renderBlocks(); save()};
+  const del=el('button','btn sm','블록 삭제'); del.onclick=()=>{ if(!confirm('이 블록을 지울까요?')) return; S.data.blocks.splice(i,1); S.sel=null; buildTL(); renderBlocks(); save() };
+  const up=el('button','btn sm','↑'), dn=el('button','btn sm','↓'); up.onclick=()=>moveBlk(i,-1); dn.onclick=()=>moveBlk(i,1);
+  sr.append(el('span','lab','챕터'),chi,el('span','grow'),up,dn,del); box.appendChild(sr);
+  // overlays
+  const ob=el('div','ovs'); ob.appendChild(el('span','lab','화면 위 글씨·이모지'));
+  const wsel=(val,cb,first)=>{ const s=el('select'); const o0=el('option',null,first); o0.value=''; s.appendChild(o0); (bk.words||[]).forEach((w,k)=>{const o=el('option',null,(k+1)+'. '+w[0].replace(/\*/g,'')); o.value=String(k); s.appendChild(o)}); s.value=val==null||val==='start'?'':String(val); s.onchange=()=>cb(s.value===''?null:+s.value); return s };
+  (bk.ov||[]).forEach((o,oi)=>{ const r=el('div','ov'); const ty=el('select'); Object.entries(OVT).forEach(([k,v])=>{const x=el('option',null,v); x.value=k; ty.appendChild(x)}); ty.value=o.type;
+    const t1=el('input'); t1.type='text'; t1.value=o.text||''; t1.placeholder=o.type==='emoji'?'😀':'글씨'; const t2=el('input'); t2.type='text'; t2.value=o.sub||''; t2.placeholder='작은 설명'; t2.disabled=!/card|red/.test(o.type);
+    const at=wsel(o.at,v=>{o.at=v; save(); drawAt(S.outT)},'블록 시작부터'); const x=el('button','btn sm','✕');
+    ty.onchange=()=>{o.type=ty.value; t2.disabled=!/card|red/.test(o.type); save(); drawAt(S.outT)}; t1.oninput=()=>{o.text=t1.value; save(); drawAt(S.outT)}; t2.oninput=()=>{o.sub=t2.value||undefined; save(); drawAt(S.outT)};
+    x.onclick=()=>{bk.ov.splice(oi,1); renderBlocks(); save(); drawAt(S.outT)}; r.append(ty,t1,t2,at,x); ob.appendChild(r) });
+  const add=el('button','btn sm','＋ 추가'); add.style.alignSelf='flex-start'; add.onclick=()=>{(bk.ov=bk.ov||[]).push({type:'card',text:'',at:null}); renderBlocks()}; ob.appendChild(add);
+  box.appendChild(ob);
+  return box }
+function moveBlk(i,d){ const B=S.data.blocks, j=i+d; if(j<0||j>=B.length) return; [B[i],B[j]]=[B[j],B[i]]; S.sel=j; buildTL(); renderBlocks(); save() }
+$('addBlk').onclick=()=>{ const k=Object.keys(takeList())[0]; S.data.blocks.push({id:'b'+Date.now().toString(36),text:'새 블록',take:k||null,cam:'',a:0,b:k?Math.min(3,prim(k).dur):0,cuts:[],shot:'wide',ov:[],on:true,cands:[]}); S.sel=S.data.blocks.length-1; buildTL(); renderBlocks(); save() };
+$('draftBtn').onclick=()=>{ if(!Object.keys(S.data.takes).some(k=>S.data.takes[k].words)){toast('먼저 받아쓰기를 해 주세요');return} if(confirm('대본 줄마다 테이크를 다시 골라 블록을 새로 만들어요. 지금 블록 설정(화면·글씨)은 사라져요. 계속할까요?')) draft(true) };
+
+/* ================= export ================= */
+function renderRenders(){ const b=$('renders'); b.textContent=''; (S.data.renders||[]).slice().reverse().forEach(r=>{ const d=el('div'); d.textContent='v'+r.v+' · '+r.file+' · '+fmt(r.dur)+' · '+new Date(r.at).toLocaleString(); b.appendChild(d) }) }
+$('expBtn').onclick=async()=>{
+  if(!S.tl.length){toast('내보낼 블록이 없어요');return} if(S.exporting) return;
+  const types=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm'];
+  const mime=types.find(t=>MediaRecorder.isTypeSupported(t)); if(!mime){toast('이 브라우저는 저장을 지원하지 않아요');return}
+  S.exporting=true; S.data.status={state:'rendering',at:Date.now()}; setPill(); $('expBtn').disabled=true; const pr=$('expProg'),bar=pr.firstElementChild; pr.hidden=false;
+  audio(); await AC.resume();
+  const vs=cv.captureStream(30); const stream=new MediaStream([vs.getVideoTracks()[0],...REC.stream.getAudioTracks()]);
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:14e6,audioBitsPerSecond:192000}); const chunks=[]; rec.ondataavailable=e=>{if(e.data.size) chunks.push(e.data)};
+  const done=new Promise(r=>rec.onstop=r); const tk=setInterval(()=>{bar.style.width=(S.outT/S.total*100)+'%'; $('expInfo').textContent='저장 중… '+fmt(S.outT)+' / '+fmt(S.total)+' · 이 탭을 화면에 띄워 두세요'},250);
+  await drawAt(0); rec.start(500); await sleep(150);
+  await new Promise(res=>{ S.onEnd=res; play(0) });
+  await sleep(250); rec.stop(); await done; clearInterval(tk); bar.style.width='100%';
+  const ext=mime.startsWith('video/mp4')?'mp4':'webm'; const v=(S.data.renders||[]).length+1; const name=`${S.data.title.replace(/[\/\\:*?"<>|#]/g,'').trim()}_v${v}.${ext}`;
+  try{ const rd=await S.dir.getDirectoryHandle('renders',{create:true}); await writeFile(rd,name,new Blob(chunks,{type:mime.split(';')[0]}));
+    (S.data.renders=S.data.renders||[]).push({v,file:'renders/'+name,at:Date.now(),dur:+S.total.toFixed(2)}); $('expInfo').textContent='저장했어요: '+S.folder+'/renders/'+name+(ext==='webm'?' (webm)':'') }
+  catch(e){ $('expInfo').textContent='폴더에 저장하지 못해 다운로드로 받아요'; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(chunks)); a.download=name; a.click() }
+  S.exporting=false; S.data.status={state:'idle'}; $('expBtn').disabled=false; setTimeout(()=>pr.hidden=true,2500); renderRenders(); save();
+};
+$('capCopy').onclick=()=>{navigator.clipboard.writeText($('caption').value); toast('캡션을 복사했어요')};
+$('chapCopy').onclick=()=>{ const L=S.data.blocks.filter(b=>b.chapter&&b._d).map(b=>fmt(b._o).replace(/\.\d$/,'')+' '+b.chapter); if(!L.length){toast('블록에 챕터 제목을 적어 주세요');return} if(!/^0:00/.test(L[0])) L.unshift('0:00 Intro'); navigator.clipboard.writeText(L.join('\n')); toast('챕터 '+L.length+'개를 복사했어요') };
+
+/* ================= Claude hand-off ================= */
+$('askClaude').onclick=()=>{ $('claudeNote').value=''; $('dlgClaude').showModal() };
+$('claudeSend').onclick=async e=>{ e.preventDefault(); const note=$('claudeNote').value.trim(); $('dlgClaude').close(); if(!note) return;
+  S.data.status={state:'claude-requested',note,at:Date.now(),by:'user'}; await saveNow(); setPill();
+  const msg=`KYU Editor 프로젝트 「${S.folder}」: ${note}\n(프로젝트 파일: 콘텐츠/${S.folder}/project.json)`;
+  try{await navigator.clipboard.writeText(msg); toast('메시지를 복사했어요. Claude 채팅에 붙여 넣어 주세요',4000)}catch(e){prompt('Claude 채팅에 붙여 넣을 메시지',msg)} };
+
+window.addEventListener('beforeunload',e=>{ if(S.dirty||S.exporting){e.preventDefault(); e.returnValue=''} });
+document.fonts.load('900 80px "Noto Sans KR"');
+initRoot();
+window.KYU=S;
+</script>
+</body></html>
