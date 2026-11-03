@@ -134,7 +134,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <div class="hint" style="margin-top:6px">멈춘 상태에서 화면을 끌면 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지</div>
     <div class="box" style="margin-top:12px" id="expBox" hidden>
       <h3>내보내기 · 업로드</h3>
-      <div class="hint" id="expInfo">지금 미리보기 그대로 처음부터 끝까지 재생하면서 저장해요. 그동안 이 탭을 화면에 띄워 두세요.</div>
+      <div class="hint" id="expInfo">미리보기 그대로 프로젝트 폴더의 renders에 mp4로 저장해요. 소리와 화면을 원본 시간 기준으로 맞춰서 입싱크가 어긋나지 않아요.</div>
       <div class="prog" id="expProg" hidden><i></i></div>
       <div class="renders hint" id="renders" style="margin-top:8px"></div>
       <label class="lab" style="display:block;margin-top:10px">캡션 (업로드용)</label>
@@ -460,7 +460,11 @@ function draft(rebuild){
     const k=Object.keys(takeList())[0]; const t=S.data.takes[k]; if(t&&t.words){ const segs=vadSegs(pkGet(k),t.thr); S.data.blocks=segs.map((s,i)=>{const ws=t.words.filter(w=>w[1]>=s[0]-0.2&&w[1]<s[1]); return {id:'b'+i,text:ws.map(w=>w[0]).join(' ')||'…',take:k,cam:'',a:+Math.max(0,s[0]-0.1).toFixed(2),b:+(s[1]+0.15).toFixed(2),cuts:[],shot:SHOTROT[i%SHOTROT.length],ov:[],on:true,cands:[]}}) } }
   else{
     if(rebuild||!S.data.blocks.length) seedBlocksFromScript();
-    S.data.blocks.forEach((bk,i)=>{ const c=findCands(bk.text); bk.cands=c; if(c.length){ pickCand(bk,c[0],true) } else {bk.take=null} if(rebuild) bk.shot=SHOTROT[i%SHOTROT.length] });
+    S.data.blocks.forEach(bk=>{ bk.cands=findCands(bk.text) });
+    // keep one recording session when possible (same clothes, light, camera)
+    const cnt={}; S.data.blocks.forEach(bk=>{ const c=bk.cands; if(!c.length) return; new Set(c.filter(x=>x.score>=c[0].score-0.12).map(x=>x.take)).forEach(k=>cnt[k]=(cnt[k]||0)+1) });
+    const order=Object.keys(cnt).sort((a,b)=>(cnt[b]-cnt[a])||b.localeCompare(a)); const primary=order[0];
+    S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ const pc=c.find(x=>x.take===primary&&x.score>=c[0].score-0.12); pickCand(bk,pc||c[0],true) } else {bk.take=null} if(rebuild) bk.shot=SHOTROT[i%SHOTROT.length] });
     if(S.data.blocks.length) S.data.blocks[S.data.blocks.length-1].shot='close';
   }
   buildTL(); renderBlocks(); save(); drawAt(0); $('stOvl').hidden=!!S.tl.length;
@@ -483,7 +487,7 @@ function segAt(t){ for(let i=0;i<S.tl.length;i++){ const s=S.tl[i]; if(t<s.o+s.d
 let AC=null, MASTER=null, REC=null;
 function audio(){ if(AC) return AC; AC=new AudioContext({sampleRate:48000});
   const comp=AC.createDynamicsCompressor(); comp.threshold.value=-24; comp.ratio.value=3; comp.attack.value=0.005; comp.release.value=0.15; comp.knee.value=6;
-  const make=AC.createGain(); make.gain.value=1.6; const lim=AC.createDynamicsCompressor(); lim.threshold.value=-2; lim.ratio.value=20; lim.attack.value=0.001; lim.release.value=0.08; lim.knee.value=0;
+  const make=AC.createGain(); make.gain.value=1.1; const lim=AC.createDynamicsCompressor(); lim.threshold.value=-2; lim.ratio.value=20; lim.attack.value=0.001; lim.release.value=0.08; lim.knee.value=0;
   MASTER=AC.createGain(); MASTER.connect(comp).connect(make).connect(lim); lim.connect(AC.destination); REC=AC.createMediaStreamDestination(); lim.connect(REC); return AC }
 function takeGain(take){ const t=S.data.takes[take]||{}; const med=t.med??-28; return Math.max(0.35,Math.min(4,Math.pow(10,(-22-med)/20))) }
 function sfx(kind){ if(!S.data.sfx) return; const c=audio(), t=c.currentTime, g=c.createGain(); g.connect(MASTER);
@@ -671,6 +675,7 @@ $('draftBtn').onclick=()=>{ if(!Object.keys(S.data.takes).some(k=>S.data.takes[k
 function renderRenders(){ const b=$('renders'); b.textContent=''; (S.data.renders||[]).slice().reverse().forEach(r=>{ const d=el('div'); d.textContent='v'+r.v+' · '+r.file+' · '+fmt(r.dur)+' · '+new Date(r.at).toLocaleString(); b.appendChild(d) }) }
 $('expBtn').onclick=async()=>{
   if(!S.tl.length){toast('내보낼 블록이 없어요');return} if(S.exporting) return;
+  if(window.VideoEncoder&&window.AudioEncoder){ try{ return await exportExact() }catch(e){ console.error(e); S.exporting=false; toast('정밀 내보내기 실패 → 실시간 방식으로 저장해요: '+e.message,4000) } }
   const types=['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm'];
   const mime=types.find(t=>MediaRecorder.isTypeSupported(t)); if(!mime){toast('이 브라우저는 저장을 지원하지 않아요');return}
   S.exporting=true; S.data.status={state:'rendering',at:Date.now()}; setPill(); $('expBtn').disabled=true; const pr=$('expProg'),bar=pr.firstElementChild; pr.hidden=false;
@@ -687,6 +692,75 @@ $('expBtn').onclick=async()=>{
   catch(e){ $('expInfo').textContent='폴더에 저장하지 못해 다운로드로 받아요'; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(chunks)); a.download=name; a.click() }
   S.exporting=false; S.data.status={state:'idle'}; $('expBtn').disabled=false; setTimeout(()=>pr.hidden=true,2500); renderRenders(); save();
 };
+/* ---------- exact export: audio rebuilt offline, video frames timed by source media time ---------- */
+const AUD={};
+async function takeBuf(take){ if(AUD[take]) return AUD[take]; const m=prim(take); const ab=await (await S.files[m.file].getFile()).arrayBuffer();
+  const c=new OfflineAudioContext(1,48000,48000); const b=await c.decodeAudioData(ab); const x=new Float32Array(b.length); for(let ch=0;ch<b.numberOfChannels;ch++){const d=b.getChannelData(ch); for(let i=0;i<x.length;i++) x[i]+=d[i]/b.numberOfChannels} AUD[take]=x; return x }
+function wsola(x,rate){ if(Math.abs(rate-1)<1e-3) return x.slice(); const N=1024,Ho=512,Hi=Ho*rate,SR=240; const xp=new Float32Array(x.length+N*2+SR*2); xp.set(x,0);
+  const outLen=Math.ceil(x.length/rate)+N, y=new Float32Array(outLen), ws=new Float32Array(outLen), win=new Float32Array(N); for(let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+  let prev=0; for(let k=0;;k++){ const op=k*Ho, nom=Math.round(k*Hi); if(op+N>outLen||nom>x.length) break; let best=nom;
+    if(k>0){ const ref=prev+Ho; let bc=-Infinity; for(let d=-SR;d<=SR;d+=2){ const p=nom+d; if(p<0) continue; let c=0; for(let i=0;i<Ho;i+=3) c+=xp[p+i]*xp[ref+i]; if(c>bc){bc=c;best=p} } }
+    for(let i=0;i<N;i++){ y[op+i]+=xp[best+i]*win[i]; ws[op+i]+=win[i] } prev=best }
+  for(let i=0;i<outLen;i++) if(ws[i]>1e-3) y[i]/=ws[i]; return y.subarray(0,Math.round(x.length/rate)) }
+function synthSfx(kind,sr){ const n=Math.round(sr*({pop:0.13,ding:0.85,buzz:0.32,whoosh:0.35}[kind]||0.2)), y=new Float32Array(n);
+  for(let i=0;i<n;i++){ const t=i/sr; if(kind==='pop'){const f=900*Math.exp(-t*25)+240; y[i]=0.3*Math.sin(2*Math.PI*(240*t+(660/25)*(1-Math.exp(-t*25))))*Math.exp(-t*30)}
+    else if(kind==='ding'){y[i]=0.18*(Math.sin(2*Math.PI*1568*t)+0.5*Math.sin(2*Math.PI*2352*t)+0.33*Math.sin(2*Math.PI*3136*t))*Math.exp(-t*5)*Math.min(1,t*300)}
+    else if(kind==='buzz'){y[i]=0.09*Math.sign(Math.sin(2*Math.PI*150*t))*Math.exp(-t*4)*Math.min(1,t*200)}
+    else {y[i]=(Math.random()*2-1)*0.25*Math.sin(Math.PI*i/n)**2} }
+  if(kind==='whoosh'){let a=0,b=0; for(let i=0;i<n;i++){const c=0.03+0.25*Math.sin(Math.PI*i/n); a+=c*(y[i]-a); b+=c*(a-b); y[i]=b*2}} return y }
+async function buildAudio(prog){ const SR=48000, L=Math.ceil(S.total*SR)+SR, out=new Float32Array(L);
+  for(let i=0;i<S.tl.length;i++){ const s=S.tl[i], x=await takeBuf(s.m.take); const seg=x.subarray(Math.max(0,Math.round(s.a*SR)),Math.min(x.length,Math.round(s.b*SR)));
+    let y=wsola(seg,S.data.speed); const n=Math.round(s.d*SR), g=takeGain(s.m.take), o=Math.round(s.o*SR), fd=Math.round(0.006*SR);
+    const contPrev=i>0&&S.tl[i-1].bk===s.bk&&Math.abs(S.tl[i-1].b-s.a)<0.01, contNext=S.tl[i+1]&&S.tl[i+1].bk===s.bk&&Math.abs(S.tl[i+1].a-s.b)<0.01;
+    for(let j=0;j<n&&o+j<L;j++){ let v=(y[j]||0)*g; if(!contPrev&&j<fd) v*=j/fd; if(!contNext&&j>n-fd) v*=(n-j)/fd; out[o+j]+=v }
+    if(i>0&&S.tl[i-1].m.take!==s.m.take&&S.data.sfx){ const w=synthSfx('whoosh',SR), st=Math.max(0,o-Math.round(0.12*SR)); for(let j=0;j<w.length&&st+j<L;j++) out[st+j]+=w[j] }
+    prog((i+1)/S.tl.length*0.25); await sleep(0) }
+  if(S.data.sfx) overlaysAll().forEach(ov=>{ const w=synthSfx(ov.type==='red'?'buzz':ov.type==='big'?'ding':'pop',SR), st=Math.round(ov.t*SR); for(let j=0;j<w.length&&st+j<L;j++) out[st+j]+=w[j] });
+  // loudness: gated RMS to target, then look-ahead peak limiter
+  const W=Math.round(0.4*SR); let pw=0,cn=0; for(let i=0;i+W<=L;i+=W){ let q=0; for(let j=i;j<i+W;j++) q+=out[j]*out[j]; q/=W; if(q>1e-5){pw+=q;cn++} }
+  const lvl=10*Math.log10(pw/Math.max(1,cn)+1e-12), gain=Math.pow(10,(-18.5-lvl)/20); for(let i=0;i<L;i++) out[i]*=gain;
+  const la=Math.round(0.005*SR), rel=Math.exp(-1/(0.08*SR)), ceil=0.89; let g=1; const pk=new Float32Array(L);
+  for(let i=L-1,m=0,c=0;i>=0;i--){ pk[i]=Math.abs(out[i]) } const need=new Float32Array(L);
+  for(let i=0;i<L;i+=64){ let m=0; for(let j=i;j<Math.min(L,i+64+la);j++) m=Math.max(m,pk[j]); const v=m>ceil?ceil/m:1; need.fill(v,i,Math.min(L,i+64)) }
+  for(let i=0;i<L;i++){ const t=need[i]; g=t<g?t:1-(1-g)*rel; if(g>t) g=t; out[i]*=g }
+  return out.subarray(0,Math.round(S.total*SR)) }
+async function exportExact(){
+  const {Muxer,ArrayBufferTarget}=await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm');
+  const W=cv.width,H=cv.height,FPS=30; let vcfg=null;
+  for(const codec of ['avc1.640028','avc1.4d0028','avc1.640033','avc1.42003e']){ const c={codec,width:W,height:H,bitrate:12e6,framerate:FPS,latencyMode:'quality',avc:{format:'avc'}}; try{ if((await VideoEncoder.isConfigSupported(c)).supported){vcfg=c;break} }catch(e){} }
+  const acfg={codec:'mp4a.40.2',sampleRate:48000,numberOfChannels:2,bitrate:192000};
+  if(!vcfg||!(await AudioEncoder.isConfigSupported(acfg)).supported) throw new Error('인코더 미지원');
+  stop(); stopAud(); S.exporting=true; S.data.status={state:'rendering',at:Date.now()}; setPill(); $('expBtn').disabled=true; const pr=$('expProg'),bar=pr.firstElementChild; pr.hidden=false;
+  const prog=f=>{bar.style.width=(f*100)+'%'; $('expInfo').textContent='내보내는 중… '+Math.round(f*100)+'% (화면이 멈춘 것처럼 보여도 괜찮아요)'};
+  const target=new ArrayBufferTarget(); const mux=new Muxer({target,video:{codec:'avc',width:W,height:H,frameRate:FPS},audio:{codec:'aac',numberOfChannels:2,sampleRate:48000},fastStart:'in-memory',firstTimestampBehavior:'offset'});
+  let err=null; const ve=new VideoEncoder({output:(c,m)=>mux.addVideoChunk(c,m),error:e=>err=e}); ve.configure(vcfg);
+  const ae=new AudioEncoder({output:(c,m)=>mux.addAudioChunk(c,m),error:e=>err=e}); ae.configure(acfg);
+  // audio
+  const A=await buildAudio(prog); for(let i=0;i<A.length;i+=1024){ const n=Math.min(1024,A.length-i), d=new Float32Array(n*2); d.set(A.subarray(i,i+n),0); d.set(A.subarray(i,i+n),n);
+    const ad=new AudioData({format:'f32-planar',sampleRate:48000,numberOfFrames:n,numberOfChannels:2,timestamp:Math.round(i/48000*1e6),data:d}); ae.encode(ad); ad.close() }
+  await ae.flush();
+  // video
+  const v=document.createElement('video'); v.muted=true; v.playsInline=true; v.preload='auto'; const total=Math.round(S.total*FPS); let f=0;
+  const emit=async(t,s)=>{ draw(t,v,s); const vf=new VideoFrame(cv,{timestamp:Math.round(f*1e6/FPS),duration:Math.round(1e6/FPS)}); ve.encode(vf,{keyFrame:f%60===0}); vf.close(); f++;
+    while(ve.encodeQueueSize>6) await sleep(4) };
+  for(let i=0;i<S.tl.length;i++){ if(err) throw err; const s=S.tl[i], end=Math.min(total,Math.round((s.o+s.d)*FPS));
+    if(v.dataset.f!==s.m.file){ v.dataset.f=s.m.file; v.src=S.urls[s.m.file]; await new Promise(r=>{v.onloadedmetadata=r; setTimeout(r,5000)}) }
+    v.currentTime=s.a; await new Promise(r=>{v.onseeked=r; setTimeout(r,3000)});
+    const srcOf=k=>s.a+(k/FPS-s.o)*S.data.speed;
+    await new Promise(res=>{ let done=false; const fin=async()=>{ if(done) return; done=true; v.pause(); while(f<end){ await emit(f/FPS,s) } res() };
+      const cb=async(now,meta)=>{ if(done) return; const mt=meta.mediaTime; v.pause();
+        while(f<end&&srcOf(f)<=mt+0.5/FPS*S.data.speed){ await emit(f/FPS,s) }
+        if(f>=end||mt>=s.b-0.01||v.ended) return fin();
+        v.requestVideoFrameCallback(cb); v.play().catch(fin) };
+      v.requestVideoFrameCallback(cb); v.playbackRate=1; v.play().catch(fin); setTimeout(()=>{ if(!done&&f<end&&v.paused) fin() },(s.d+3)*1000*4) });
+    prog(0.25+0.75*f/total) }
+  while(f<total){ const s=S.tl[S.tl.length-1]; await emit(f/FPS,s) }
+  await ve.flush(); mux.finalize(); v.removeAttribute('src'); v.load();
+  const blob=new Blob([target.buffer],{type:'video/mp4'}); const vn=(S.data.renders||[]).length+1; const name=`${S.data.title.replace(/[\/\\:*?"<>|#]/g,'').trim()}_v${vn}.mp4`;
+  try{ const rd=await S.dir.getDirectoryHandle('renders',{create:true}); await writeFile(rd,name,blob); (S.data.renders=S.data.renders||[]).push({v:vn,file:'renders/'+name,at:Date.now(),dur:+S.total.toFixed(2)}); $('expInfo').textContent='저장했어요: '+S.folder+'/renders/'+name }
+  catch(e){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); $('expInfo').textContent='다운로드로 저장했어요: '+name }
+  S.exporting=false; S.data.status={state:'idle'}; $('expBtn').disabled=false; bar.style.width='100%'; setTimeout(()=>pr.hidden=true,2500); renderRenders(); save(); drawAt(S.outT);
+}
 $('capCopy').onclick=()=>{navigator.clipboard.writeText($('caption').value); toast('캡션을 복사했어요')};
 $('chapCopy').onclick=()=>{ const L=S.data.blocks.filter(b=>b.chapter&&b._d).map(b=>fmt(b._o).replace(/\.\d$/,'')+' '+b.chapter); if(!L.length){toast('블록에 챕터 제목을 적어 주세요');return} if(!/^0:00/.test(L[0])) L.unshift('0:00 Intro'); navigator.clipboard.writeText(L.join('\n')); toast('챕터 '+L.length+'개를 복사했어요') };
 
