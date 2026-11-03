@@ -195,6 +195,11 @@ code{font-family:var(--mono);color:var(--accent);background:var(--panel);padding
 #hub .rech{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;font-weight:700}
 #hub .hrec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
 #hub .jobs,#hub .plist{display:flex;flex-direction:column;gap:12px}
+#hub .jrow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--fg);font:inherit;cursor:pointer}
+#hub .jrow:hover{border-color:#6b7686}
+#hub .jrow b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hub .jrow .jv{font-size:12px;color:var(--accent);font-weight:700}
+#hub .jrow .jt2{font-size:12px;color:var(--dim)}
 #hub .job{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:16px}
 @media (max-width:760px){#hub .job{grid-template-columns:1fr}}
 #hub .vid{display:flex;flex-direction:column;gap:6px}
@@ -1801,6 +1806,9 @@ function renderTs(){
 })();
 hx('eForm').addEventListener('submit',async e=>{e.preventDefault();
   const title=hx('eTitle').value.trim(); if(!title){hx('eTitle').focus();return}
+  const dup=(H.jobs||[]).find(j=>j.status!=='done'&&j.script===hx('eScript').value);
+  if(dup){ jOpen=dup.id; jFilter='open'; renderJobs(); const c=hx('jobs').querySelector('.job'); c&&c.scrollIntoView({behavior:'smooth',block:'start'});
+    htoast('‘'+(dup.title||dup.script)+'’ 작업이 이미 있어요. 새 카드 대신 거기서 ▶ 새 버전 만들기를 눌러 주세요'); return }
   const job={title,script:hx('eScript').value,source:hx('eSource').value.trim(),takes:hx('eTakes').value.trim(),
     skills:skillsSorted().filter(s=>ePicked.has(s.id)).map(s=>({name:s.name,desc:s.desc||''})),note:hx('eNote').value.trim(),textStyle:tsCur?Object.assign({},tsCur):null,
     status:'requested',createdAt:Date.now(),updatedAt:Date.now(),versions:[],feedback:[]};
@@ -1815,8 +1823,18 @@ function renderJobs(){
   if(!hubLoaded){box.appendChild(hel('div','empty','불러오는 중…'));return}
   const list=H.jobs.filter(j=>jFilter==='all'||(jFilter==='done'?j.status==='done':j.status!=='done')).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   if(!list.length){box.appendChild(hel('div','empty',jFilter==='done'?'완료한 작업이 아직 없어요.':'진행 중인 편집이 없어요. 위에서 새 편집을 요청하세요.'));return}
-  list.forEach(j=>box.appendChild(jobCard(j)));
+  // 한 번에 하나만 펼치고 나머지는 한 줄로 접기 (계속 쌓여서 못 쓰는 문제)
+  const need=j=>({review:0,revise:1,editing:2,requested:3,done:4}[j.status]??5);
+  if(!jOpen||!list.find(j=>j.id===jOpen)){ const f=[...list].sort((a,b)=>need(a)-need(b)||(b.updatedAt||0)-(a.updatedAt||0))[0]; jOpen=f&&f.id }
+  list.forEach(j=>{
+    if(j.id===jOpen){ box.appendChild(jobCard(j)); return }
+    const vers=j.versions||[], r=hel('button','jrow'); r.type='button';
+    r.append(hel('b',null,j.title||'(제목 없음)'),hel('span','st '+(j.status||'requested'),JST[j.status]||j.status),
+      hel('span','jv',vers.length?'v'+(vers[vers.length-1].v??vers.length):'영상 없음'),hel('span','jt2',hwhen(j.updatedAt||j.createdAt)));
+    r.onclick=()=>{jOpen=j.id; renderJobs(); setTimeout(()=>{const c=box.querySelector('.job'); c&&c.scrollIntoView({behavior:'smooth',block:'nearest'})},30)};
+    box.appendChild(r)});
 }
+let jOpen=null;
 /* ----- 수정 시작: 스킬·글자 상자를 바꾸면 그 작업에 바로 적용 ----- */
 let ePickBase=null, tsLoad=null;
 const TS_KEYS=Object.keys(TS_BASE);
