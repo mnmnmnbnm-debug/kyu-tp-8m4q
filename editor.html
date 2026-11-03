@@ -253,9 +253,9 @@ async function listProjects(){
     if(pj){try{const d=JSON.parse(await (await pj.getFile()).text()); st=d.status&&d.status.state!=='idle'?stateText(d.status):(d.renders||[]).length?'v'+d.renders.length+' 있음':'편집 중'}catch(e){}}
     if(vids||pj) out.push({name:nf(n),h,vids,st,has:!!pj});
   }
-  S.single=rootVids>0&&!out.length;
-  if(S.single) out.push({name:nf(S.root.name),h:S.root,vids:rootVids,st:'',has:false,self:true});
+  S.single=rootVids>0;
   out.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  if(S.single){ let st=''; const pj=await readJSON(S.root,'project.json'); if(pj) st=(pj.data.renders||[]).length?'v'+pj.data.renders.length+' 있음':'편집 중'; out.unshift({name:nf(S.root.name),h:S.root,vids:rootVids,st,has:!!pj,self:true}) }
   S.projects=out; renderPlist();
   const last=localStorage.getItem('kyu-editor-last'); const q=new URLSearchParams(location.search).get('p');
   const want=out.find(p=>p.name===nf(q))||out.find(p=>p.name===last);
