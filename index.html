@@ -399,7 +399,7 @@ body{height:auto;min-height:100%}
 </style></head><body>
 
 <div class="bar">
-  <nav class="hubnav" aria-label="KYU 메뉴"><a data-tab="home" tabindex="0">Home</a><a data-tab="studio" tabindex="0">Studio</a><a data-tab="edit" tabindex="0">Edit</a><a href="editor.html">Editor</a><a href="audio.html">Audio</a></nav>
+  <nav class="hubnav" aria-label="KYU 메뉴"><a data-tab="home" tabindex="0">Home</a><a data-tab="studio" tabindex="0">Studio</a><a href="editor.html">Editor</a><a href="audio.html">Audio</a></nav>
   <div class="time" id="clock"><b>0:00</b> / 0:00</div>
   <select id="cat" aria-label="프로젝트 선택" title="프로젝트(분류) 선택">
     <option value="all">📁 전체</option>
@@ -453,7 +453,7 @@ body{height:auto;min-height:100%}
     <button class="btn" id="recFlipBtn" title="저장되는 영상 자체를 좌우로 뒤집어요">녹화 영상 좌우반전</button>
   </div>
   <div class="camrow"><button class="btn" id="dirBtn" title="대본 폴더를 만들고 녹화를 거기에 자동 저장">📁 폴더 만들기</button><button class="btn" id="dirChange" hidden title="콘텐츠 폴더 다시 고르기" style="font-size:12px">상위 폴더 바꾸기</button>
-    <a class="btn" data-tab="edit" tabindex="0" title="찍은 영상 편집 요청하러 가기" style="text-decoration:none;background:#ffcc33;color:#14110a;border-color:#ffcc33;font-weight:700">🎬 편집실로</a></div>
+    <a class="btn" href="editor.html" title="찍은 영상 편집하러 가기 (Editor)" style="text-decoration:none;background:#ffcc33;color:#14110a;border-color:#ffcc33;font-weight:700">🎬 편집실로</a></div>
   <div class="hint" id="dirInfo"></div>
   <div class="hint">위쪽 <b>카메라 1 / 카메라 2</b> 버튼으로 켜고 끌 수 있어요. 켜진 카메라는 모두 같이 녹화되고, 파일은 카메라마다 따로 저장돼요. 미리보기 반전은 화면에만 적용돼요.</div>
   <div class="player" id="playerBox" hidden><video id="player" controls playsinline></video><button class="btn" id="playerClose">닫기</button></div>
@@ -478,7 +478,7 @@ body{height:auto;min-height:100%}
 
 <div id="hub" hidden>
   <div class="hhead">
-    <nav class="hubnav" aria-label="KYU 메뉴"><a data-tab="home" tabindex="0">Home</a><a data-tab="studio" tabindex="0">Studio</a><a data-tab="edit" tabindex="0">Edit</a><a href="editor.html">Editor</a><a href="audio.html">Audio</a></nav>
+    <nav class="hubnav" aria-label="KYU 메뉴"><a data-tab="home" tabindex="0">Home</a><a data-tab="studio" tabindex="0">Studio</a><a href="editor.html">Editor</a><a href="audio.html">Audio</a></nav>
     <span class="sync" id="hubSync"></span>
     <button class="btn" type="button" id="hubRefresh" title="다시 불러오기">↻</button>
   </div>
@@ -1898,7 +1898,7 @@ function jobCard(j){
 }
 
 /* ----- start ----- */
-{const h=location.hash.slice(1); showHub(h==='home'||h==='edit'?h:'studio')}
+{const h=location.hash.slice(1); if(h==='edit'){location.replace('editor.html')} else showHub(h==='home'?h:'studio')}
 
 /* ----- script save (local + sheet, synced across Studio copies) ----- */
 const SAVED_K=id=>'kyu-prompter-saved-'+id;
