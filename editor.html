@@ -80,7 +80,12 @@ textarea{width:100%;resize:vertical}
 dialog{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;max-width:560px;width:92vw}
 dialog::backdrop{background:rgba(0,0,0,.6)}
 .renders a{color:var(--accent)}
-.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;align-items:center}
+.kv{display:grid;grid-template-columns:72px minmax(0,1fr);gap:6px 8px;align-items:center}
+.kv>*{min-width:0}
+.kv select,.kv input{width:100%;min-width:0}
+.side{min-width:0}
+.side .box{overflow:hidden}
+.prev,.blocks{min-width:0}
 .empty{color:var(--dim);padding:20px;text-align:center}
 </style></head><body>
 <div class="bar">
