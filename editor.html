@@ -564,7 +564,8 @@ function drawOverlays(t){ const W=cv.width,H=cv.height, sc=S.data.format==='long
   if(S.playing) live.forEach(o=>{ if(!ovFired.has(o.key)){ ovFired.add(o.key); sfx(o.type==='red'?'buzz':o.type==='big'?'ding':'pop') } });
   let cardY=H*(S.data.format==='long'?0.06:0.085);
   live.forEach(o=>{ const dt=t-o.t, k=pop(dt), fade=Math.min(1,(o.e-t)/0.15); ctx.save(); ctx.globalAlpha=Math.max(0,fade);
-    if(o.type==='card'||o.type==='red'||o.type==='cta'){ const fs=(o.type==='cta'?62:118)*sc; ctx.font=`900 ${fs}px "Noto Sans KR"`; const tw=ctx.measureText(o.text).width; const pw=tw+fs*0.5, ph=fs*1.35;
+    if(o.type==='card'||o.type==='red'||o.type==='cta'){ let fs=(o.type==='cta'?62:118)*sc; ctx.font=`900 ${fs}px "Noto Sans KR"`; let tw=ctx.measureText(o.text).width;
+      if(tw+fs*0.5>W*0.9){ fs*=W*0.9/(tw+fs*0.5); ctx.font=`900 ${fs}px "Noto Sans KR"`; tw=ctx.measureText(o.text).width } const pw=tw+fs*0.5, ph=fs*1.35;
       ctx.translate(W/2,cardY+ph/2); ctx.scale(k,k); ctx.fillStyle=o.type==='red'?'#e64040':o.type==='cta'?'#ffffff':'#ffcc33'; rr(-pw/2,-ph/2,pw,ph,fs*0.18); ctx.fill();
       ctx.fillStyle=o.type==='red'?'#fff':'#14110a'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(o.text,0,fs*0.04); ctx.restore();
       if(o.sub){ ctx.save(); ctx.globalAlpha=Math.max(0,Math.min(1,(dt-0.08)/0.12))*Math.max(0,fade); const fs2=50*sc; ctx.font=`700 ${fs2}px "Noto Sans KR"`; const w2=ctx.measureText(o.sub).width+fs2*0.7, h2=fs2*1.5;
