@@ -638,7 +638,7 @@ async function advance(){ const c=AC; const old=slot(cur); old.g.gain.setValueAt
   p.v.playbackRate=S.data.speed; p.g.gain.setValueAtTime(0,c.currentTime); p.g.gain.linearRampToValueAtTime(takeGain(s.m.take),c.currentTime+0.006); p.v.play(); prep(cur+1); prep(cur+2) }
 function loop(){ if(!S.playing) return; const s=S.tl[cur], p=slot(cur); const st=p.v.currentTime;
   if(st>=s.b-0.012||p.v.ended){ advance().then(()=>{ if(S.playing) raf=requestAnimationFrame(loop) }); return }
-  S.outT=s.o+Math.max(0,st-s.a)/S.data.speed; draw(S.outT,p.v,s); markNow(S.outT);
+  S.outT=s.o+Math.max(0,st-s.a)/S.data.speed; draw(S.outT,p.v,s); markNow(S.outT); wavePlayhead(s,st);
   if(S.stopAt!=null&&S.outT>=S.stopAt){S.stopAt=null; stop(); return}
   raf=requestAnimationFrame(loop) }
 $('playBtn').onclick=()=>S.playing?stop():play();
@@ -668,7 +668,7 @@ function jumpBlock(dir){ const B=S.data&&S.data.blocks; if(!B||!S.tl.length) ret
   const i=ok[k], t=B[i]._o+0.01; S.stopAt=null;
   if(S.sel!=null){ S.sel=i; renderBlocks(); renderScrub() }
   if(S.playing) play(t); else drawAt(t); markNow(t) }
-async function drawAt(t){ if(!S.tl.length){clearCv(); return} S.outT=t; const i=segAt(t), s=S.tl[i]; if(S.playing) return; const p=await prep(i,t-s.o); draw(t,p.v,s); updTC(); markNow(t) }
+async function drawAt(t){ if(!S.tl.length){clearCv(); return} S.outT=t; const i=segAt(t), s=S.tl[i]; if(S.playing) return; const p=await prep(i,t-s.o); draw(t,p.v,s); updTC(); markNow(t); wavePlayhead(s,s.a+(t-s.o)*S.data.speed) }
 
 /* ================= drawing ================= */
 const cv=$('cv'), ctx=cv.getContext('2d');
@@ -852,6 +852,7 @@ function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); l
   Object.entries(SFXLIB).forEach(([k,[ic,nm]])=>{ const b=el('button','snd'+(k===sfxPick?' on':''),ic+' '+nm); b.title='눌러서 미리 듣고 고르기'; b.onclick=()=>{ sfxPick=k; try{localStorage.setItem('kyu-sfx',k)}catch(e){} bar.querySelectorAll('.snd').forEach(x=>x.classList.toggle('on',x===b)); sfxPlay(k) }; bar.appendChild(b) });
   const bl=el('div','lab','넣을 소리 — 눌러서 미리 듣고 고른 뒤, 위 효과음 줄을 누르세요'); bl.style.margin='6px 0 4px';
   wrap.append(lane,bl,bar,lst); requestAnimationFrame(draw); list(); return wrap }
+function wavePlayhead(s,src){ const open=S.sel!=null&&S.data.blocks[S.sel]===s.bk; const v=open?src:null; if(v===S.playSrc) return; S.playSrc=v; if(waveCtx&&(open||v==null)) waveCtx.redraw() }
 function blockEditor(bk,i){ const box=el('div','bedit');
   // text
   const tr=el('div','row'); const ti=el('input'); ti.type='text'; ti.value=bk.text; ti.style.flex='1'; ti.title='자막 문장 (한글·*단어*는 노란색)';
@@ -877,7 +878,8 @@ function blockEditor(bk,i){ const box=el('div','bedit');
     const ws=(S.data.takes[bk.take].words||[]).filter(w=>w[2]>v0&&w[1]<v1); g.font='19px "Noto Sans KR"'; g.textBaseline='bottom';
     ws.forEach((w,k)=>{ const x=X(w[1]); g.fillStyle='rgba(255,255,255,.18)'; g.fillRect(x,H-46,1,46); g.fillStyle=w[1]>=bk.a&&w[1]<bk.b?'#dfe6ee':'#5f6b7b'; g.fillText(w[0],x+3,H-(k%2?4:24)) });
     [bk.a,bk.b].forEach(t=>{ g.fillStyle='#ffcc33'; g.fillRect(X(t)-3,0,6,H); g.fillRect(X(t)-12,0,24,18) });
-    if(audPos!=null){ g.fillStyle='#4cd28a'; g.fillRect(X(audPos)-1,0,3,H) } }
+    if(audPos!=null){ g.fillStyle='#4cd28a'; g.fillRect(X(audPos)-1,0,3,H) }
+    if(S.playSrc!=null&&audPos==null){ const x=X(S.playSrc); g.fillStyle='#4cd28a'; g.fillRect(x-2,0,4,H); g.beginPath(); g.moveTo(x-10,0); g.lineTo(x+10,0); g.lineTo(x,14); g.fill() } }
   waveCtx={redraw}; requestAnimationFrame(redraw);
   let dragH=null;
   c.addEventListener('pointerdown',e=>{ const r=c.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width*c.width, t=T(x);
