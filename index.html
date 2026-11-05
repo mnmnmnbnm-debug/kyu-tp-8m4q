@@ -453,7 +453,7 @@ body{height:auto;min-height:100%}
     <button class="btn" id="recFlipBtn" title="저장되는 영상 자체를 좌우로 뒤집어요">녹화 영상 좌우반전</button>
   </div>
   <div class="camrow"><button class="btn" id="dirBtn" title="대본 폴더를 만들고 녹화를 거기에 자동 저장">📁 폴더 만들기</button><button class="btn" id="dirChange" hidden title="콘텐츠 폴더 다시 고르기" style="font-size:12px">상위 폴더 바꾸기</button>
-    <a class="btn" href="editor.html" title="찍은 영상 편집하러 가기 (Editor)" style="text-decoration:none;background:#ffcc33;color:#14110a;border-color:#ffcc33;font-weight:700">🎬 편집실로</a></div>
+    <a class="btn" id="toEdit" href="editor.html" title="찍은 영상 편집하러 가기 (Editor) — 저장 안 된 영상은 먼저 폴더에 저장해요" style="text-decoration:none;background:#ffcc33;color:#14110a;border-color:#ffcc33;font-weight:700">🎬 편집실로</a></div>
   <div class="hint" id="dirInfo"></div>
   <div class="hint">위쪽 <b>카메라 1 / 카메라 2</b> 버튼으로 켜고 끌 수 있어요. 켜진 카메라는 모두 같이 녹화되고, 파일은 카메라마다 따로 저장돼요. 미리보기 반전은 화면에만 적용돼요.</div>
   <div class="player" id="playerBox" hidden><video id="player" controls playsinline></video><button class="btn" id="playerClose">닫기</button></div>
@@ -1044,10 +1044,18 @@ function takeGroup(no,sec){
     g.files.forEach(f=>URL.revokeObjectURL(f.url)); g.remove(); };
   head.append(t,all,del); g.appendChild(head); $('clips').prepend(g); return g;
 }
+/* safety net: every recording is copied to the browser's storage until it is saved to the folder */
+function bkDB(){return new Promise((res,rej)=>{const r=indexedDB.open('kyu-takes',1); r.onupgradeneeded=()=>r.result.createObjectStore('t'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error)})}
+async function bkPut(name,rec){try{const d=await bkDB(); await new Promise(r=>{const q=d.transaction('t','readwrite').objectStore('t').put(rec,name); q.onsuccess=q.onerror=()=>r()})}catch(e){}}
+async function bkDel(name){try{const d=await bkDB(); d.transaction('t','readwrite').objectStore('t').delete(name)}catch(e){}}
+async function bkAll(){try{const d=await bkDB(); return await new Promise(r=>{const out=[]; const q=d.transaction('t').objectStore('t').openCursor(); q.onsuccess=()=>{const c=q.result; if(c){out.push([c.key,c.value]); c.continue()} else r(out)}; q.onerror=()=>r(out)})}catch(e){return []}}
+let unsaved=0; function updUnsaved(){ const b=$('toEdit'); if(b) b.textContent=unsaved?'🎬 편집실로 (저장 안 된 영상 '+unsaved+'개)':'🎬 편집실로' }
 function saveTake(ch,type,suffix,sec,no){
   const ext=type.includes('mp4')?'mp4':'webm';
   const blob=new Blob(ch,{type});
   const name='kyu_'+cur+'_'+recStamp+'_take'+no+(suffix||'')+'.'+ext;
+  bkPut(name,{blob,folder:folderName(),at:Date.now()}); unsaved++; updUnsaved();
+  const markSaved=()=>{ if(row.dataset.saved) return; row.dataset.saved='1'; unsaved=Math.max(0,unsaved-1); updUnsaved(); bkDel(name) };
   const url=URL.createObjectURL(blob);
   const g=takeGroup(no,sec);
   const row=document.createElement('div'); row.className='clip';
@@ -1057,15 +1065,15 @@ function saveTake(ch,type,suffix,sec,no){
   play.onclick=()=>{ if(playing&&playing.btn===play) closePlayer(); else showClip(url,play); play.blur(); };
   const save=document.createElement('button'); save.className='btn'; save.textContent='저장'; save.title='다운로드';
   const doSave=async()=>{
-    if(dirH){ if(!dirOK) await ensureDir(); const p=await writeToDir(name,blob); if(p){save.textContent='✓ 폴더에 저장됨';save.title=p;return} }
-    if(dl){try{await dl.save({filename:name,data:blob});save.textContent='저장됨';return}catch(e){if(e&&e.code==='declined')return; if(e&&e.code==='rate_limited'){save.textContent='잠시 후 다시';return}}}
-    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove(); save.textContent='저장됨';
+    if(dirH){ if(!dirOK) await ensureDir(); const p=await writeToDir(name,blob); if(p){save.textContent='✓ 폴더에 저장됨';save.title=p;markSaved();return} }
+    if(dl){try{await dl.save({filename:name,data:blob});save.textContent='저장됨';markSaved();return}catch(e){if(e&&e.code==='declined')return; if(e&&e.code==='rate_limited'){save.textContent='잠시 후 다시';return}}}
+    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove(); save.textContent='저장됨'; markSaved();
     await new Promise(r=>setTimeout(r,400));
   };
   save.onclick=()=>{save.blur();doSave()};
   g.files.push({url,save:doSave,suffix,name,blob});
   row.append(label,play,save);
-  if(dirH&&dirOK){ save.textContent='폴더에 저장 중…'; writeToDir(name,blob).then(p=>{ if(p){save.textContent='✓ 폴더에 저장됨'; save.title=p} else {save.textContent='저장'; $('dirInfo').textContent='폴더 저장에 실패했어요. 저장 버튼으로 다시 저장하세요.'} }) }
+  if(dirH&&dirOK){ save.textContent='폴더에 저장 중…'; writeToDir(name,blob).then(p=>{ if(p){save.textContent='✓ 폴더에 저장됨'; save.title=p; markSaved()} else {save.textContent='저장'; $('dirInfo').textContent='폴더 저장에 실패했어요. 저장 버튼으로 다시 저장하세요.'} }) }
   // keep camera 1 above camera 2
   const rows=[...g.querySelectorAll('.clip')]; if(suffix==='_cam1'&&rows.length) g.insertBefore(row,rows[0]); else g.appendChild(row);
 }
@@ -1133,6 +1141,24 @@ $('dirBtn').onclick=async e=>{e.currentTarget.blur();
 };
 $('dirChange').onclick=async e=>{e.currentTarget.blur(); if(await pickDir()){ if(!isScriptDir(dirH)) await createSub(); } await refreshDir()};
 $('pick').addEventListener('change',()=>setTimeout(refreshDir,0));
+$('toEdit').addEventListener('click',async e=>{ if(!unsaved) return; e.preventDefault(); const b=$('toEdit'); b.textContent='저장하는 중…';
+  if(!dirH){ alert('녹화한 영상을 먼저 폴더에 저장할게요. 다음 창에서 「콘텐츠」 폴더를 골라 주세요.'); await pickDir() } else if(!dirOK) await ensureDir();
+  for(const g of document.querySelectorAll('.take')) for(const f of (g.files||[])) await f.save();
+  if(unsaved){ updUnsaved(); if(!confirm('아직 저장 안 된 영상이 '+unsaved+'개 있어요. 그래도 편집실로 갈까요? (브라우저에 백업은 남아 있어요)')) return }
+  location.href='editor.html' });
+window.addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnValue='' } });
+/* restore recordings that were never saved (page closed or moved away) */
+(async()=>{ const L=await bkAll(); if(!L.length) return; const box=document.createElement('div'); box.className='hint'; box.style.cssText='border:1px solid var(--accent);border-radius:10px;padding:10px;margin:8px 0';
+  box.innerHTML='<b>💾 저장 안 된 녹화 '+L.length+'개를 찾았어요</b> — 이전에 저장 전에 화면을 떠났던 영상이에요.<br>';
+  const sv=document.createElement('button'); sv.className='btn'; sv.textContent='모두 폴더에 저장'; sv.style.margin='6px 6px 0 0';
+  const dlb=document.createElement('button'); dlb.className='btn'; dlb.textContent='다운로드로 저장'; dlb.style.margin='6px 6px 0 0';
+  const del=document.createElement('button'); del.className='btn'; del.textContent='버리기'; del.style.marginTop='6px';
+  sv.onclick=async()=>{ if(!dirH){ if(!await pickDir()) return } else if(!dirOK&&!await ensureDir()) return; let n=0;
+    for(const [name,r] of L){ try{ const base=isScriptDir(dirH)?dirH:await dirH.getDirectoryHandle(r.folder||folderName(),{create:true}); const fh=await base.getFileHandle(name,{create:true}); const w=await fh.createWritable(); await w.write(r.blob); await w.close(); await bkDel(name); n++ }catch(e){console.warn(e)} }
+    box.innerHTML='✓ '+n+'개를 폴더에 저장했어요.' };
+  dlb.onclick=async()=>{ for(const [name,r] of L){ const a=document.createElement('a'); a.href=URL.createObjectURL(r.blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); await new Promise(z=>setTimeout(z,500)); await bkDel(name) } box.innerHTML='✓ 다운로드 폴더에 저장했어요.' };
+  del.onclick=async()=>{ if(!confirm('정말 버릴까요? 되돌릴 수 없어요.')) return; for(const [name] of L) await bkDel(name); box.remove() };
+  box.append(sv,dlb,del); const clips=$('clips'); clips.parentNode.insertBefore(box,clips) })();
 (async()=>{ if(!FS) return dirUI(); dirH=await idbGet(); if(dirH){ try{dirOK=(await dirH.queryPermission({mode:'readwrite'}))==='granted'}catch(e){dirOK=false} } refreshDir() })();
 $('camBtn1').onclick=e=>{toggleCam(1);e.currentTarget.blur()};
 $('camBtn2').onclick=e=>{toggleCam(2);e.currentTarget.blur()};
