@@ -146,13 +146,23 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
         <span class="lab">언어</span><select id="sLang"><option value="spanish">스페인어</option><option value="korean">한국어</option><option value="english">영어</option></select>
       </div>
     </div>
-    <div class="box" style="margin-top:12px" id="medBox" hidden>
-      <h3>영상 파일</h3>
+    <div class="box" style="margin-top:12px" id="musBox" hidden>
+      <h3 style="display:flex;align-items:center;gap:8px">🎵 배경음악 <label style="margin-left:auto;font-size:12px;font-weight:400;display:flex;gap:4px;align-items:center"><input type="checkbox" id="mOn"> 켜기</label></h3>
+      <div class="kv">
+        <span class="lab">분위기</span><select id="mStyle"><option value="auto">🤖 대본에 맞춤</option></select>
+        <span class="lab">크기</span><input type="range" id="mVol" min="5" max="70" step="1">
+      </div>
+      <div class="row" style="margin-top:8px;gap:6px"><button class="btn sm" id="mNext">🎲 다른 곡</button><button class="btn sm" id="mPrev" title="바로 전 곡으로">↩ 전 곡</button></div>
+      <div class="hint" id="mInfo" style="margin-top:6px">저작권 걱정 없는 음악을 직접 만들어요.</div>
+    </div>
+    <details class="box" style="margin-top:12px" id="medBox" hidden>
+      <summary style="cursor:pointer;font-weight:700" id="medSum">영상 파일 · 받아쓰기</summary>
+      <div class="hint" style="margin:6px 0">받아쓰기는 영상 속 말을 글자로 바꾸는 단계예요. 이걸로 대본 줄마다 맞는 영상 위치를 자동으로 찾고, 단어별 자막 타이밍을 만들어요. 새 영상을 넣었을 때 한 번만 하면 돼요.</div>
       <div id="mlist" class="hint"></div>
       <button class="btn sm" id="trBtn" style="margin-top:8px">📝 받아쓰기</button>
       <div class="prog" id="trProg" hidden><i></i></div>
       <div class="hint" id="trInfo"></div>
-    </div>
+    </details>
   </aside>
 
   <section class="prev">
@@ -210,6 +220,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 <div class="toast" id="toast" hidden></div>
 
 <script type="module">
+import {genMusic,moodOf} from './music.js';
 'use strict';
 const $=id=>document.getElementById(id);
 const el=(t,c,txt)=>{const e=document.createElement(t); if(c) e.className=c; if(txt!=null) e.textContent=txt; return e};
@@ -355,7 +366,7 @@ async function openProject(p){
   await loadScripts(); fillScriptSel();
   if(!S.data.script){ const id=Object.entries(FOLDERS).find(([k,v])=>nf(v)===nf(p.name))?.[0]||SCRIPTS.list.find(o=>nf(o.name).includes(nf(p.name).replace(/^#\d+\s*/,'')))?.id;
     if(id) S.data.script={id,name:SCRIPTS.list.find(o=>o.id===id)?.name||id,text:SCRIPTS.text[id]||''} }
-  syncSettings(); renderMedia(); $('setBox').hidden=$('medBox').hidden=$('expBox').hidden=false;
+  syncSettings(); renderMedia(); $('setBox').hidden=$('medBox').hidden=$('expBox').hidden=$('musBox').hidden=false; musUI(); musBuild();
   ['askClaude','expBtn','playBtn','draftBtn','addBlk'].forEach(id=>$(id).disabled=false);
   $('caption').value=S.data.caption||''; renderCaps();
   await ensurePeaks();
@@ -410,6 +421,7 @@ function renderMedia(){const b=$('mlist'); b.textContent=''; const T=takeList();
     r.append(el('b',null,k),document.createTextNode(' · '+fmt(ms[0].dur)+(ms.length>1?' · 카메라 '+ms.length+'대':'')+(tr&&tr.words?' · 받아쓰기 ✓':' · 받아쓰기 전'))); b.appendChild(r)});
   const bad=S.data.media.filter(m=>!m.ok); if(bad.length){const r=el('div',null,'⚠️ 브라우저에서 못 여는 파일 '+bad.length+'개 (ProRes mov 등): '+bad.map(m=>m.file).join(', ')); r.style.color='var(--red)'; b.appendChild(r)}
   if(!Object.keys(T).length) b.appendChild(el('div',null,'영상이 없어요. Studio에서 녹화하거나 mp4를 이 폴더에 넣어 주세요.'));
+  const ks=Object.keys(T), done=ks.filter(k=>S.data.takes[k]&&S.data.takes[k].words).length; $('medSum').textContent='영상 파일 '+ks.length+'개 · 받아쓰기 '+(done===ks.length&&ks.length?'완료 ✓':done+'/'+ks.length); $('medBox').open=!ks.length||done<ks.length;
 }
 async function decodeTake(take){const m=prim(take); const f=await S.files[m.file].getFile(); const ab=await f.arrayBuffer();
   const ac=new AudioContext({sampleRate:16000}); let buf; try{buf=await ac.decodeAudioData(ab)}finally{ac.close()}
@@ -555,8 +567,8 @@ async function play(from){ if(!S.tl.length) return; const c=audio(); await c.res
   const p=await prep(cur,t-s.o); prep(cur+1); prep(cur+2);
   ovFired=new Set(overlaysAll().filter(o=>o.t<=t).map(o=>o.key));
   S.playing=true; $('playBtn').textContent='❚❚'; p.g.gain.setValueAtTime(0,c.currentTime); p.g.gain.linearRampToValueAtTime(takeGain(s.m.take),c.currentTime+0.008);
-  await p.v.play(); loop(); }
-function stop(){ S.playing=false; cancelAnimationFrame(raf); POOL.forEach(p=>{p.v.pause(); try{p.g.gain.setValueAtTime(0,AC.currentTime)}catch(e){}}); $('playBtn').textContent='▶' }
+  await p.v.play(); musStart(t); loop(); }
+function stop(){ S.playing=false; musStop(); cancelAnimationFrame(raf); POOL.forEach(p=>{p.v.pause(); try{p.g.gain.setValueAtTime(0,AC.currentTime)}catch(e){}}); $('playBtn').textContent='▶' }
 async function advance(){ const c=AC; const old=slot(cur); old.g.gain.setValueAtTime(old.g.gain.value,c.currentTime); old.g.gain.linearRampToValueAtTime(0,c.currentTime+0.006); setTimeout(()=>old.v.pause(),8);
   cur++; if(cur>=S.tl.length){ S.outT=S.total; stop(); if(S.onEnd){const f=S.onEnd; S.onEnd=null; f()} return }
   const s=S.tl[cur], p=slot(cur); if(p.seg!==cur||p.file!==s.m.file) await prep(cur);
@@ -872,7 +884,9 @@ async function buildAudio(prog){ const SR=48000, L=Math.ceil(S.total*SR)+SR, out
   if(S.data.sfx) overlaysAll().forEach(ov=>{ const w=synthSfx(ov.type==='red'?'buzz':ov.type==='big'?'ding':'pop',SR), st=Math.round(ov.t*SR); for(let j=0;j<w.length&&st+j<L;j++) out[st+j]+=w[j] });
   // loudness: gated RMS to target, then look-ahead peak limiter
   const W=Math.round(0.4*SR); let pw=0,cn=0; for(let i=0;i+W<=L;i+=W){ let q=0; for(let j=i;j<i+W;j++) q+=out[j]*out[j]; q/=W; if(q>1e-5){pw+=q;cn++} }
-  const lvl=10*Math.log10(pw/Math.max(1,cn)+1e-12), gain=Math.pow(10,(-17-lvl)/20); for(let i=0;i<L;i++) out[i]*=gain;
+  const lvl=10*Math.log10(pw/Math.max(1,cn)+1e-12), gain=Math.pow(10,(-17-lvl)/20);
+  const MB=S.data.music?.on?await musBuild():null; if(MB){ const mg=musGain(), d=MB.buf; for(let i=0;i<L&&i<d.length;i++) out[i]+=d[i]*mg }
+  for(let i=0;i<L;i++) out[i]*=gain;
   const la=Math.round(0.005*SR), rel=Math.exp(-1/(0.08*SR)), ceil=0.89; let g=1; const pk=new Float32Array(L);
   for(let i=L-1,m=0,c=0;i>=0;i--){ pk[i]=Math.abs(out[i]) } const need=new Float32Array(L);
   for(let i=0;i<L;i+=64){ let m=0; for(let j=i;j<Math.min(L,i+64+la);j++) m=Math.max(m,pk[j]); const v=m>ceil?ceil/m:1; need.fill(v,i,Math.min(L,i+64)) }
@@ -915,6 +929,35 @@ async function exportExact(){
   catch(e){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); $('expInfo').textContent='다운로드로 저장했어요: '+name }
   S.exporting=false; S.data.status={state:'idle'}; $('expBtn').disabled=false; bar.style.width='100%'; setTimeout(()=>pr.hidden=true,2500); renderRenders(); save(); drawAt(S.outT);
 }
+/* ================= background music ================= */
+const MSTY={lofi:'☕ 로파이 — 차분',bright:'☀️ 밝은 팝 — 경쾌',piano:'🎹 피아노 — 잔잔',latin:'💃 라틴 — 신나게',kpop:'🎧 K-팝 — 댄스'};
+Object.entries(MSTY).forEach(([k,v])=>{ const o=el('option',null,v); o.value=k; $('mStyle').appendChild(o) });
+let MW=null, MREQ=0, MCACHE=null, MSRC=null, MG=null;
+function musCfg(){ return S.data.music||(S.data.music={on:false,style:'auto',seed:1,vol:22,hist:[]}) }
+function musText(){ return ((S.data.script&&S.data.script.text)||'')+' '+S.data.blocks.map(b=>b.text).join(' ') }
+function musPlan(){ const m=musCfg(); if(m.style!=='auto') return {style:m.style,seed:m.seed,opt:{},why:''}; const md=moodOf(musText())||{style:'lofi',drum:0,minor:false,bpm:[76,86],why:''};
+  return {style:md.style,seed:m.seed+md.drum,opt:{minor:md.minor,bpm:md.bpm},why:md.why} }
+function musGain(){ return Math.pow(musCfg().vol/100,1.6)*0.6 }
+function musBuild(){ if(!S.data||!S.total) return Promise.resolve(null); const P=musPlan(), dur=+(S.total+0.6).toFixed(1), key=[P.style,P.seed,JSON.stringify(P.opt),dur].join('|');
+  if(MCACHE&&MCACHE.key===key) return MCACHE.p;
+  if(!MW){ MW=new Worker(new URL('music-worker.js',location.href),{type:'module'}) }
+  const id=++MREQ; $('mInfo').textContent='🎵 음악 만드는 중…';
+  const p=new Promise(res=>{ const h=e=>{ if(e.data.id!==id) return; MW.removeEventListener('message',h); const r={buf:e.data.buf,info:e.data.info,why:P.why}; res(r); if(MCACHE&&MCACHE.key===key){ MCACHE.r=r; musInfo() } }; MW.addEventListener('message',h);
+    MW.postMessage({id,style:P.style,seed:P.seed,dur,opt:P.opt,sr:48000}) });
+  MCACHE={key,p,r:null}; return p }
+function musInfo(){ const m=musCfg(), r=MCACHE&&MCACHE.r; $('mInfo').textContent=!m.on?'꺼져 있어요. 켜면 영상 길이에 맞춰 음악을 만들어요.':r?(r.why?r.why+' · ':'')+r.info:MCACHE?'🎵 음악 만드는 중…':'▶ 재생하면 영상 길이에 맞춰 음악을 만들어요.' }
+function musUI(){ const m=musCfg(); $('mOn').checked=m.on; $('mStyle').value=m.style; $('mVol').value=m.vol; $('mPrev').disabled=!(m.hist&&m.hist.length); musInfo() }
+async function musStart(t){ musStop(); const m=musCfg(); if(!m.on) return; const r=await musBuild(); if(!r||!S.playing) return; const c=audio();
+  const b=c.createBuffer(1,r.buf.length,48000); b.copyToChannel(r.buf,0); MSRC=c.createBufferSource(); MSRC.buffer=b; MG=c.createGain(); MG.gain.setValueAtTime(0,c.currentTime); MG.gain.linearRampToValueAtTime(musGain(),c.currentTime+0.15);
+  MSRC.connect(MG).connect(MASTER); MSRC.start(c.currentTime,Math.max(0,S.outT)) }
+function musStop(){ if(MSRC){ try{MSRC.stop()}catch(e){} MSRC.disconnect(); MSRC=null } }
+function musChanged(){ save(); musUI(); if(musCfg().on) musBuild().then(()=>{ musInfo(); if(S.playing) musStart(S.outT) }) }
+$('mOn').onchange=()=>{ musCfg().on=$('mOn').checked; if(!$('mOn').checked) musStop(); musChanged() };
+$('mStyle').onchange=()=>{ const m=musCfg(); m.style=$('mStyle').value; m.on=true; musChanged() };
+$('mVol').oninput=()=>{ musCfg().vol=+$('mVol').value; if(MG&&AC) MG.gain.setTargetAtTime(musGain(),AC.currentTime,0.05) }; $('mVol').onchange=()=>save();
+$('mNext').onclick=()=>{ const m=musCfg(); (m.hist=m.hist||[]).push(m.seed); m.hist=m.hist.slice(-20); m.seed=(m.seed|0)+1+Math.floor(Math.random()*97); m.on=true; musChanged() };
+$('mPrev').onclick=()=>{ const m=musCfg(); if(!m.hist||!m.hist.length) return; m.seed=m.hist.pop(); musChanged() };
+
 /* ================= caption · upload ================= */
 const ACC={personal:{name:'개인 @soykyu_coreano',nets:['instagram','tiktok'],tags:'#coreano #aprendecoreano #idiomacoreano #coreanoparaprincipiantes #corea #hangul #kdrama #kpop #mexico'},
   academy:{name:'학원 @institutocoreanokyu',nets:['instagram','facebook'],tags:'📍 Clases de coreano en CDMX · Inscripciones por DM\n#InstitutoCoreanoKYU #clasesdecoreano #coreanoCDMX #aprendecoreano #coreano #cdmx #idiomas #corea'}};
