@@ -532,9 +532,13 @@ function loop(){ if(!S.playing) return; const s=S.tl[cur], p=slot(cur); const st
   if(S.stopAt!=null&&S.outT>=S.stopAt){S.stopAt=null; stop(); return}
   raf=requestAnimationFrame(loop) }
 $('playBtn').onclick=()=>S.playing?stop():play();
-document.addEventListener('keydown',e=>{ if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.metaKey||e.ctrlKey||e.altKey) return;
-  if(e.code==='Space'){e.preventDefault(); S.playing?stop():play(); return}
-  const dir={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key]; if(dir) {e.preventDefault(); jumpBlock(dir)} });
+function typing(t){ if(!t) return false; if(t.isContentEditable||/TEXTAREA|SELECT/.test(t.tagName)) return true;
+  return t.tagName==='INPUT'&&!/^(checkbox|radio|button|submit|range|color|file)$/.test(t.type) }
+document.addEventListener('keydown',e=>{ if(typing(e.target)||e.metaKey||e.ctrlKey||e.altKey) return;
+  if(e.code==='Space'){ e.preventDefault(); e.stopPropagation(); if(e.repeat) return; if(e.target!==document.body&&e.target.blur) e.target.blur(); S.playing?stop():play(); return }
+  if(e.target.type==='range') return;
+  const dir={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key]; if(dir){ e.preventDefault(); if(e.target!==document.body&&e.target.blur) e.target.blur(); jumpBlock(dir) } },true);
+document.addEventListener('keyup',e=>{ if(e.code==='Space'&&!typing(e.target)){ e.preventDefault(); e.stopPropagation() } },true);
 let nowI=-1;
 function blockAt(t){ if(!S.tl.length) return -1; const s=S.tl[segAt(t)]; return s?s.bi:-1 }
 function markNow(t){ const bi=blockAt(t), box=$('blist'); if(!box) return;
