@@ -307,7 +307,7 @@ async function listProjects(){
     let vids=0, pj=null;
     for await(const [m,x] of h.entries()){ if(x.kind==='file'&&VIDRE.test(m)&&!OUTRE.test(m)) vids++; if(m==='project.json') pj=x }
     let st='';
-    if(pj){try{const d=JSON.parse(await (await pj.getFile()).text()); st=d.status&&d.status.state!=='idle'?stateText(d.status):(d.renders||[]).length?'v'+d.renders.length+' 있음':'편집 중'}catch(e){}}
+    if(pj){try{const d=JSON.parse(await (await pj.getFile()).text()); st=d.upload&&d.upload.state==='posted'?'✅ 올림':d.status&&d.status.state!=='idle'?stateText(d.status):(d.renders||[]).length?'v'+d.renders.length+' 있음':'편집 중'}catch(e){}}
     if(vids||pj) out.push({name:nf(n),h,vids,st,has:!!pj});
   }
   S.single=rootVids>0;
@@ -316,7 +316,7 @@ async function listProjects(){
   S.projects=out; renderPlist();
   const last=localStorage.getItem('kyu-editor-last'); const q=new URLSearchParams(location.search).get('p');
   const want=out.find(p=>p.name===nf(q))||out.find(p=>p.name===last);
-  if(want&&!S.dir) openProject(want);
+  if(want&&!S.dir&&want.st!=='✅ 올림') openProject(want);
 }
 function renderPlist(){
   const b=$('plist'); b.textContent='';
@@ -329,6 +329,12 @@ function renderPlist(){
 $('newProj').onclick=async()=>{ if(!S.root||S.single){toast('먼저 콘텐츠 폴더를 연결하세요');return}
   const n=prompt('새 프로젝트(폴더) 이름'); if(!n) return; try{await S.root.getDirectoryHandle(n.trim(),{create:true}); await listProjects(); toast('폴더를 만들었어요. Studio에서 녹화하거나 영상 파일을 넣어 주세요.')}catch(e){toast('만들지 못했어요')}};
 
+/* ================= same project in two tabs ================= */
+const TABID=Math.random().toString(36).slice(2); let BC=null; try{ BC=new BroadcastChannel('kyu-editor') }catch(e){}
+function bcPost(){ try{ BC&&BC.postMessage({t:'open',id:TABID,folder:S.folder||''}) }catch(e){} }
+if(BC) BC.onmessage=e=>{ const m=e.data||{}; if(m.id===TABID||!S.folder) return;
+  if(m.t==='open'&&m.folder===S.folder){ BC.postMessage({t:'here',id:TABID,folder:S.folder}); warnDup() } if(m.t==='here'&&m.folder===S.folder) warnDup() };
+function warnDup(){ toast('⚠️ 이 프로젝트가 다른 탭에서도 열려 있어요. 한 탭만 쓰세요 (다른 탭은 닫기)',6000) }
 /* ================= project open/save ================= */
 function stateText(st){return {'claude-requested':'Claude 요청됨','claude-editing':'Claude 편집 중',transcribing:'받아쓰는 중',rendering:'내보내는 중',idle:'대기'}[st.state]||st.state}
 function setPill(){
@@ -341,8 +347,12 @@ function setPill(){
   else t='프로젝트를 고르세요';
   $('pStateT').textContent=t; p.title=st.note||'';
 }
+function closeProject(msg){ stop(); musStop&&musStop(); S.dir=null; S.folder=''; S.data=null; S.tl=[]; S.total=0; S.sel=null; S.outT=0; nowI=-1;
+  try{localStorage.removeItem('kyu-editor-last')}catch(e){} $('pTitle').textContent='KYU Editor'; clearCv(); $('stOvl').hidden=false; $('stOvl').textContent=msg||'왼쪽에서 프로젝트를 고르세요';
+  ['setBox','medBox','expBox','musBox'].forEach(id=>$(id).hidden=true); ['askClaude','expBtn','playBtn','draftBtn','addBlk'].forEach(id=>$(id).disabled=true);
+  $('blist').textContent=''; $('bInfo').textContent=''; $('scrub').textContent=''; setPill(); if(S.root) listProjects(); else renderPlist(); bcPost() }
 async function openProject(p){
-  stop(); S.dir=p.h; S.folder=p.name; localStorage.setItem('kyu-editor-last',p.name); renderPlist();
+  stop(); S.dir=p.h; S.folder=p.name; localStorage.setItem('kyu-editor-last',p.name); renderPlist(); bcPost();
   $('pTitle').textContent=p.name; $('stOvl').hidden=false; $('stOvl').textContent='여는 중…';
   const r=await readJSON(S.dir,'project.json');
   S.data=Object.assign(structuredClone(DEF),r?r.data:{}); S.mtime=r?r.mtime:0;
@@ -383,8 +393,15 @@ function probe(url){return new Promise(res=>{const v=document.createElement('vid
   const done=ok=>{res({dur:v.duration||0,w:v.videoWidth||0,h:v.videoHeight||0,ok:ok&&v.videoWidth>0}); v.removeAttribute('src'); v.load()};
   v.onloadedmetadata=()=>done(true); v.onerror=()=>done(false); setTimeout(()=>done(false),8000)})}
 let saveT=null, ownWrite=0;
+/* another tab/Claude changed project.json since we loaded it: keep their renders/upload/captions instead of overwriting */
+function mergeOutside(d){ const D=S.data; let n=0;
+  const mine=new Set((D.renders||[]).map(r=>r.file)); (d.renders||[]).forEach(r=>{ if(!mine.has(r.file)){ (D.renders=D.renders||[]).push(r); n++ } }); (D.renders||[]).sort((a,b)=>(a.at||0)-(b.at||0));
+  if(d.upload&&(!D.upload||(d.upload.at||0)>(D.upload.at||0))){ D.upload=d.upload; n++ }
+  if(d.captions&&!D.captions){ D.captions=d.captions; n++ }
+  if(n){ renderRenders(); renderCaps(); toast('다른 창에서 바뀐 내용(영상·올리기 기록)을 지우지 않고 함께 저장했어요',3500) } }
 function save(){S.dirty=true; setPill(); clearTimeout(saveT); saveT=setTimeout(saveNow,700)}
 async function saveNow(){ if(!S.dir||!S.data) return; S.data.updated=Date.now();
+  try{ const h=await child(S.dir,'project.json','file'); if(h){ const f=await h.getFile(); if(f.lastModified>S.mtime+50){ const d=JSON.parse(await f.text()); mergeOutside(d) } } }catch(e){}
   try{ownWrite=Date.now(); S.mtime=await writeFile(S.dir,'project.json',new Blob([JSON.stringify(S.data,null,1)],{type:'application/json'})); S.dirty=false}catch(e){toast('저장하지 못했어요: '+e.message)} setPill()}
 // watch for Claude's edits
 setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
@@ -394,6 +411,7 @@ setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
     const keep=S.data.media; S.data=Object.assign(structuredClone(DEF),d); S.data.cap=Object.assign({},DEF.cap,d.cap||{});
     for(const m of S.data.media){const o=keep.find(x=>x.file===m.file); if(o) Object.assign(m,{dur:o.dur,w:o.w,h:o.h,ok:o.ok})}
     syncSettings(); buildTL(); renderBlocks(); renderRenders(); setPill(); drawAt(S.outT); $('caption').value=S.data.caption||''; renderCaps();
+    if(d.upload&&d.upload.state==='posted'){ closeProject('✅ 「'+(d.title||S.folder)+'」 올리기 완료! 다음 프로젝트를 고르세요'); toast('✅ 올리기가 끝나서 편집기를 비웠어요',4000); return }
     toast(d.status&&d.status.state==='claude-editing'?'🤖 Claude가 편집 중이에요':'🤖 Claude가 바꾼 내용을 불러왔어요');
   }catch(e){}
 },2500);
