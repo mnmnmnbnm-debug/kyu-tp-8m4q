@@ -407,7 +407,7 @@ async function openProject(p){
   buildTL(); renderBlocks(); renderRenders(); setPill(); S.outT=0; drawAt(0);
   if(Object.keys(takeList()).some(k=>!(S.data.takes[k]&&S.data.takes[k].words))){ const me=p.name; setTimeout(()=>{ if(S.folder===me&&S.data.status?.state!=='transcribing'){ toast('📝 새 영상이 있어서 자동으로 받아쓰기를 시작해요',3500); transcribeAll(false) } },400) }
   preloadImgs();
-  $('stOvl').hidden=!!S.tl.length; if(!S.tl.length) $('stOvl').textContent=Object.keys(S.data.takes).some(k=>S.data.takes[k].words)?'블록에 테이크가 없어요':'먼저 왼쪽 아래 📝 받아쓰기를 눌러 주세요';
+  $('stOvl').hidden=!!S.tl.length; if(!S.tl.length) $('stOvl').textContent=!Object.keys(takeList()).length?(S.data.media.some(m=>!m.ok)?'이 폴더 영상(mov)은 브라우저에서 못 열어요. 왼쪽 아래 「Claude에게 mp4 변환 맡기기」를 눌러 주세요':'영상이 없어요. Studio에서 녹화하거나 mp4를 넣어 주세요'):Object.keys(S.data.takes).some(k=>S.data.takes[k].words)?'블록에 테이크가 없어요 — ✨ 자동 초안 만들기를 눌러 주세요':'받아쓰기 중이에요…';
   if(!r) save();
 }
 function probe(url){return new Promise(res=>{const v=document.createElement('video'); v.preload='metadata'; v.muted=true; v.src=url;
@@ -458,7 +458,11 @@ const prim=take=>{const a=takeList()[take]; return a?a[0]:null};
 function renderMedia(){const b=$('mlist'); b.textContent=''; const T=takeList();
   Object.entries(T).forEach(([k,ms])=>{const tr=S.data.takes[k]; const r=el('div',null); r.style.margin='4px 0';
     r.append(el('b',null,k),document.createTextNode(' · '+fmt(ms[0].dur)+(ms.length>1?' · 카메라 '+ms.length+'대':'')+(tr&&tr.words?' · 받아쓰기 ✓':' · 받아쓰기 전'))); b.appendChild(r)});
-  const bad=S.data.media.filter(m=>!m.ok); if(bad.length){const r=el('div',null,'⚠️ 브라우저에서 못 여는 파일 '+bad.length+'개 (ProRes mov 등): '+bad.map(m=>m.file).join(', ')); r.style.color='var(--red)'; b.appendChild(r)}
+  const bad=S.data.media.filter(m=>!m.ok); if(bad.length){ const good=Object.keys(T).length;
+    if(good){ b.appendChild(el('div',null,'원본 mov '+bad.length+'개는 건너뛰고 mp4 변환본을 써요.')) }
+    else { const r=el('div',null,'⚠️ 이 영상('+bad.map(m=>m.file).join(', ')+')은 ProRes mov라 브라우저에서 못 열어요. mp4로 바꿔야 해요.'); r.style.color='var(--red)'; b.appendChild(r);
+      const cb=el('button','btn sm claude','🤖 Claude에게 mp4 변환 맡기기'); cb.style.marginTop='6px'; cb.onclick=async()=>{ S.data.status={state:'claude-requested',note:'convert-mov',at:Date.now(),by:'user'}; await saveNow(); setPill();
+        const msg='KYU Editor 「'+S.folder+'」: mov 영상을 mp4로 변환해 줘 (콘텐츠/'+S.folder+')'; try{await navigator.clipboard.writeText(msg); toast('메시지를 복사했어요. Claude 채팅에 붙여 넣어 주세요',4000)}catch(e){prompt('Claude 채팅에 붙여 넣기',msg)} }; b.appendChild(cb) } }
   if(!Object.keys(T).length) b.appendChild(el('div',null,'영상이 없어요. Studio에서 녹화하거나 mp4를 이 폴더에 넣어 주세요.'));
   const ks=Object.keys(T), done=ks.filter(k=>S.data.takes[k]&&S.data.takes[k].words).length; $('medSum').textContent='영상 파일 '+ks.length+'개 · 받아쓰기 '+(done===ks.length&&ks.length?'완료 ✓':done+'/'+ks.length); $('medBox').open=!ks.length||done<ks.length;
 }
@@ -487,7 +491,7 @@ function vadSegs(p,thr){const segs=[]; let s=null; for(let i=0;i<p.length;i++){c
   const out=[]; for(let [a,b] of m){ if(b-a<0.25) continue; while(b-a>26){out.push([a,a+25]); a+=25} out.push([a,b]) } return out}
 $('trBtn').onclick=()=>transcribeAll(true);
 async function transcribeAll(force){
-  const T=takeList(); const todo=Object.keys(T).filter(k=>force||!(S.data.takes[k]&&S.data.takes[k].words)); if(!todo.length){toast('모두 받아썼어요');return}
+  const T=takeList(); const todo=Object.keys(T).filter(k=>force||!(S.data.takes[k]&&S.data.takes[k].words)); if(!Object.keys(T).length){toast('받아쓸 수 있는 영상이 없어요 (mov는 mp4로 바꿔야 해요)',4000);return} if(!todo.length){toast('모두 받아썼어요');return}
   S.data.status={state:'transcribing',at:Date.now()}; setPill(); $('trBtn').disabled=true; const pr=$('trProg'),bar=pr.firstElementChild; pr.hidden=false;
   try{ const asr=await asrLoad();
     for(let ti=0;ti<todo.length;ti++){ const k=todo[ti]; $('trInfo').textContent='받아쓰는 중: '+k;
