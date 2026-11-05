@@ -193,7 +193,7 @@ dialog.wide{max-width:1040px;width:94vw}
       <span class="tc" id="tc">0:00.0 / 0:00.0</span>
     </div>
     <div class="row" id="safeSel" style="margin-top:8px;gap:4px;align-items:center"><span class="lab" style="margin-right:4px">가림 영역</span><button class="btn sm" data-z="ig">인스타</button><button class="btn sm" data-z="tt">틱톡</button><button class="btn sm" data-z="yt">유튜브</button><button class="btn sm" data-z="">안보기</button></div>
-    <div class="hint" style="margin-top:6px">화면을 끌면 지금 블록의 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지 · ←→ 1초 이동 · ↑↓ 블록 이동</div>
+    <div class="hint" style="margin-top:6px">화면을 끌면 얼굴 위치, 휠·핀치로 확대/축소 (지금 블록만). 스페이스 = 재생/정지 · ←→ 1초 이동 · ↑↓ 블록 이동</div>
     <div class="box" style="margin-top:12px" id="expBox" hidden>
       <h3>내보내기 · 업로드</h3>
       <div class="hint" id="expInfo">미리보기 그대로 프로젝트 폴더의 renders에 mp4로 저장해요. 소리와 화면을 원본 시간 기준으로 맞춰서 입싱크가 어긋나지 않아요.</div>
@@ -667,7 +667,7 @@ function shotZoom(shot,prog,el){ switch(shot){
   case 'zoomout': return 1.34-0.26*prog;
   case 'snap': return 1.0+0.55*ease(el/0.22);
   default: return ZOOM[shot]||1 } }
-function cropFor(m,v,shot,prog,el,W=cv.width,H=cv.height){ const vw=v.videoWidth||v.width||1920, vh=v.videoHeight||v.height||1080; let z=shotZoom(shot,prog,el||0);
+function cropFor(m,v,shot,prog,el,W=cv.width,H=cv.height){ const vw=v.videoWidth||v.width||1920, vh=v.videoHeight||v.height||1080; let z=Math.max(1,shotZoom(shot,prog,el||0)*(m.zm||1));
   if(S.data.format==='long'&&shot==='wide') z=1;
   let ch=vh/z, cw=ch*W/H; if(cw>vw){cw=vw; ch=cw*H/W}
   let cx=m.cx*vw, cy=m.cy*vh;
@@ -698,7 +698,7 @@ function applyLook(cx,W,H){ const L=LOOK[S.data.filter]; if(!L) return; const G=
   g.uniform2f(U.px,1/W,1/H); g.uniform1f(U.sh,L.sh*(W/1080)); g.uniform1f(U.b,L.b); g.uniform1f(U.c,L.c); g.uniform1f(U.s,L.s); g.uniform1f(U.g,L.g); g.uniform3fv(U.t,L.t); g.uniform3fv(U.l,L.l);
   g.drawArrays(g.TRIANGLE_STRIP,0,4); cx.drawImage(c,0,0,W,H) }
 function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); if(!v||!s) return;
-  const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; const mm=bk.cx!=null?Object.assign({},s.m,{cx:bk.cx,cy:bk.cy}):s.m;
+  const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; const mm=Object.assign({},s.m,bk.cx!=null?{cx:bk.cx,cy:bk.cy}:{},bk.z?{zm:bk.z}:{});
   if(bk.teach&&bk.teach.on) drawTeach(ctx,W,H,v,mm,bk,prog,el,FILT[S.data.filter]||'none'); else { drawShot(ctx,W,H,v,mm,bk.shot,prog,el,FILT[S.data.filter]||'none'); applyLook(ctx,W,H) }
   drawOverlays(t); drawCaptions(t,bk); if(!S.exporting) drawSafe(); updTC(); }
 /* safe zones (preview only, never exported) — px on a 1080x1920 frame */
@@ -736,7 +736,7 @@ function shotPicker(bk){ if(SHOTOLD[bk.shot]) bk.shot=SHOTOLD[bk.shot]; if(SHOTO
   Object.keys(SHOTS).forEach(k=>{ const b=el('button','shot'+(bk.shot===k?' on':'')); b.dataset.k=k; const [d1,d2]=SHOTDESC[k].split(' · ');
     b.append(el('b',null,SHOTS[k]),el('small',null,k===bk.shot0?'★ 처음 설정':d2||d1)); b.title=SHOTDESC[k]+' — 누르면 미리보기 화면에서 바로 재생돼요'; b.onclick=()=>pick(k); wrap.appendChild(b) });
   rs.onclick=()=>pick(bk.shot0); const ir=el('div','row'); ir.style.cssText='grid-column:1/-1;gap:8px;align-items:center'; ir.append(rs,info);
-  if(bk.cx!=null){ const pr=el('button','btn sm','↺ 화면 위치 처음으로'); pr.title='화면을 끌어서 옮긴 위치를 원래대로'; pr.onclick=()=>{ delete bk.cx; delete bk.cy; save(); renderBlocks(); drawAt(Math.max(S.outT,bk._o+0.05)) }; ir.append(pr) } wrap.appendChild(ir);
+  if(bk.cx!=null||bk.z){ const pr=el('button','btn sm','↺ 위치·확대 처음으로'); pr.title='끌어서 옮긴 위치와 휠로 바꾼 확대를 원래대로'; pr.onclick=()=>{ delete bk.cx; delete bk.cy; delete bk.z; save(); renderBlocks(); drawAt(Math.max(S.outT,bk._o+0.05)) }; ir.append(pr) } wrap.appendChild(ir);
   return wrap }
 function rr(x,y,w,h,r){ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath()}
 const pop=(dt)=>dt<0.11?0.55+0.53*(dt/0.11):dt<0.19?1.08-0.08*((dt-0.11)/0.08):1;
@@ -782,6 +782,10 @@ cv.addEventListener('pointermove',e=>{ if(emDrag){ const [x,y]=cvPt(e); emDrag.o
   if(!drag) cv.style.cursor=emHit(e)?'move':'grab' },true);
 cv.addEventListener('pointerup',e=>{ if(emDrag){ emDrag=null; cv.style.cursor='grab'; save(); if(S.sel!=null) renderBlocks(); e.stopImmediatePropagation() } },true);
 cv.addEventListener('wheel',e=>{ const h=emHit(e); if(!h||!h.o) return; e.preventDefault(); h.o.s=+Math.max(0.3,Math.min(4,(h.o.s||1)*Math.exp(-e.deltaY*0.0015))).toFixed(3); drawAt(S.outT); clearTimeout(cv._wt); cv._wt=setTimeout(()=>{save(); if(S.sel!=null) renderBlocks()},400) },{passive:false});
+cv.addEventListener('wheel',e=>{ if(e.defaultPrevented||!S.tl.length||emHit(e)) return; e.preventDefault(); const bk=S.tl[segAt(S.outT)].bk;
+  bk.z=+Math.max(0.6,Math.min(3,(bk.z||1)*Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)))).toFixed(3); if(Math.abs(bk.z-1)<0.02) delete bk.z;
+  if(!S.playing) drawAt(S.outT); clearTimeout(cv._zt); cv._zt=setTimeout(()=>{ save(); if(S.sel===S.data.blocks.indexOf(bk)) renderBlocks() },500);
+  toast((S.data.blocks.indexOf(bk)+1)+'번 블록 확대 '+Math.round((bk.z||1)*100)+'%',900) },{passive:false});
 cv.addEventListener('pointerdown',e=>{ if(!S.tl.length) return; if(S.playing) stop(); const s=S.tl[segAt(S.outT)]; drag={x:e.clientX,y:e.clientY,bk:s.bk,cx:s.bk.cx??s.m.cx,cy:s.bk.cy??s.m.cy}; cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing' });
 cv.addEventListener('pointermove',e=>{ if(!drag) return; const r=cv.getBoundingClientRect(); const dx=(e.clientX-drag.x)/r.width, dy=(e.clientY-drag.y)/r.height; drag.bk.cx=+Math.max(0.05,Math.min(0.95,drag.cx-dx*0.35)).toFixed(4); drag.bk.cy=+Math.max(0.1,Math.min(0.9,drag.cy-dy*0.6)).toFixed(4); drawAt(S.outT) });
 cv.addEventListener('pointerup',()=>{ if(drag){ const bi=S.data.blocks.indexOf(drag.bk); drag=null; cv.style.cursor='grab'; save(); if(S.sel===bi) renderBlocks(); toast((bi+1)+'번 블록 화면 위치를 바꿨어요',1800)} });
@@ -1110,7 +1114,7 @@ function teachUI(bk){ const T=bk.teach||{}; const box=el('div','teach'); const r
   if(T.img){ const th=document.createElement('img'); loadImg(T.img).then(b=>{ if(!b) return; const cv2=document.createElement('canvas'); cv2.width=b.width; cv2.height=b.height; cv2.getContext('2d').drawImage(b,0,0); th.src=cv2.toDataURL('image/jpeg',0.6) }); const rm=el('button','btn sm','사진 빼기'); rm.onclick=()=>{ delete T.img; save(); renderBlocks(); drawAt(bk._o+0.3) }; r3.append(th,rm) }
   const ps=el('select'); [['bl','얼굴: 왼쪽 아래'],['tr','얼굴: 오른쪽 위']].forEach(([v,n])=>{const o=el('option',null,n); o.value=v; ps.appendChild(o)}); ps.value=T.pos||'bl'; ps.onchange=()=>{T.pos=ps.value; save(); drawAt(Math.max(S.outT,bk._o+0.3))};
   r3.append(el('span','grow'),ps); box.append(r2,r3); return box }
-function editSig(){ const d=S.data; const j=JSON.stringify([d.format,d.speed,d.gap,d.cap,d.filter,d.sfx,d.music&&d.music.on?[d.music.style,d.music.seed,d.music.vol]:0,d.blocks.map(b=>[b.on,b.take,b.cam,b.a,b.b,b.cuts,b.shot,b.ov,b.cx,b.cy,b.text])]); let h=0; for(let i=0;i<j.length;i++) h=(h*31+j.charCodeAt(i))|0; return h.toString(36) }
+function editSig(){ const d=S.data; const j=JSON.stringify([d.format,d.speed,d.gap,d.cap,d.filter,d.sfx,d.music&&d.music.on?[d.music.style,d.music.seed,d.music.vol]:0,d.blocks.map(b=>[b.on,b.take,b.cam,b.a,b.b,b.cuts,b.shot,b.ov,b.cx,b.cy,b.z,b.teach,b.text])]); let h=0; for(let i=0;i<j.length;i++) h=(h*31+j.charCodeAt(i))|0; return h.toString(36) }
 /* ================= caption · upload ================= */
 const ACC={personal:{name:'개인 @soykyu_coreano',nets:['instagram','tiktok'],tags:'#coreano #aprendecoreano #idiomacoreano #coreanoparaprincipiantes #corea #hangul #kdrama #kpop #mexico'},
   academy:{name:'학원 @institutocoreanokyu',nets:['instagram','facebook'],tags:'📍 Clases de coreano en CDMX · Inscripciones por DM\n#InstitutoCoreanoKYU #clasesdecoreano #coreanoCDMX #aprendecoreano #coreano #cdmx #idiomas #corea'}};
