@@ -440,6 +440,7 @@ async function openProject(p){
   buildTL(); renderBlocks(); renderRenders(); setPill(); S.outT=0; drawAt(0);
   if(Object.keys(takeList()).some(k=>!(S.data.takes[k]&&S.data.takes[k].words))){ const me=p.name; setTimeout(()=>{ if(S.folder===me&&S.data.status?.state!=='transcribing'){ toast('📝 새 영상이 있어서 자동으로 받아쓰기를 시작해요',3500); transcribeAll(false) } },400) }
   preloadImgs();
+  { const me=p.name; setTimeout(()=>{ if(S.folder===me&&S.data.media.filter(m=>m.ok).length>1&&!S.data.cmatch) colorMatch(null,true) },2500) }
   $('stOvl').hidden=!!S.tl.length; if(!S.tl.length) $('stOvl').textContent=!Object.keys(takeList()).length?(S.data.media.some(m=>!m.ok)?'이 폴더 영상(mov)은 브라우저에서 못 열어요. 왼쪽 아래 「Claude에게 mp4 변환 맡기기」를 눌러 주세요':'영상이 없어요. Studio에서 녹화하거나 mp4를 넣어 주세요'):Object.keys(S.data.takes).some(k=>S.data.takes[k].words)?'블록에 테이크가 없어요 — ✨ 자동 초안 만들기를 눌러 주세요':'받아쓰기 중이에요…';
   if(!r) save();
 }
@@ -465,7 +466,7 @@ setInterval(async()=>{ if(!S.dir||!S.data||S.exporting||S.playing||S.data.status
     for(const [name,h] of add){ const f=await h.getFile(); if(Date.now()-f.lastModified<3000) return; } // still being written
     for(const [name,h] of add){ S.files[name]=h; const base=name.replace(/\.\w+$/,''), cam=(base.match(/_cam(\d)$/)||[])[1];
       const m={file:name,take:base.replace(/_cam\d$/,''),cam:cam?'cam'+cam:'',cx:0.5,cy:0.36}; S.data.media.push(m); const f=await h.getFile(); S.urls[name]=URL.createObjectURL(f); Object.assign(m,await probe(S.urls[name])) }
-    renderMedia(); save(); toast('📥 새 영상 '+add.length+'개를 찾았어요. 받아쓰기를 시작해요',3500); await ensurePeaks(); transcribeAll(false) }catch(e){}
+    renderMedia(); save(); if(S.data.cmatch&&S.data.cmatch.on) colorMatch(null,true); toast('📥 새 영상 '+add.length+'개를 찾았어요. 받아쓰기를 시작해요',3500); await ensurePeaks(); transcribeAll(false) }catch(e){}
 },6000);
 setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
   try{const h=await child(S.dir,'project.json','file'); if(!h) return; const f=await h.getFile(); if(f.lastModified<=S.mtime) return;
@@ -498,6 +499,13 @@ $('caption').addEventListener('input',()=>{S.data.caption=$('caption').value; sa
 function takeList(){const t={}; S.data.media.filter(m=>m.ok).forEach(m=>{(t[m.take]=t[m.take]||[]).push(m)}); Object.values(t).forEach(a=>a.sort((x,y)=>(x.cam||'').localeCompare(y.cam||''))); return t}
 const prim=take=>{const a=takeList()[take]; return a?a[0]:null};
 function renderMedia(){const b=$('mlist'); b.textContent=''; const T=takeList();
+  const okm=S.data.media.filter(m=>m.ok); if(okm.length>1){ const C=S.data.cmatch||{}; const cr=el('div','row'); cr.style.cssText='gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 8px;padding:6px 8px;border:1px solid var(--line,#333);border-radius:8px';
+    const lab=el('b',null,'🎨 테이크 색 맞추기'); const sel=document.createElement('select'); sel.title='이 영상의 색감에 나머지를 맞춰요'; sel.style.maxWidth='200px';
+    okm.forEach(m=>{ const o=document.createElement('option'); o.value=m.file; o.textContent='기준: '+m.take.replace(/^kyu_[^_]+_/,'')+(m.cam?' '+m.cam.replace('cam','카메라 '):''); sel.appendChild(o) }); sel.value=C.ref||cmRefDefault()||'';
+    const go=el('button','btn sm',C.on?'다시 맞추기':'맞추기'); go.onclick=()=>colorMatch(sel.value);
+    sel.onchange=()=>colorMatch(sel.value);
+    const off=el('button','btn sm',C.on?'끄기':'켜기'); off.disabled=!C.m; off.onclick=()=>{ S.data.cmatch.on=!S.data.cmatch.on; save(); renderMedia(); drawAt(S.outT) };
+    cr.append(lab,sel,go,off,el('span','hint',C.on?'✓ 켜짐 — 미리보기·내보내기에 적용':'카메라·조명이 달라도 같은 색감으로')); b.appendChild(cr) }
   Object.entries(T).forEach(([k,ms])=>{const tr=S.data.takes[k]; const r=el('div',null); r.style.margin='4px 0';
     r.append(el('b',null,k),document.createTextNode(' · '+fmt(ms[0].dur)+(ms.length>1?' · 카메라 '+ms.length+'대':'')+(tr&&tr.words?' · 받아쓰기 ✓':' · 받아쓰기 전')));
     const fr=el('div','row'); fr.style.cssText='gap:6px;flex-wrap:wrap;margin-top:3px;align-items:center'; fr.appendChild(el('span','hint','🎨 필터'));
@@ -801,22 +809,41 @@ let GL=null;
 function lookGL(){ if(GL!==null) return GL; try{ const c=document.createElement('canvas'), g=c.getContext('webgl',{premultipliedAlpha:false,antialias:false}); if(!g) return GL=false;
   const sh=(t,src)=>{const x=g.createShader(t); g.shaderSource(x,src); g.compileShader(x); return x};
   const pr=g.createProgram(); g.attachShader(pr,sh(g.VERTEX_SHADER,'attribute vec2 p;varying vec2 u;void main(){u=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0,1);}'));
-  g.attachShader(pr,sh(g.FRAGMENT_SHADER,`precision mediump float;varying vec2 u;uniform sampler2D T;uniform vec2 px;uniform float sh,b,c,s,g,hl;uniform vec3 t,l;
-   void main(){vec3 o=texture2D(T,u).rgb;vec3 n=texture2D(T,u+vec2(px.x,0.)).rgb+texture2D(T,u-vec2(px.x,0.)).rgb+texture2D(T,u+vec2(0.,px.y)).rgb+texture2D(T,u-vec2(0.,px.y)).rgb;
+  g.attachShader(pr,sh(g.FRAGMENT_SHADER,`precision mediump float;varying vec2 u;uniform sampler2D T;uniform vec2 px;uniform float sh,b,c,s,g,hl;uniform vec3 t,l,mg,mo;
+   void main(){vec3 o=texture2D(T,u).rgb;vec3 n=texture2D(T,u+vec2(px.x,0.)).rgb+texture2D(T,u-vec2(px.x,0.)).rgb+texture2D(T,u+vec2(0.,px.y)).rgb+texture2D(T,u-vec2(0.,px.y)).rgb;o=o*mg+mo;n=n*mg+4.*mo;
    vec3 x=o+sh*(4.*o-n);x*=b;x=mix(x,.62+(x-.62)*(1.-hl),step(.62,x)*hl/max(hl,.0001));x=(x-.5)*c+.5;float L=dot(x,vec3(.299,.587,.114));x=mix(vec3(L),x,s);x=x*t+l*(1.-x);x=pow(clamp(x,0.,1.),vec3(g));gl_FragColor=vec4(x,1.);}`));
   g.linkProgram(pr); if(!g.getProgramParameter(pr,g.LINK_STATUS)) return GL=false; g.useProgram(pr);
   const bf=g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER,bf); g.bufferData(g.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),g.STATIC_DRAW); const a=g.getAttribLocation(pr,'p'); g.enableVertexAttribArray(a); g.vertexAttribPointer(a,2,g.FLOAT,false,0,0);
   const tx=g.createTexture(); g.bindTexture(g.TEXTURE_2D,tx); [g.TEXTURE_WRAP_S,g.TEXTURE_WRAP_T].forEach(k=>g.texParameteri(g.TEXTURE_2D,k,g.CLAMP_TO_EDGE)); [g.TEXTURE_MIN_FILTER,g.TEXTURE_MAG_FILTER].forEach(k=>g.texParameteri(g.TEXTURE_2D,k,g.LINEAR));
-  const U={}; ['px','sh','b','c','s','g','t','l','hl'].forEach(k=>U[k]=g.getUniformLocation(pr,k)); return GL={c,g,U} }catch(e){ return GL=false } }
+  const U={}; ['px','sh','b','c','s','g','t','l','hl','mg','mo'].forEach(k=>U[k]=g.getUniformLocation(pr,k)); return GL={c,g,U} }catch(e){ return GL=false } }
+/* color match: make every take/camera look like one reference (mean/contrast per channel) */
+async function colorStats(m){ const v=document.createElement('video'); v.muted=true; v.preload='auto'; v.src=S.urls[m.file];
+  await new Promise((r,j)=>{v.onloadeddata=r; v.onerror=j; setTimeout(r,8000)}); const c=document.createElement('canvas'); c.width=36; c.height=64; const x=c.getContext('2d',{willReadFrequently:true});
+  const sum=[0,0,0],sq=[0,0,0]; let n=0; const D=v.duration||m.dur||10;
+  for(let k=0;k<8;k++){ v.currentTime=D*(k+0.5)/8; await new Promise(r=>{v.onseeked=r; setTimeout(r,3000)});
+    const vw=v.videoWidth,vh=v.videoHeight; if(!vw) continue; const cw=Math.min(vw,vh*9/16); x.drawImage(v,(vw-cw)/2,0,cw,vh,0,0,36,64);
+    const d=x.getImageData(0,0,36,64).data; for(let i=0;i<d.length;i+=4) for(let ch=0;ch<3;ch++){ const val=d[i+ch]/255; sum[ch]+=val; sq[ch]+=val*val } n+=d.length/4 }
+  v.removeAttribute('src'); v.load(); if(!n) return null; const mu=sum.map(a=>a/n); return {mu,sd:sq.map((a,i)=>Math.sqrt(Math.max(1e-4,a/n-mu[i]*mu[i])))} }
+function cmRefDefault(){ const use={}; S.data.blocks.forEach(bk=>{ const m=bk.on&&bk.take&&mediaOf(bk); if(m) use[m.file]=(use[m.file]||0)+Math.max(0.1,bk.b-bk.a) });
+  const ms=S.data.media.filter(m=>m.ok); return (Object.entries(use).sort((a,b)=>b[1]-a[1])[0]||[])[0]||(ms[0]&&ms[0].file) }
+async function colorMatch(ref,quiet){ const ms=S.data.media.filter(m=>m.ok&&S.urls[m.file]); if(ms.length<2){ if(!quiet) toast('영상이 2개 이상일 때 맞출 수 있어요'); return }
+  const C=S.data.cmatch=Object.assign(S.data.cmatch||{},{on:true}); C.ref=ref||C.ref||cmRefDefault(); C.st=C.st||{}; if(!quiet) toast('🎨 테이크 색을 맞추는 중…',2500);
+  for(const m of ms) if(!C.st[m.file]){ try{ C.st[m.file]=await colorStats(m) }catch(e){} }
+  const R0=C.st[C.ref]; if(!R0){ if(!quiet) toast('기준 영상을 못 읽었어요'); return } C.m={};
+  ms.forEach(m=>{ const s0=C.st[m.file]; if(!s0||m.file===C.ref) return; const g=[0,1,2].map(i=>Math.min(1.35,Math.max(0.75,R0.sd[i]/s0.sd[i])));
+    C.m[m.file]={g,o:[0,1,2].map(i=>Math.min(0.15,Math.max(-0.15,R0.mu[i]-s0.mu[i]*g[i])))} });
+  save(); renderMedia(); drawAt(S.outT); if(!quiet) toast('🎨 모든 테이크를 「'+C.ref.replace(/^kyu_[^_]+_/,'').replace(/\.\w+$/,'')+'」 색감에 맞췄어요',3500) }
 function filtOf(m){ const tf=S.data.tfilt||{}; return (m&&(tf[m.take+'|'+(m.cam||'')]||tf[m.take]))||S.data.filter }
-function applyLook(cx,W,H,f){ const L=LOOK[f||S.data.filter]; if(!L) return; const G=lookGL(); if(!G) return; const {c,g,U}=G;
+const LOOK0={sh:0,b:1,c:1,s:1,t:[1,1,1],l:[0,0,0],g:1};
+function cmOf(m){ const C=S.data.cmatch; return C&&C.on&&m&&C.m&&C.m[m.file]||null }
+function applyLook(cx,W,H,f,cm){ const L=LOOK[f||S.data.filter]||(cm?LOOK0:null); if(!L) return; const G=lookGL(); if(!G) return; const {c,g,U}=G;
   if(c.width!==W||c.height!==H){c.width=W;c.height=H} g.viewport(0,0,W,H);
   g.texImage2D(g.TEXTURE_2D,0,g.RGBA,g.RGBA,g.UNSIGNED_BYTE,cx.canvas);
-  g.uniform2f(U.px,1/W,1/H); g.uniform1f(U.sh,L.sh*(W/1080)); g.uniform1f(U.b,L.b); g.uniform1f(U.c,L.c); g.uniform1f(U.s,L.s); g.uniform1f(U.g,L.g); g.uniform3fv(U.t,L.t); g.uniform3fv(U.l,L.l); g.uniform1f(U.hl,L.hl||0);
+  g.uniform2f(U.px,1/W,1/H); g.uniform1f(U.sh,L.sh*(W/1080)); g.uniform1f(U.b,L.b); g.uniform1f(U.c,L.c); g.uniform1f(U.s,L.s); g.uniform1f(U.g,L.g); g.uniform3fv(U.t,L.t); g.uniform3fv(U.l,L.l); g.uniform1f(U.hl,L.hl||0); g.uniform3fv(U.mg,cm?cm.g:[1,1,1]); g.uniform3fv(U.mo,cm?cm.o:[0,0,0]);
   g.drawArrays(g.TRIANGLE_STRIP,0,4); cx.drawImage(c,0,0,W,H) }
 function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); S.emHits=[]; if(!v||!s) return;
   const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; const mm=Object.assign({},s.m,bk.cx!=null?{cx:bk.cx,cy:bk.cy}:{},bk.z?{zm:bk.z}:{});
-  const fk=filtOf(s.m); if(bk.teach&&bk.teach.on) drawTeach(ctx,W,H,v,mm,bk,prog,el,FILT[fk]||'none'); else { drawShot(ctx,W,H,v,mm,bk.shot,prog,el,FILT[fk]||'none'); applyLook(ctx,W,H,fk) }
+  const fk=filtOf(s.m); if(bk.teach&&bk.teach.on) drawTeach(ctx,W,H,v,mm,bk,prog,el,FILT[fk]||'none'); else { drawShot(ctx,W,H,v,mm,bk.shot,prog,el,FILT[fk]||'none'); applyLook(ctx,W,H,fk,cmOf(s.m)) }
   drawOverlays(t); drawCaptions(t,bk); if(!S.exporting) drawSafe(); updTC(); }
 /* safe zones (preview only, never exported) — px on a 1080x1920 frame */
 const SAFE={ig:{n:'인스타 릴스',top:220,bot:420,right:130,rTop:860,left:40,lab:['상단 메뉴','캡션 · 계정명 · 음악','좋아요·댓글·공유']},
