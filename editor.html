@@ -974,7 +974,7 @@ function renderCaps(){ if(!S.data) return; const a=curAcc(); $('accSel').querySe
   $('tags').value=lsGet('kyu-tags-'+a,ACC[a].tags); const C=capData(), box=$('capModes'); box.textContent='';
   Object.entries(CMODE).forEach(([k,lab])=>{ const d=el('div','cm'+(S.data.capMode===k?' on':'')); d.appendChild(el('b',null,lab+(S.data.captions?.[k]?'':' · 자동 초안'))); d.appendChild(document.createTextNode(C[k]||'(블록이 없어요)'));
     d.onclick=()=>{ S.data.capMode=k; S.data.caption=C[k]; $('caption').value=C[k]; renderCaps(); save() }; box.appendChild(d) });
-  const u=S.data.upload, st=$('upSt'); if(u&&u.state){ st.style.display='block'; st.textContent={requested:'🕓 올리기 요청됨 — Claude 채팅에 붙여 넣으면 바로 올려요',posted:'✅ 올렸어요'}[u.state]+' · '+ACC[u.acc].name+' · '+new Date(u.at).toLocaleString().slice(0,-3)+(u.url?' · '+u.url:'') } else st.style.display='none' }
+  const u=S.data.upload, st=$('upSt'); if(u&&u.state){ st.style.display='block'; st.textContent=({requested:'🕓 올리기 요청됨 — Claude 채팅에 붙여 넣으면 바로 올려요',scheduled:'📅 예약됨'+(u.when?' ('+u.when+')':''),posted:'✅ 올렸어요'}[u.state]||u.state)+' · '+ACC[u.acc].name+' · '+new Date(u.at).toLocaleString().slice(0,-3)+(u.url?' · '+u.url:'') } else st.style.display='none' }
 $('accSel').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; lsSet('kyu-acc',b.dataset.a); if(S.data.upload) S.data.upload.acc=b.dataset.a; renderCaps() };
 $('tags').addEventListener('input',()=>lsSet('kyu-tags-'+curAcc(),$('tags').value));
 function fullText(){ return ($('caption').value.trim()+'\n\n'+$('tags').value.trim()).trim() }
