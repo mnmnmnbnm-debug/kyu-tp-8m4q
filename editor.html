@@ -1031,12 +1031,23 @@ $('skClose').onclick=$('skCancel').onclick=()=>$('dlgSkills').close();
 $('skAdd').onclick=async()=>{ const name=prompt('새 스킬 이름'); if(!name) return; const desc=prompt('어떻게 편집할지 설명')||''; const order=SK.reduce((m,x)=>Math.max(m,x.order||0),0)+1;
   try{ const j=await hubApi('add',{collection:'skills',data:{name,desc,on:true,order}}); SK.push({id:j.id||('n'+Date.now()),name,desc,on:true,order}); renderSkills(); toast('스킬을 추가했어요') }catch(e){ toast('추가하지 못했어요') } };
 $('skGo').onclick=()=>{ if(S.data.blocks.some(b=>b.take)&&!confirm('대본 줄마다 테이크를 다시 골라 블록을 새로 만들어요. 지금 블록 설정(화면·글씨)은 사라져요. 계속할까요?')) return; $('dlgSkills').close(); draftWithSkills() };
+/* shot by what the line does: hook/twist -> push in, explain -> wide/pan, Korean word -> close, past/history -> bw/pull back, ending -> close */
+function shotFor(text,i,n,prev){ const t=text.toLowerCase().replace(/\*/g,''), ko=/[가-힣]/.test(t);
+  const cand=[];
+  if(i===0) cand.push('snap','zoomin');
+  else if(i===n-1||/coment|sígueme|siguenos|dime|guarda|comparte|¿y tú|y tu\b/.test(t)) cand.push('close','zoomin');
+  else if(/^¡|!$|\bojo\b|^pero\b|en realidad|sabías|nadie|ni siquiera|increíble|secreto|¿sabes/.test(t)||/[¿?]/.test(t)) cand.push('snap','zoomin','shake');
+  else if(/\bantes\b|historia|hace \d+|años|antigu|siglo|dinast|gobierno|\b1\d{3}\b|\b20\d\d\b/.test(t)) cand.push('zoomout','bw','pan');
+  else if(ko||/se llama|se dice|significa|literalmente|pronuncia|palabra/.test(t)) cand.push('close','zoomin');
+  else if(/es como|porque|para decir|por eso|así que|o sea|por ejemplo|hay |tienen|revisan|busca/.test(t)) cand.push('wide','pan','zoomout');
+  else cand.push('wide','close','pan');
+  return cand.find(x=>x!==prev)||cand[0] }
 function draftWithSkills(){ const on=new Set(SK.filter(s=>s.on).map(s=>s.id)), has=id=>on.has(id); const D=S.data;
   if(SK.length){ D.gap=has('s01')?0.4:0; D.speed=has('s10')?1.15:1; D.sfx=has('s08')?1:0; if(has('s09')&&D.filter==='off') D.filter='mid';
     D.cap.mode=has('8cef415a3b34')?'pop':has('s05')?'line':'off'; D.format=has('s03')?'reel':D.format }
   draft(true);
   const B=D.blocks, mix=!SK.length||has('s04');
-  B.forEach((bk,i)=>{ if(!mix) bk.shot=has('s19')&&i%2?'zoomin':'wide'; if(SK.length&&has('s34')&&/[!¡]/.test(bk.text)&&i>0) bk.shot='shake';
+  let prevShot=''; B.forEach((bk,i)=>{ if(mix){ bk.shot=shotFor(bk.text,i,B.length,prevShot); prevShot=bk.shot } else bk.shot=has('s19')&&i%2?'zoomin':'wide'; if(SK.length&&has('s34')&&/[!¡]/.test(bk.text)&&i>0) bk.shot='shake';
     if(SK.length&&!has('s07')) bk.ov=(bk.ov||[]).filter(o=>o.type!=='card');
     if(has('s22')){ const em=/[¿?]/.test(bk.text)?'🤔':/[!¡]/.test(bk.text)?'😮':''; if(em&&!(bk.ov||[]).some(o=>o.type==='emoji')) (bk.ov=bk.ov||[]).push({type:'emoji',text:em,at:null}) }
     if(has('s31')){ const h=(bk.text.match(/[가-힣]+/g)||[]); if(h.length&&!bk.teach){ bk.teach={on:true,text:h.join(' '),sub:romanize(h.join(''),true),pos:'bl'}; bk.ov=(bk.ov||[]).filter(o=>o.type!=='card') } } });
