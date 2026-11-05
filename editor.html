@@ -94,6 +94,12 @@ textarea{width:100%;resize:vertical}
 .cand{border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;background:var(--panel2)}
 .cand.on{border-color:var(--accent);color:var(--accent)}
 .wave{position:relative}
+.tcmp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:2px 0 4px}
+.tcmp .tc{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:6px;display:flex;flex-direction:column;gap:5px}
+.tcmp .tc.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tcmp video{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:7px;background:#000;max-height:260px}
+.tcmp .tl b{display:block;font-size:12px}.tcmp .tl small{font-size:11px;color:var(--dim)}
+.tcmp .tcb{display:flex;gap:4px}.tcmp .tcb button{flex:1}
 .sfxl{position:relative;height:34px;background:#0a0d11;border:1px solid var(--line);border-radius:8px;cursor:copy;margin-top:-4px}
 .sfxl .lb{position:absolute;left:8px;top:8px;font-size:11px;color:var(--dim);pointer-events:none}
 .sfxl .mk{position:absolute;top:3px;transform:translateX(-50%);height:26px;min-width:26px;padding:0 4px;border-radius:7px;background:#2a2410;border:1px solid var(--accent);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none}
@@ -899,6 +905,22 @@ function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); l
   wrap.append(lane,bl,bar,ar,lst); requestAnimationFrame(draw); list(); laneDraw=draw; return wrap }
 let laneDraw=null;
 function wavePlayhead(s,src){ const open=S.sel!=null&&S.data.blocks[S.sel]===s.bk; const v=open?src:null; if(v===S.playSrc) return; S.playSrc=v; if(waveCtx&&(open||v==null)) waveCtx.redraw(); if(laneDraw&&!S.playing) laneDraw() }
+function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const vids=[];
+  const stopAll=()=>vids.forEach(v=>{ v.pause(); v.muted=true });
+  (bk.cands||[]).slice(0,6).forEach(cd=>{ (T[cd.take]||[]).forEach(m=>{ if(!S.urls[m.file]) return;
+    const on=bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2&&(bk.cam||'')===(m.cam||''); const card=el('div','tc'+(on?' on':''));
+    const v=document.createElement('video'); v.src=S.urls[m.file]; v.muted=true; v.playsInline=true; v.preload='metadata'; v.style.objectPosition=Math.round((m.cx??0.5)*100)+'% 35%';
+    v.onloadedmetadata=()=>{ v.currentTime=cd.a+Math.min(1,(cd.b-cd.a)/2) }; vids.push(v);
+    const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,Math.round(cd.score*100)+'% 일치 · '+(cd.b-cd.a).toFixed(1)+'초'));
+    const pb=el('button','btn sm','▶ 듣기'); let tmr=null;
+    pb.onclick=()=>{ stop(); stopAud(); const was=!v.paused; stopAll(); clearTimeout(tmr); if(was){ pb.textContent='▶ 듣기'; return }
+      vids.forEach(x=>x.parentNode.querySelector('.tcb button')&&(x.parentNode.querySelector('.tcb button').textContent='▶ 듣기'));
+      v.currentTime=Math.max(0,cd.a-0.1); v.muted=false; v.play(); pb.textContent='■ 멈춤'; const chk=()=>{ if(v.currentTime>=cd.b+0.15||v.paused){ v.pause(); v.muted=true; pb.textContent='▶ 듣기'; return } tmr=setTimeout(chk,60) }; chk() };
+    const use=el('button','btn sm primary',on?'✓ 사용 중':'이걸로'); use.disabled=on;
+    use.onclick=()=>{ stopAll(); pickCand(bk,cd); bk.cam=m.cam||''; buildTL(); renderBlocks(); save(); drawAt(bk._o+0.05); toast('이 블록을 '+lab.querySelector('b').textContent+'(으)로 바꿨어요') };
+    const bb=el('div','tcb'); bb.append(pb,use); card.append(v,lab,bb); wrap.appendChild(card) }) });
+  if(!wrap.children.length) wrap.appendChild(el('div','hint','비교할 영상이 없어요.'));
+  return wrap }
 function blockEditor(bk,i){ const box=el('div','bedit');
   // text
   const tr=el('div','row'); const ti=el('input'); ti.type='text'; ti.value=bk.text; ti.style.flex='1'; ti.title='자막 문장 (한글·*단어*는 노란색)';
@@ -910,7 +932,8 @@ function blockEditor(bk,i){ const box=el('div','bedit');
     x.onclick=()=>{ pickCand(bk,cd); buildTL(); renderBlocks(); save(); audition(cd.take,bk.a,bk.b) }; cr.appendChild(x) });
   const tsel=el('select'); Object.keys(takeList()).forEach(k=>{const o=el('option',null,k); o.value=k; tsel.appendChild(o)}); tsel.value=bk.take||''; tsel.title='테이크 직접 고르기';
   tsel.onchange=()=>{ bk.take=tsel.value; if(!bk.b||bk.b<=bk.a){bk.a=0; bk.b=Math.min(3,prim(bk.take).dur)} autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save() }; cr.appendChild(tsel);
-  box.appendChild(cr);
+  const cmpB=el('button','btn sm'+(S.cmpOpen?' on':''),'🎞️ 테이크 비교'); cmpB.title='후보 테이크와 카메라를 영상으로 나란히 보고 고르기'; cmpB.onclick=()=>{ S.cmpOpen=!S.cmpOpen; renderBlocks() }; if(cands.length) cr.appendChild(cmpB);
+  box.appendChild(cr); if(S.cmpOpen&&cands.length) box.appendChild(takeCompare(bk));
   if(!bk.take) return box;
   // waveform
   const wv=el('div','wave'); const c=el('canvas'); c.height=168; wv.appendChild(c); box.appendChild(wv); const lane=sfxLane(bk,()=>[v0,v1]); box.appendChild(lane);
@@ -1182,7 +1205,7 @@ function draftWithSkills(){ const on=new Set(SK.filter(s=>s.on).map(s=>s.id)), h
     D.cap.mode=has('8cef415a3b34')?'pop':has('s05')?'line':'off'; D.format=has('s03')?'reel':D.format }
   draft(true);
   const B=D.blocks, mix=!SK.length||has('s04');
-  let prevShot=''; B.forEach((bk,i)=>{ if(mix){ bk.shot=shotFor(bk.text,i,B.length,prevShot); prevShot=bk.shot } else bk.shot=has('s19')&&i%2?'zoomin':'wide'; if(SK.length&&has('s34')&&/[!¡]/.test(bk.text)&&i>0) bk.shot='shake';
+  let prevShot='', camI=0; const TLs=takeList(); B.forEach((bk,i)=>{ if(mix){ bk.shot=shotFor(bk.text,i,B.length,prevShot); prevShot=bk.shot; const ms=TLs[bk.take]||[]; if(ms.length>1){ bk.cam=ms[camI%ms.length].cam||''; camI++ } } else bk.shot=has('s19')&&i%2?'zoomin':'wide'; if(SK.length&&has('s34')&&/[!¡]/.test(bk.text)&&i>0) bk.shot='shake';
     if(SK.length&&!has('s07')) bk.ov=(bk.ov||[]).filter(o=>o.type!=='card');
     if(has('s22')){ const em=/[¿?]/.test(bk.text)?'🤔':/[!¡]/.test(bk.text)?'😮':''; if(em&&!(bk.ov||[]).some(o=>o.type==='emoji')) (bk.ov=bk.ov||[]).push({type:'emoji',text:em,at:null}) }
     if(has('s31')){ const h=(bk.text.match(/[가-힣]+/g)||[]); if(h.length&&!bk.teach){ bk.teach={on:true,text:h.join(' '),sub:romanize(h.join(''),true),pos:'bl'}; bk.ov=(bk.ov||[]).filter(o=>o.type!=='card') } } });
