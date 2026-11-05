@@ -854,7 +854,7 @@ $('expBtn').onclick=async()=>{
   await sleep(250); rec.stop(); await done; clearInterval(tk); bar.style.width='100%';
   const ext=mime.startsWith('video/mp4')?'mp4':'webm'; const v=(S.data.renders||[]).length+1; const name=`${S.data.title.replace(/[\/\\:*?"<>|#]/g,'').trim()}_v${v}.${ext}`;
   try{ const rd=await S.dir.getDirectoryHandle('renders',{create:true}); await writeFile(rd,name,new Blob(chunks,{type:mime.split(';')[0]}));
-    (S.data.renders=S.data.renders||[]).push({v,file:'renders/'+name,at:Date.now(),dur:+S.total.toFixed(2)}); $('expInfo').textContent='저장했어요: '+S.folder+'/renders/'+name+(ext==='webm'?' (webm)':'') }
+    (S.data.renders=S.data.renders||[]).push({v,file:'renders/'+name,at:Date.now(),dur:+S.total.toFixed(2),sig:editSig()}); $('expInfo').textContent='저장했어요: '+S.folder+'/renders/'+name+(ext==='webm'?' (webm)':'') }
   catch(e){ $('expInfo').textContent='폴더에 저장하지 못해 다운로드로 받아요'; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(chunks)); a.download=name; a.click() }
   S.exporting=false; S.data.status={state:'idle'}; $('expBtn').disabled=false; setTimeout(()=>pr.hidden=true,2500); renderRenders(); save();
 };
@@ -925,7 +925,7 @@ async function exportExact(){
   while(f<total){ const s=S.tl[S.tl.length-1]; await emit(f/FPS,s) }
   await ve.flush(); mux.finalize(); v.removeAttribute('src'); v.load();
   const blob=new Blob([target.buffer],{type:'video/mp4'}); const vn=(S.data.renders||[]).length+1; const name=`${S.data.title.replace(/[\/\\:*?"<>|#]/g,'').trim()}_v${vn}.mp4`;
-  try{ const rd=await S.dir.getDirectoryHandle('renders',{create:true}); await writeFile(rd,name,blob); (S.data.renders=S.data.renders||[]).push({v:vn,file:'renders/'+name,at:Date.now(),dur:+S.total.toFixed(2)}); $('expInfo').textContent='저장했어요: '+S.folder+'/renders/'+name }
+  try{ const rd=await S.dir.getDirectoryHandle('renders',{create:true}); await writeFile(rd,name,blob); (S.data.renders=S.data.renders||[]).push({v:vn,file:'renders/'+name,at:Date.now(),dur:+S.total.toFixed(2),sig:editSig()}); $('expInfo').textContent='저장했어요: '+S.folder+'/renders/'+name }
   catch(e){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); $('expInfo').textContent='다운로드로 저장했어요: '+name }
   S.exporting=false; S.data.status={state:'idle'}; $('expBtn').disabled=false; bar.style.width='100%'; setTimeout(()=>pr.hidden=true,2500); renderRenders(); save(); drawAt(S.outT);
 }
@@ -958,6 +958,7 @@ $('mVol').oninput=()=>{ musCfg().vol=+$('mVol').value; if(MG&&AC) MG.gain.setTar
 $('mNext').onclick=()=>{ const m=musCfg(); (m.hist=m.hist||[]).push(m.seed); m.hist=m.hist.slice(-20); m.seed=(m.seed|0)+1+Math.floor(Math.random()*97); m.on=true; musChanged() };
 $('mPrev').onclick=()=>{ const m=musCfg(); if(!m.hist||!m.hist.length) return; m.seed=m.hist.pop(); musChanged() };
 
+function editSig(){ const d=S.data; const j=JSON.stringify([d.format,d.speed,d.gap,d.cap,d.filter,d.sfx,d.music&&d.music.on?[d.music.style,d.music.seed,d.music.vol]:0,d.blocks.map(b=>[b.on,b.take,b.cam,b.a,b.b,b.cuts,b.shot,b.ov,b.cx,b.cy,b.text])]); let h=0; for(let i=0;i<j.length;i++) h=(h*31+j.charCodeAt(i))|0; return h.toString(36) }
 /* ================= caption · upload ================= */
 const ACC={personal:{name:'개인 @soykyu_coreano',nets:['instagram','tiktok'],tags:'#coreano #aprendecoreano #idiomacoreano #coreanoparaprincipiantes #corea #hangul #kdrama #kpop #mexico'},
   academy:{name:'학원 @institutocoreanokyu',nets:['instagram','facebook'],tags:'📍 Clases de coreano en CDMX · Inscripciones por DM\n#InstitutoCoreanoKYU #clasesdecoreano #coreanoCDMX #aprendecoreano #coreano #cdmx #idiomas #corea'}};
@@ -979,7 +980,10 @@ $('accSel').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; lsSe
 $('tags').addEventListener('input',()=>lsSet('kyu-tags-'+curAcc(),$('tags').value));
 function fullText(){ return ($('caption').value.trim()+'\n\n'+$('tags').value.trim()).trim() }
 $('capCopy').onclick=()=>{navigator.clipboard.writeText(fullText()); toast('캡션+해시태그를 복사했어요')};
-$('upBtn').onclick=async()=>{ const R=S.data.renders||[]; if(!R.length){toast('먼저 🎬 내보내기로 영상을 만들어 주세요',3500);return}
+$('upBtn').onclick=async()=>{ if(!$('caption').value.trim()){toast('캡션을 하나 골라 주세요');return}
+  let R=S.data.renders||[], last=R[R.length-1];
+  if(!last||last.sig!==editSig()){ toast('지금 편집한 그대로 먼저 내보내는 중이에요…',4000); await $('expBtn').onclick(); R=S.data.renders||[]; last=R[R.length-1];
+    if(!last||last.sig!==editSig()){ toast('내보내기가 끝나지 않았어요. 다시 눌러 주세요',4000); return } }
   if(!$('caption').value.trim()){toast('캡션을 하나 골라 주세요');return}
   const a=curAcc(), r=R[R.length-1]; if(!confirm(ACC[a].name+'에 「'+r.file.replace('renders/','')+'」을 올릴까요?')) return;
   S.data.upload={state:'requested',acc:a,nets:ACC[a].nets,text:fullText(),file:r.file,at:Date.now()}; S.data.status={state:'claude-requested',note:'upload',at:Date.now(),by:'user'}; await saveNow(); setPill(); renderCaps();
