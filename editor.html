@@ -581,7 +581,7 @@ document.addEventListener('keyup',e=>{ if(e.code==='Space'&&!typing(e.target)){ 
 let nowI=-1;
 function blockAt(t){ if(!S.tl.length) return -1; const s=S.tl[segAt(t)]; return s?s.bi:-1 }
 function markNow(t){ const bi=blockAt(t), box=$('blist'); if(!box) return;
-  if(bi!==nowI&&S.playing&&S.sel!=null&&nowI===S.sel&&bi!==S.sel){ S.sel=null; renderBlocks(); renderScrub(); return }
+  if(bi!==nowI&&S.playing&&S.stopAt==null&&S.sel!=null&&nowI===S.sel&&bi!==S.sel){ S.sel=null; renderBlocks(); renderScrub(); return }
   if(bi!==nowI){ box.querySelectorAll('.blk.now').forEach(x=>{x.classList.remove('now'); x.style.removeProperty('--p')}); nowI=bi;
     const row=box.querySelector(`.blk[data-i="${bi}"]`); if(row){ row.classList.add('now'); row.scrollIntoView({block:'nearest',behavior:S.playing?'smooth':'auto'}) } }
   const bk=S.data&&S.data.blocks[bi], row=box.querySelector(`.blk[data-i="${bi}"]`);
