@@ -1064,14 +1064,19 @@ function saveTake(ch,type,suffix,sec,no){
   const play=document.createElement('button'); play.className='btn'; play.textContent='보기';
   play.onclick=()=>{ if(playing&&playing.btn===play) closePlayer(); else showClip(url,play); play.blur(); };
   const save=document.createElement('button'); save.className='btn'; save.textContent='저장'; save.title='다운로드';
-  const doSave=async()=>{
-    if(dirH){ if(!dirOK) await ensureDir(); const p=await writeToDir(name,blob); if(p){save.textContent='✓ 폴더에 저장됨';save.title=p;markSaved();return} }
+  const doSave=async(auto)=>{
+    if(row.dataset.saved) return;
+    if(FS&&!auto&&!dirH){ if(confirm('「'+folderName()+'」 폴더에 저장할게요. 다음 창에서 「콘텐츠」 폴더를 골라 주세요.')){ await pickDir(); await refreshDir() } }
+    if(dirH){ if(!dirOK&&!auto) await ensureDir(); const p=await writeToDir(name,blob); if(p){save.textContent='✓ 폴더에 저장됨';save.title=p;markSaved();return} }
+    if(auto){ save.textContent='저장 (폴더 연결 필요)'; return }
+    if(FS&&!confirm('폴더에 저장하지 못했어요. 대신 다운로드 폴더에 받을까요?\n(취소하면 브라우저 백업에 그대로 남아요)')) return;
     if(dl){try{await dl.save({filename:name,data:blob});save.textContent='저장됨';markSaved();return}catch(e){if(e&&e.code==='declined')return; if(e&&e.code==='rate_limited'){save.textContent='잠시 후 다시';return}}}
     const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove(); save.textContent='저장됨'; markSaved();
     await new Promise(r=>setTimeout(r,400));
   };
   save.onclick=()=>{save.blur();doSave()};
   g.files.push({url,save:doSave,suffix,name,blob});
+  if(dirH&&dirOK) setTimeout(()=>doSave(true),300); // save straight into the script's folder
   row.append(label,play,save);
   if(dirH&&dirOK){ save.textContent='폴더에 저장 중…'; writeToDir(name,blob).then(p=>{ if(p){save.textContent='✓ 폴더에 저장됨'; save.title=p; markSaved()} else {save.textContent='저장'; $('dirInfo').textContent='폴더 저장에 실패했어요. 저장 버튼으로 다시 저장하세요.'} }) }
   // keep camera 1 above camera 2

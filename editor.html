@@ -545,9 +545,11 @@ async function transcribeAll(force){
       S.data.takes[k]=Object.assign(S.data.takes[k]||{},{words,peaks:pk2b(p),thr:st.thr,med:st.med,at:Date.now()}); PK[k]=p; save(); renderMedia();
     }
     S.data.status={state:'idle'};
+    const untouched=S.data.draftSig&&S.data.draftSig===blkSig();
+    if(S.pendingDraft||(!force&&untouched&&S.data.blocks.some(b=>b.take))){ S.pendingDraft=false; $('trInfo').textContent='받아쓰기 끝. 새 테이크까지 넣어 초안을 다시 만들었어요.'; $('trBtn').disabled=false; pr.hidden=true; draftWithSkills(); toast('🎬 새 테이크까지 비교해서 초안을 다시 만들었어요',4500); setPill(); return }
     if(!force&&S.data.blocks.some(b=>b.take)){ // new takes added to an edited project: offer them, keep the edit
       S.data.blocks.forEach(bk=>{ bk.cands=findCands(bk.text); bk.cands.forEach(cd=>cd.q=candQuality(bk.text,cd)) }); buildTL(); renderBlocks(); save();
-      $('trInfo').textContent='새 테이크 받아쓰기 끝.'; toast('🎬 새 테이크를 추가했어요 — 블록의 🎞️ 테이크 비교에서 고를 수 있어요 (편집은 그대로)',5000); setPill(); return }
+      $('trInfo').textContent='새 테이크 받아쓰기 끝.'; $('trBtn').disabled=false; pr.hidden=true; toast('🎬 새 테이크를 추가했어요 — 편집을 고친 상태라 그대로 뒀어요. 새 테이크로 다시 만들려면 ✨ 자동 초안 만들기를 눌러 주세요',6500); setPill(); return }
     $('trInfo').textContent='받아쓰기 끝. 블록을 만들었어요.';
     draft(!S.data.blocks.some(b=>b.take));
   }catch(e){console.error(e); $('trInfo').textContent='받아쓰기 실패: '+e.message; S.data.status={state:'idle'}}
@@ -609,8 +611,8 @@ function draft(rebuild){
     S.data.blocks.forEach(bk=>{ bk.cands=findCands(bk.text) });
     // keep one recording session when possible (same clothes, light, camera)
     const cnt={}; S.data.blocks.forEach(bk=>{ const c=bk.cands; if(!c.length) return; new Set(c.filter(x=>x.score>=c[0].score-0.12).map(x=>x.take)).forEach(k=>cnt[k]=(cnt[k]||0)+1) });
-    const order=Object.keys(cnt).sort((a,b)=>(cnt[b]-cnt[a])||b.localeCompare(a)); const primary=order[0];
-    S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ c.forEach(x=>x.q=candQuality(bk.text,x)+(x.take===primary?0.03:0)); const best=[...c].sort((x,y)=>(y.q-x.q)||(y.a-x.a))[0]; pickCand(bk,best,true) } else {bk.take=null} if(rebuild){ bk.shot=SHOTROT[i%SHOTROT.length]; delete bk.shot0 } });
+    const order=Object.keys(cnt).sort((a,b)=>(cnt[b]-cnt[a])||b.localeCompare(a)); const primary=order[0]; const newest=Object.keys(takeList()).filter(k=>S.data.takes[k]&&S.data.takes[k].words).sort().pop();
+    S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ c.forEach(x=>x.q=candQuality(bk.text,x)+(x.take===primary?0.02:0)+(x.take===newest?0.04:0)); /* a re-recorded take is usually the better one */ const best=[...c].sort((x,y)=>(y.q-x.q)||(y.a-x.a))[0]; pickCand(bk,best,true) } else {bk.take=null} if(rebuild){ bk.shot=SHOTROT[i%SHOTROT.length]; delete bk.shot0 } });
     gapFill();
     if(S.data.blocks.length) S.data.blocks[S.data.blocks.length-1].shot='close';
     mixCams();
@@ -1113,7 +1115,7 @@ function blockEditor(bk,i){ const box=el('div','bedit');
   return box }
 function moveBlk(i,d){ const B=S.data.blocks, j=i+d; if(j<0||j>=B.length) return; [B[i],B[j]]=[B[j],B[i]]; S.sel=j; buildTL(); renderBlocks(); save() }
 $('addBlk').onclick=()=>{ const k=Object.keys(takeList())[0]; S.data.blocks.push({id:'b'+Date.now().toString(36),text:'새 블록',take:k||null,cam:'',a:0,b:k?Math.min(3,prim(k).dur):0,cuts:[],shot:'wide',ov:[],on:true,cands:[]}); S.sel=S.data.blocks.length-1; buildTL(); renderBlocks(); save() };
-$('draftBtn').onclick=()=>{ if(!Object.keys(S.data.takes).some(k=>S.data.takes[k].words)){toast('먼저 받아쓰기를 해 주세요');return} openSkills() };
+$('draftBtn').onclick=()=>{ if(S.data.status?.state==='transcribing'){ openSkills(); toast('⏳ 아직 새 영상을 받아쓰는 중이에요 — 끝나면 이 스킬로 초안을 다시 만들어요',5000); return } if(!Object.keys(S.data.takes).some(k=>S.data.takes[k].words)){toast('먼저 받아쓰기를 해 주세요');return} openSkills() };
 
 /* ================= export ================= */
 function renderRenders(){ const b=$('renders'); b.textContent=''; (S.data.renders||[]).slice().reverse().forEach(r=>{ const d=el('div'); d.textContent='v'+r.v+' · '+r.file+' · '+fmt(r.dur)+' · '+new Date(r.at).toLocaleString(); b.appendChild(d) }) }
@@ -1302,7 +1304,7 @@ function skPreview(s){ const b=$('skPv'); b.querySelectorAll('video').forEach(v=
 $('skClose').onclick=$('skCancel').onclick=()=>$('dlgSkills').close();
 $('skAdd').onclick=async()=>{ const name=prompt('새 스킬 이름'); if(!name) return; const desc=prompt('어떻게 편집할지 설명')||''; const order=SK.reduce((m,x)=>Math.max(m,x.order||0),0)+1;
   try{ const j=await hubApi('add',{collection:'skills',data:{name,desc,on:true,order}}); SK.push({id:j.id||('n'+Date.now()),name,desc,on:true,order}); renderSkills(); toast('스킬을 추가했어요') }catch(e){ toast('추가하지 못했어요') } };
-$('skGo').onclick=()=>{ if(S.data.blocks.some(b=>b.take)&&!confirm('대본 줄마다 테이크를 다시 골라 블록을 새로 만들어요. 지금 블록 설정(화면·글씨)은 사라져요. 계속할까요?')) return; $('dlgSkills').close(); draftWithSkills() };
+$('skGo').onclick=()=>{ if(S.data.blocks.some(b=>b.take)&&!confirm('대본 줄마다 테이크를 다시 골라 블록을 새로 만들어요. 지금 블록 설정(화면·글씨)은 사라져요. 계속할까요?')) return; $('dlgSkills').close(); if(S.data.status?.state==='transcribing'){ S.pendingDraft=true; toast('⏳ 받아쓰기가 끝나면 모든 테이크로 초안을 만들어요',4000); return } draftWithSkills() };
 /* shot by what the line does: hook/twist -> push in, explain -> wide/pan, Korean word -> close, past/history -> bw/pull back, ending -> close */
 function shotFor(text,i,n,prev){ const t=text.toLowerCase().replace(/\*/g,''), ko=/[가-힣]/.test(t);
   const cand=[];
@@ -1314,6 +1316,7 @@ function shotFor(text,i,n,prev){ const t=text.toLowerCase().replace(/\*/g,''), k
   else if(/es como|porque|para decir|por eso|así que|o sea|por ejemplo|hay |tienen|revisan|busca/.test(t)) cand.push('wide','pan','zoomout');
   else cand.push('wide','close','pan');
   return cand.find(x=>x!==prev)||cand[0] }
+function blkSig(){ return JSON.stringify((S.data.blocks||[]).map(b=>[b.text,b.on,b.shot,b.ov,b.teach,b.cuts,b.z,b.fx,b.fy])) }
 function draftWithSkills(){ const on=new Set(SK.filter(s=>s.on).map(s=>s.id)), has=id=>on.has(id); const D=S.data;
   if(SK.length){ D.gap=has('s01')?0.4:0; D.speed=has('s10')?1.15:1; D.sfx=has('s08')?1:0; if(has('s09')&&D.filter==='off') D.filter='mid';
     D.cap.mode=has('8cef415a3b34')?'pop':has('s05')?'line':'off'; D.format=has('s03')?'reel':D.format }
@@ -1327,7 +1330,7 @@ function draftWithSkills(){ const on=new Set(SK.filter(s=>s.on).map(s=>s.id)), h
   if(B.length>1&&has('s11')){ const L=B[B.length-1]; if(/[¿?]/.test(L.text)&&!(L.ov||[]).some(o=>o.type==='cta')) (L.ov=L.ov||[]).push({type:'cta',text:L.text.replace(/\*/g,'').slice(0,40),at:null}) }
   mixCams();
   D.skills=SK.filter(s=>s.on).map(s=>({id:s.id,name:s.name,auto:AUTO.has(s.id)}));
-  syncSettings(); buildTL(); renderBlocks(); save(); drawAt(0);
+  D.draftSig=blkSig(); syncSettings(); buildTL(); renderBlocks(); save(); drawAt(0);
   const cl=D.skills.filter(s=>!s.auto); if(cl.length) toast('🤖 '+cl.map(s=>s.name).slice(0,3).join(', ')+(cl.length>3?' 외 '+(cl.length-3)+'개':'')+'는 Claude에게 맡기면 적용돼요',5000) }
 
 /* ================= teaching screen (small face + explanation / photo) ================= */
