@@ -1191,12 +1191,15 @@ function drawTeach(c,W,H,v,m,bk,prog,el,filt){ const T=bk.teach, k=W/1080, top=T
   const LI=T.list&&T.list.on&&(T.list.items||[]).length?T.list.items:null;
   if(LI){ c.restore(); c.save(); c.textAlign='center'; c.textBaseline='top'; let yy=img?y:a0+H*0.01;
     if(T.text){ const fs=fitFont(c,T.text,96*k,W-pad*2,900); c.fillStyle='#1a1407'; c.fillText(T.text,W/2,yy); yy+=fs*1.25 }
-    const n=LI.length, avail=a1-yy, gap=20*k, ih=Math.min(130*k,(avail-gap*(n-1))/n), cols=['#ffcc33','#7ee0b5','#ffa3b5','#9cc8ff','#ffd28a','#c9b6ff'];
+    const n=LI.length, avail=Math.max(200*k,a1-yy), LS=T.list.s||1, ih=Math.min(140*k,avail/(n*1.7))*LS, gap=Math.min(90*k*LS,(avail-n*ih)/(n+1)), gh=n*ih+(n-1)*gap;
+    const cols=['#ffcc33','#7ee0b5','#ffa3b5','#9cc8ff','#ffd28a','#c9b6ff'], gcx=T.list.x!=null?T.list.x*W:W/2, gcy=T.list.y!=null?T.list.y*H:yy+avail/2;
+    const fsz=Math.min(ih*0.58,86*k*LS); c.font=`900 ${fsz}px "Noto Sans KR"`; const gw=Math.min(W*0.92,Math.max(...LI.map(it=>c.measureText(it.text).width))+fsz*1.6);
+    (S.emHits=S.emHits||[]).push({o:T.list,x:gcx,y:gcy,w:gw,h:gh});
     LI.forEach((it,j)=>{ const ot=srcToOut(bk,it.t)-bk._o, dt=el-ot; if(dt<0) return; const e=ease(Math.min(1,dt/0.3)), off=(1-e)*W*1.05;
-      const fs=Math.min(ih*0.58,82*k); c.font=`900 ${fs}px "Noto Sans KR"`; const tw=Math.min(W-pad*2,c.measureText(it.text).width+fs*1.6), x0=(W-tw)/2+off, y0=yy+j*(ih+gap);
+      c.font=`900 ${fsz}px "Noto Sans KR"`; const tw=Math.min(gw,c.measureText(it.text).width+fsz*1.6), x0=gcx-tw/2+off, y0=gcy-gh/2+j*(ih+gap);
       c.save(); c.globalAlpha=Math.min(1,dt/0.12); c.translate(x0+tw/2,y0+ih/2); c.rotate((1-e)*0.12); c.translate(-(x0+tw/2),-(y0+ih/2));
       c.shadowColor='rgba(0,0,0,.18)'; c.shadowBlur=16*k; c.beginPath(); c.roundRect(x0,y0,tw,ih,ih*0.28); c.fillStyle=cols[j%cols.length]; c.fill(); c.shadowBlur=0;
-      c.fillStyle='#1a1407'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(it.text,x0+tw/2,y0+ih/2+fs*0.04,tw-fs*0.6); c.restore() });
+      c.fillStyle='#1a1407'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(it.text,x0+tw/2,y0+ih/2+fsz*0.04,tw-fsz*0.6); c.restore() });
   } else if(T.text){ const fs=fitFont(c,T.text,(img?120:170)*k,W-pad*2,900); const by=img?y:y+Math.max(0,(room-fs*1.2-(T.sub?fs*0.9:0))/2);
     c.fillStyle='#1a1407'; c.fillText(T.text,W/2,by); y=by+fs*1.22;
     if(T.sub){ c.font=`600 ${Math.max(30,fs*0.36)}px "Noto Sans KR"`; c.fillStyle='#6b5326'; wrap(c,T.sub,W-pad*2).slice(0,4).forEach(l=>{ c.fillText(l,W/2,y); y+=Math.max(30,fs*0.36)*1.3 }) } }
@@ -1233,6 +1236,9 @@ function teachUI(bk){ const T=bk.teach||{}; const box=el('div','teach'); const r
     const re=el('button','btn sm','↺ 다시 찾기'); re.onclick=()=>{ L.items=fill(); save(); renderBlocks(); drawAt(bk._o+bk._d-0.05) };
     const pv=el('button','btn sm','▶ 미리보기'); pv.onclick=()=>playBlock(S.data.blocks.indexOf(bk));
     const r5=el('div','row'); r5.style.gap='6px'; r5.append(it,ks,re,pv); lb.appendChild(r5);
+    const ls=el('input'); ls.type='range'; ls.min=0.5; ls.max=1.8; ls.step=0.05; ls.value=L.s||1; ls.style.width='110px'; ls.oninput=()=>{ L.s=+ls.value; drawAt(bk._o+bk._d-0.05) }; ls.onchange=()=>save();
+    const lr2=el('button','btn sm','↺ 카드 위치·크기'); lr2.onclick=()=>{ delete L.x; delete L.y; delete L.s; save(); renderBlocks(); drawAt(bk._o+bk._d-0.05) };
+    const r6=el('div','row'); r6.style.gap='6px'; r6.append(el('span','lab','카드 크기'),ls,lr2,el('span','hint','화면에서 카드 묶음을 끌면 이동, 휠·핀치로 크기')); lb.appendChild(r6);
     if((L.items||[]).length){ const tl=el('div','hint'); tl.textContent='나오는 순간: '+L.items.map(x=>x.text+' '+Math.max(0,x.t-bk.a).toFixed(1)+'초').join(' · '); lb.appendChild(tl) } }
   box.appendChild(lb); return box }
 function editSig(){ const d=S.data; const j=JSON.stringify([d.format,d.speed,d.gap,d.cap,d.filter,d.sfx,d.music&&d.music.on?[d.music.style,d.music.seed,d.music.vol]:0,d.blocks.map(b=>[b.on,b.take,b.cam,b.a,b.b,b.cuts,b.shot,b.ov,b.cx,b.cy,b.z,JSON.stringify(b.teach||0),b.sfx,b.text])]); let h=0; for(let i=0;i<j.length;i++) h=(h*31+j.charCodeAt(i))|0; return h.toString(36) }
