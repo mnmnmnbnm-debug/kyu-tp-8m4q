@@ -499,7 +499,16 @@ function takeList(){const t={}; S.data.media.filter(m=>m.ok).forEach(m=>{(t[m.ta
 const prim=take=>{const a=takeList()[take]; return a?a[0]:null};
 function renderMedia(){const b=$('mlist'); b.textContent=''; const T=takeList();
   Object.entries(T).forEach(([k,ms])=>{const tr=S.data.takes[k]; const r=el('div',null); r.style.margin='4px 0';
-    r.append(el('b',null,k),document.createTextNode(' · '+fmt(ms[0].dur)+(ms.length>1?' · 카메라 '+ms.length+'대':'')+(tr&&tr.words?' · 받아쓰기 ✓':' · 받아쓰기 전'))); b.appendChild(r)});
+    r.append(el('b',null,k),document.createTextNode(' · '+fmt(ms[0].dur)+(ms.length>1?' · 카메라 '+ms.length+'대':'')+(tr&&tr.words?' · 받아쓰기 ✓':' · 받아쓰기 전')));
+    const fr=el('div','row'); fr.style.cssText='gap:6px;flex-wrap:wrap;margin-top:3px;align-items:center'; fr.appendChild(el('span','hint','🎨 필터'));
+    ms.forEach(m=>{ const key=m.take+'|'+(m.cam||''); const sel=document.createElement('select'); sel.style.maxWidth='170px';
+      sel.innerHTML='<option value="">'+(ms.length>1?(m.cam||'영상').replace('cam','카메라 ')+': ':'')+'전체 설정 따름</option>'+$('sFilter').innerHTML.replace(/<option value="(\w+)">/g,(x,v)=>'<option value="'+v+'">'+(ms.length>1?(m.cam||'').replace('cam','카메라 ')+': ':''));
+      sel.value=(S.data.tfilt||{})[key]||''; sel.title='이 테이크'+(ms.length>1?'의 '+(m.cam||'').replace('cam','카메라 '):'')+'에만 다른 필터를 써요';
+      sel.onchange=()=>{ S.data.tfilt=S.data.tfilt||{}; if(sel.value) S.data.tfilt[key]=sel.value; else delete S.data.tfilt[key]; save();
+        const bk=S.data.blocks.find(x=>x.on&&x.take===m.take&&(x.cam||'')===(m.cam||'')&&x._d)||S.data.blocks.find(x=>x.on&&x.take===m.take&&x._d);
+        if(bk){ S.outT=bk._o+Math.min(0.5,bk._d/2); drawAt(S.outT); toast('미리보기를 이 테이크가 나오는 곳으로 옮겼어요',2000) } else { drawAt(S.outT); toast('이 테이크는 아직 초안에 안 쓰였어요 — 쓰이면 이 필터가 적용돼요',3000) } };
+      fr.appendChild(sel) });
+    r.appendChild(fr); b.appendChild(r)});
   const bad=S.data.media.filter(m=>!m.ok); if(bad.length){ const good=Object.keys(T).length;
     if(good){ b.appendChild(el('div',null,'원본 mov '+bad.length+'개는 건너뛰고 mp4 변환본을 써요.')) }
     else { const r=el('div',null,'⚠️ 이 영상('+bad.map(m=>m.file).join(', ')+')은 ProRes mov라 브라우저에서 못 열어요. mp4로 바꿔야 해요.'); r.style.color='var(--red)'; b.appendChild(r);
@@ -799,14 +808,15 @@ function lookGL(){ if(GL!==null) return GL; try{ const c=document.createElement(
   const bf=g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER,bf); g.bufferData(g.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),g.STATIC_DRAW); const a=g.getAttribLocation(pr,'p'); g.enableVertexAttribArray(a); g.vertexAttribPointer(a,2,g.FLOAT,false,0,0);
   const tx=g.createTexture(); g.bindTexture(g.TEXTURE_2D,tx); [g.TEXTURE_WRAP_S,g.TEXTURE_WRAP_T].forEach(k=>g.texParameteri(g.TEXTURE_2D,k,g.CLAMP_TO_EDGE)); [g.TEXTURE_MIN_FILTER,g.TEXTURE_MAG_FILTER].forEach(k=>g.texParameteri(g.TEXTURE_2D,k,g.LINEAR));
   const U={}; ['px','sh','b','c','s','g','t','l','hl'].forEach(k=>U[k]=g.getUniformLocation(pr,k)); return GL={c,g,U} }catch(e){ return GL=false } }
-function applyLook(cx,W,H){ const L=LOOK[S.data.filter]; if(!L) return; const G=lookGL(); if(!G) return; const {c,g,U}=G;
+function filtOf(m){ const tf=S.data.tfilt||{}; return (m&&(tf[m.take+'|'+(m.cam||'')]||tf[m.take]))||S.data.filter }
+function applyLook(cx,W,H,f){ const L=LOOK[f||S.data.filter]; if(!L) return; const G=lookGL(); if(!G) return; const {c,g,U}=G;
   if(c.width!==W||c.height!==H){c.width=W;c.height=H} g.viewport(0,0,W,H);
   g.texImage2D(g.TEXTURE_2D,0,g.RGBA,g.RGBA,g.UNSIGNED_BYTE,cx.canvas);
   g.uniform2f(U.px,1/W,1/H); g.uniform1f(U.sh,L.sh*(W/1080)); g.uniform1f(U.b,L.b); g.uniform1f(U.c,L.c); g.uniform1f(U.s,L.s); g.uniform1f(U.g,L.g); g.uniform3fv(U.t,L.t); g.uniform3fv(U.l,L.l); g.uniform1f(U.hl,L.hl||0);
   g.drawArrays(g.TRIANGLE_STRIP,0,4); cx.drawImage(c,0,0,W,H) }
 function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); S.emHits=[]; if(!v||!s) return;
   const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; const mm=Object.assign({},s.m,bk.cx!=null?{cx:bk.cx,cy:bk.cy}:{},bk.z?{zm:bk.z}:{});
-  if(bk.teach&&bk.teach.on) drawTeach(ctx,W,H,v,mm,bk,prog,el,FILT[S.data.filter]||'none'); else { drawShot(ctx,W,H,v,mm,bk.shot,prog,el,FILT[S.data.filter]||'none'); applyLook(ctx,W,H) }
+  const fk=filtOf(s.m); if(bk.teach&&bk.teach.on) drawTeach(ctx,W,H,v,mm,bk,prog,el,FILT[fk]||'none'); else { drawShot(ctx,W,H,v,mm,bk.shot,prog,el,FILT[fk]||'none'); applyLook(ctx,W,H,fk) }
   drawOverlays(t); drawCaptions(t,bk); if(!S.exporting) drawSafe(); updTC(); }
 /* safe zones (preview only, never exported) — px on a 1080x1920 frame */
 const SAFE={ig:{n:'인스타 릴스',top:220,bot:420,right:130,rTop:860,left:40,lab:['상단 메뉴','캡션 · 계정명 · 음악','좋아요·댓글·공유']},
