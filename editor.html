@@ -94,6 +94,10 @@ textarea{width:100%;resize:vertical}
 .cand{border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;background:var(--panel2)}
 .cand.on{border-color:var(--accent);color:var(--accent)}
 .wave{position:relative}
+.wfind{border:1px dashed var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.wfind .wl{display:flex;flex-wrap:wrap;gap:4px;max-height:170px;overflow:auto}
+.wfind .w{font-size:12.5px;padding:3px 7px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);cursor:pointer}
+.wfind .w.used{opacity:.4}.wfind .w.gap{border-color:#3ecf8e;background:#13261d}.wfind .w.me{background:#2a2410;border-color:var(--accent)}.wfind .w.st{background:var(--accent);color:#14110a}
 .tcmp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:2px 0 4px}
 .tcmp .tc{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:6px;display:flex;flex-direction:column;gap:5px}
 .tcmp .tc.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
@@ -591,12 +595,18 @@ function draft(rebuild){
     const cnt={}; S.data.blocks.forEach(bk=>{ const c=bk.cands; if(!c.length) return; new Set(c.filter(x=>x.score>=c[0].score-0.12).map(x=>x.take)).forEach(k=>cnt[k]=(cnt[k]||0)+1) });
     const order=Object.keys(cnt).sort((a,b)=>(cnt[b]-cnt[a])||b.localeCompare(a)); const primary=order[0];
     S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ const pc=c.find(x=>x.take===primary&&x.score>=c[0].score-0.12); pickCand(bk,pc||c[0],true) } else {bk.take=null} if(rebuild){ bk.shot=SHOTROT[i%SHOTROT.length]; delete bk.shot0 } });
+    gapFill();
     if(S.data.blocks.length) S.data.blocks[S.data.blocks.length-1].shot='close';
     { const TLs=takeList(); let ci=0; S.data.blocks.forEach(bk=>{ const ms=TLs[bk.take]||[]; if(ms.length>1){ bk.cam=ms[ci%ms.length].cam||''; ci++ } }) }
   }
   buildTL(); renderBlocks(); save(); drawAt(0); $('stOvl').hidden=!!S.tl.length;
   const miss=S.data.blocks.filter(b=>!b.take).length; toast('초안을 만들었어요'+(miss?' · 못 찾은 줄 '+miss+'개 (빨간 블록)':''));
 }
+/* a line the transcript missed (e.g. a Korean word heard as Spanish) usually sits between its neighbours */
+function gapFill(){ const B=S.data.blocks; let n=0;
+  B.forEach((bk,i)=>{ if(bk.take) return; const p=B.slice(0,i).reverse().find(x=>x.take), q=B.slice(i+1).find(x=>x.take); if(!p||!q||p.take!==q.take) return;
+    const a=p.b, b=q.a; if(b-a<0.25||b-a>8) return; bk.take=p.take; bk.cam=p.cam||''; const [A,Bb]=refineEdges(bk.take,a,b-0.05,null,null); bk.a=Math.max(a-0.05,A); bk.b=Math.min(b,Bb); bk.guess=true; autoCuts(bk); alignWords(bk); n++ });
+  return n }
 function pickCand(bk,c,keepShot){ const t=S.data.takes[c.take]; const W=t.words; const [a,b]=refineEdges(c.take,c.a,c.b,W[c.i],W[c.j]);
   bk.take=c.take; bk.a=a; bk.b=b; const ms=takeList()[c.take]||[]; if(!ms.find(m=>m.cam===bk.cam)) bk.cam=ms[0]?ms[0].cam:''; autoCuts(bk); alignWords(bk) }
 
@@ -909,6 +919,22 @@ function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); l
   wrap.append(lane,bl,bar,ar,lst); requestAnimationFrame(draw); list(); laneDraw=draw; return wrap }
 let laneDraw=null;
 function wavePlayhead(s,src){ const open=S.sel!=null&&S.data.blocks[S.sel]===s.bk; const v=open?src:null; if(v===S.playSrc) return; S.playSrc=v; if(waveCtx&&(open||v==null)) waveCtx.redraw(); if(laneDraw&&!S.playing) laneDraw() }
+function wordFinder(bk){ const wrap=el('div','wfind'); const T=takeList(); let take=bk.take||S.findTake||Object.keys(T).find(k=>(S.data.takes[k]||{}).words&&(S.data.takes[k].words||[]).length)||Object.keys(T)[0];
+  const head=el('div','row'); head.style.cssText='gap:6px;align-items:center';
+  const ts=el('select'); Object.keys(T).forEach(k=>{ const w=(S.data.takes[k]||{}).words; const o=el('option',null,k.replace(/^kyu_[^_]+_/,'')+' ('+(w?w.length:0)+'단어)'); o.value=k; ts.appendChild(o) }); ts.value=take; ts.onchange=()=>{ S.findTake=ts.value; renderBlocks() };
+  const B=S.data.blocks, i=B.indexOf(bk), p=B.slice(0,i).reverse().find(x=>x.take===take), q=B.slice(i+1).find(x=>x.take===take);
+  let a0=null; const info=el('span','hint','① 시작 단어를 누르고 ② 끝 단어를 누르세요');
+  const gapB=el('button','btn sm','↔ 앞뒤 블록 사이 넣기'); gapB.disabled=!(p&&q&&q.a>p.b); gapB.onclick=()=>{ bk.take=take; bk.cam=(p||{}).cam||''; bk.a=+p.b.toFixed(2); bk.b=+q.a.toFixed(2); bk.guess=true; autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save(); audition(take,bk.a,bk.b) };
+  head.append(el('span','lab','테이크'),ts,gapB,info); wrap.appendChild(head);
+  const W=(S.data.takes[take]||{}).words||[]; const lst=el('div','wl');
+  if(!W.length) lst.appendChild(el('span','hint','이 테이크는 받아쓴 단어가 없어요.'));
+  W.forEach((w,k)=>{ const used=B.find(x=>x!==bk&&x.take===take&&w[1]>=x.a-0.05&&w[1]<x.b); const inMe=bk.take===take&&w[1]>=bk.a-0.05&&w[1]<bk.b;
+    const c=el('span','w'+(inMe?' me':used?' used':'')+(p&&q&&w[1]>=p.b-0.05&&w[1]<q.a?' gap':''),w[0]); c.title=fmt(w[1])+(used?' · '+(B.indexOf(used)+1)+'번 블록에서 사용 중':'');
+    c.onclick=()=>{ if(a0==null){ a0=k; lst.querySelectorAll('.w.st').forEach(x=>x.classList.remove('st')); c.classList.add('st'); info.textContent='② 끝 단어를 누르세요'; audition(take,Math.max(0,w[1]-0.2),w[2]+1.2); return }
+      const s0=Math.min(a0,k), s1=Math.max(a0,k); a0=null; bk.take=take; const ms=T[take]||[]; if(!ms.find(m=>m.cam===bk.cam)) bk.cam=ms[0]?ms[0].cam:'';
+      const [A,Bb]=refineEdges(take,W[s0][1],W[s1][2],W[s0],W[s1]); bk.a=A; bk.b=Bb; delete bk.guess; autoCuts(bk); alignWords(bk); S.findOpen=false; buildTL(); renderBlocks(); save(); audition(take,bk.a,bk.b); toast('이 블록 구간을 정했어요') };
+    lst.appendChild(c) });
+  wrap.appendChild(lst); requestAnimationFrame(()=>{ const g=lst.querySelector('.w.gap,.w.me'); if(g) g.scrollIntoView({block:'nearest'}) }); return wrap }
 function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const vids=[];
   const stopAll=()=>vids.forEach(v=>{ v.pause(); v.muted=true });
   (bk.cands||[]).slice(0,6).forEach(cd=>{ (T[cd.take]||[]).forEach(m=>{ if(!S.urls[m.file]) return;
@@ -934,10 +960,12 @@ function blockEditor(bk,i){ const box=el('div','bedit');
   const cands=(bk.cands||[]); if(!cands.length) cr.appendChild(el('span','hint','자동으로 못 찾았어요. 아래 테이크를 고르고 파형에서 구간을 지정하세요.'));
   cands.forEach(cd=>{ const x=el('button','cand'+(bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2?' on':'')); x.textContent=`${cd.take.replace(/^kyu_[^_]+_/,'')} · ${(cd.b-cd.a).toFixed(1)}초 · ${Math.round(cd.score*100)}%`; x.title='누르면 이 테이크로 바꾸고 들려줘요';
     x.onclick=()=>{ pickCand(bk,cd); buildTL(); renderBlocks(); save(); audition(cd.take,bk.a,bk.b) }; cr.appendChild(x) });
+  const fnd=el('button','btn sm'+(S.findOpen?' on':''),'🔍 직접 찾기'); fnd.title='받아쓴 단어에서 시작·끝을 눌러 이 블록 구간 정하기'; fnd.onclick=()=>{ S.findOpen=!S.findOpen; renderBlocks() };
   const tsel=el('select'); Object.keys(takeList()).forEach(k=>{const o=el('option',null,k); o.value=k; tsel.appendChild(o)}); tsel.value=bk.take||''; tsel.title='테이크 직접 고르기';
   tsel.onchange=()=>{ bk.take=tsel.value; if(!bk.b||bk.b<=bk.a){bk.a=0; bk.b=Math.min(3,prim(bk.take).dur)} autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save() }; cr.appendChild(tsel);
   const cmpB=el('button','btn sm'+(S.cmpOpen?' on':''),'🎞️ 테이크 비교'); cmpB.title='후보 테이크와 카메라를 영상으로 나란히 보고 고르기'; cmpB.onclick=()=>{ S.cmpOpen=!S.cmpOpen; renderBlocks() }; if(cands.length) cr.appendChild(cmpB);
-  box.appendChild(cr); if(S.cmpOpen&&cands.length) box.appendChild(takeCompare(bk));
+  cr.appendChild(fnd); if(bk.guess){ const gh=el('span','chip','🤔 앞뒤 블록 사이로 추정 — 맞는지 들어 보세요'); cr.appendChild(gh) }
+  box.appendChild(cr); if(S.cmpOpen&&cands.length) box.appendChild(takeCompare(bk)); if(S.findOpen||!bk.take) box.appendChild(wordFinder(bk));
   if(!bk.take) return box;
   // waveform
   const wv=el('div','wave'); const c=el('canvas'); c.height=168; wv.appendChild(c); box.appendChild(wv); const lane=sfxLane(bk,()=>[v0,v1]); box.appendChild(lane);
