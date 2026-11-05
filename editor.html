@@ -140,7 +140,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <div class="scrub" id="scrub"></div>
       <span class="tc" id="tc">0:00.0 / 0:00.0</span>
     </div>
-    <div class="hint" style="margin-top:6px">멈춘 상태에서 화면을 끌면 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지</div>
+    <div class="hint" style="margin-top:6px">멈춘 상태에서 화면을 끌면 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지 · ←→ 1초 이동 · ↑↓ 블록 이동</div>
     <div class="box" style="margin-top:12px" id="expBox" hidden>
       <h3>내보내기 · 업로드</h3>
       <div class="hint" id="expInfo">미리보기 그대로 프로젝트 폴더의 renders에 mp4로 저장해요. 소리와 화면을 원본 시간 기준으로 맞춰서 입싱크가 어긋나지 않아요.</div>
@@ -537,7 +537,10 @@ function typing(t){ if(!t) return false; if(t.isContentEditable||/TEXTAREA|SELEC
 document.addEventListener('keydown',e=>{ if(typing(e.target)||e.metaKey||e.ctrlKey||e.altKey) return;
   if(e.code==='Space'){ e.preventDefault(); e.stopPropagation(); if(e.repeat) return; if(e.target!==document.body&&e.target.blur) e.target.blur(); S.playing?stop():play(); return }
   if(e.target.type==='range') return;
-  const dir={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key]; if(dir){ e.preventDefault(); if(e.target!==document.body&&e.target.blur) e.target.blur(); jumpBlock(dir) } },true);
+  const sk={ArrowLeft:-1,ArrowRight:1}[e.key], dir={ArrowUp:-1,ArrowDown:1}[e.key]; if(!sk&&!dir) return;
+  e.preventDefault(); if(e.target!==document.body&&e.target.blur) e.target.blur();
+  if(sk) seekBy(sk*(e.shiftKey?5:1)); else jumpBlock(dir) },true);
+function seekBy(d){ if(!S.tl.length) return; const t=Math.max(0,Math.min(S.total-0.02,(S.outT||0)+d)); S.stopAt=null; if(S.playing) play(t); else drawAt(t); markNow(t) }
 document.addEventListener('keyup',e=>{ if(e.code==='Space'&&!typing(e.target)){ e.preventDefault(); e.stopPropagation() } },true);
 let nowI=-1;
 function blockAt(t){ if(!S.tl.length) return -1; const s=S.tl[segAt(t)]; return s?s.bi:-1 }
