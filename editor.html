@@ -456,6 +456,15 @@ async function saveNow(){ if(!S.dir||!S.data) return; S.data.updated=Date.now();
   try{ const h=await child(S.dir,'project.json','file'); if(h){ const f=await h.getFile(); if(f.lastModified>S.mtime+50){ const d=JSON.parse(await f.text()); mergeOutside(d) } } }catch(e){}
   try{ownWrite=Date.now(); S.mtime=await writeFile(S.dir,'project.json',new Blob([JSON.stringify(S.data,null,1)],{type:'application/json'})); S.dirty=false}catch(e){toast('저장하지 못했어요: '+e.message)} setPill()}
 // watch for Claude's edits
+/* new recordings appear while the project is open (Studio saves into this folder) */
+setInterval(async()=>{ if(!S.dir||!S.data||S.exporting||S.playing||S.data.status?.state==='transcribing') return;
+  try{ const add=[]; for await(const [n,h] of S.dir.entries()){ if(h.kind!=='file'||!VIDRE.test(n)||OUTRE.test(n)) continue; const name=nf(n); if(!S.files[name]) add.push([name,h]) }
+    if(!add.length) return;
+    for(const [name,h] of add){ const f=await h.getFile(); if(Date.now()-f.lastModified<3000) return; } // still being written
+    for(const [name,h] of add){ S.files[name]=h; const base=name.replace(/\.\w+$/,''), cam=(base.match(/_cam(\d)$/)||[])[1];
+      const m={file:name,take:base.replace(/_cam\d$/,''),cam:cam?'cam'+cam:'',cx:0.5,cy:0.36}; S.data.media.push(m); const f=await h.getFile(); S.urls[name]=URL.createObjectURL(f); Object.assign(m,await probe(S.urls[name])) }
+    renderMedia(); save(); toast('📥 새 영상 '+add.length+'개를 찾았어요. 받아쓰기를 시작해요',3500); await ensurePeaks(); transcribeAll(false) }catch(e){}
+},6000);
 setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
   try{const h=await child(S.dir,'project.json','file'); if(!h) return; const f=await h.getFile(); if(f.lastModified<=S.mtime) return;
     S.mtime=f.lastModified; if(Date.now()-ownWrite<1500) return;
@@ -533,7 +542,11 @@ async function transcribeAll(force){
         bar.style.width=((ti+(si+1)/segs.length)/todo.length*100)+'%'; }
       S.data.takes[k]=Object.assign(S.data.takes[k]||{},{words,peaks:pk2b(p),thr:st.thr,med:st.med,at:Date.now()}); PK[k]=p; save(); renderMedia();
     }
-    S.data.status={state:'idle'}; $('trInfo').textContent='받아쓰기 끝. 블록을 만들었어요.';
+    S.data.status={state:'idle'};
+    if(!force&&S.data.blocks.some(b=>b.take)){ // new takes added to an edited project: offer them, keep the edit
+      S.data.blocks.forEach(bk=>{ bk.cands=findCands(bk.text); bk.cands.forEach(cd=>cd.q=candQuality(bk.text,cd)) }); buildTL(); renderBlocks(); save();
+      $('trInfo').textContent='새 테이크 받아쓰기 끝.'; toast('🎬 새 테이크를 추가했어요 — 블록의 🎞️ 테이크 비교에서 고를 수 있어요 (편집은 그대로)',5000); setPill(); return }
+    $('trInfo').textContent='받아쓰기 끝. 블록을 만들었어요.';
     draft(!S.data.blocks.some(b=>b.take));
   }catch(e){console.error(e); $('trInfo').textContent='받아쓰기 실패: '+e.message; S.data.status={state:'idle'}}
   $('trBtn').disabled=false; pr.hidden=true; setPill(); save();
