@@ -40,6 +40,14 @@ button,select,input,textarea{font:inherit;color:inherit}
 .emopick button{font-size:22px;line-height:1;width:36px;height:36px;border:1px solid transparent;border-radius:7px;background:none;cursor:pointer}
 .emopick button:hover{background:var(--panel);border-color:var(--line)}
 .emopick button.on{border-color:var(--accent);background:#2a2410}
+.shotpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;margin:4px 0 8px}
+.shotpick .shot{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 3px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;color:var(--fg)}
+.shotpick .shot canvas{border-radius:6px;background:#000;display:block}
+.shotpick .shot b{font-size:11px;white-space:nowrap}
+.shotpick .shot small{font-size:10px;color:var(--dim);white-space:nowrap}
+.shotpick .shot.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.shotpick .shot.on b{color:var(--accent)}
+.shotpick .hint{grid-column:auto}
 .upst{font-size:12px;margin-top:6px;padding:7px 9px;border-radius:8px;background:#1d2a20;color:#9fe0b8;display:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 select,input[type=text],input[type=number],textarea{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
@@ -259,7 +267,9 @@ function charMap(a,b){const m=a.length,n=b.length,D=[]; for(let i=0;i<=m;i++){D.
 /* ================= state ================= */
 const S={root:null,single:false,projects:[],dir:null,folder:'',data:null,mtime:0,files:{},urls:{},tl:[],total:0,sel:null,playing:false,outT:0,exporting:false,dirty:false};
 const DEF={version:1,format:'reel',speed:1.15,gap:0.4,cap:{mode:'pop',size:84,y:78,wpl:3},filter:'mid',sfx:1,lang:'spanish',media:[],takes:{},blocks:[],renders:[],caption:'',status:{state:'idle'}};
-const SHOTS={wide:'1. 와이드',close:'2. 클로즈업',punch:'3. 펀치인',extreme:'4. 아주 가까이',zoomin:'5. 천천히 줌인',zoomout:'6. 천천히 줌아웃',snap:'7. 스냅 줌 (확 당기기)',pan:'8. 옆으로 흐르기',shake:'9. 흔들림 강조',dutch:'10. 기울이기'};
+const SHOTS={wide:'1. 와이드',close:'2. 클로즈업',zoomin:'3. 천천히 다가가기',zoomout:'4. 천천히 멀어지기',snap:'5. 확 당기기',pan:'6. 옆으로 흐르기',shake:'7. 흔들림',dutch:'8. 기울이기',bw:'9. 흑백',frame:'10. 액자'};
+const SHOTDESC={wide:'화면 전체 그대로 · 기본',close:'얼굴을 크게 고정 · 대화하듯',zoomin:'점점 가까이 · 집중시킬 때',zoomout:'점점 멀리 · 마무리할 때',snap:'시작에 확 줌 · 강조·놀람',pan:'옆으로 천천히 이동 · 설명 중',shake:'시작에 화면 떨림 · 충격·반전',dutch:'화면이 비스듬히 · 의외·장난',bw:'흑백 · 옛날 이야기·진지',frame:'작은 화면 + 흐린 배경 · 정리·요약'};
+const SHOTOLD={punch:'close',extreme:'close'};
 const EMOJIS={'반응':'🤔😮😱🤯😂🤣😅😍🥰😎🙄😳🥺😭😤🤫🫢👀','손·몸짓':'👍👎👏🙌🙏👉👆☝️✌️🤞💪🫶🤷🙋🤦','표시':'✅❌⭕❗❓‼️⁉️💯🔥⭐✨💡📌⚠️🚫🆗','한국·학습':'🇰🇷🇲🇽🏯🍜🍚🥢🎎📚✏️📝🗣️💬🎧🎤🏙️','기분·축하':'❤️💔🎉🎊🥳💥⚡🌟🌈☀️'};
 const OVT={card:'카드',red:'빨간 카드',emoji:'이모지',big:'큰 글씨',cta:'질문 (위쪽)'};
 
@@ -489,7 +499,7 @@ function autoOv(text){ const ov=[]; const toks=text.split(/\s+/);
   toks.forEach((w,i)=>{ const h=w.replace(/[^가-힣]/g,''); if(h&&!ov.some(o=>o.text===h)) ov.push({type:'card',text:h,sub:romanize(h,true),at:i}) ;
     if(/^\D*\d{4}\D*$/.test(w)&&!ov.some(o=>o.type==='big')) ov.push({type:'big',text:w.replace(/[^\d]/g,''),at:i}) });
   return ov.slice(0,2) }
-const SHOTROT=['wide','close','wide','punch','zoomin','close','wide','snap','close','pan'];
+const SHOTROT=['wide','close','wide','zoomin','close','wide','snap','close','pan','wide'];
 function draft(rebuild){
   const L=S.data.script?scriptLines(S.data.script.text):[];
   if(!L.length&&!S.data.blocks.length){ // no script: one block per speech segment of first take
@@ -500,7 +510,7 @@ function draft(rebuild){
     // keep one recording session when possible (same clothes, light, camera)
     const cnt={}; S.data.blocks.forEach(bk=>{ const c=bk.cands; if(!c.length) return; new Set(c.filter(x=>x.score>=c[0].score-0.12).map(x=>x.take)).forEach(k=>cnt[k]=(cnt[k]||0)+1) });
     const order=Object.keys(cnt).sort((a,b)=>(cnt[b]-cnt[a])||b.localeCompare(a)); const primary=order[0];
-    S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ const pc=c.find(x=>x.take===primary&&x.score>=c[0].score-0.12); pickCand(bk,pc||c[0],true) } else {bk.take=null} if(rebuild) bk.shot=SHOTROT[i%SHOTROT.length] });
+    S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ const pc=c.find(x=>x.take===primary&&x.score>=c[0].score-0.12); pickCand(bk,pc||c[0],true) } else {bk.take=null} if(rebuild){ bk.shot=SHOTROT[i%SHOTROT.length]; delete bk.shot0 } });
     if(S.data.blocks.length) S.data.blocks[S.data.blocks.length-1].shot='close';
   }
   buildTL(); renderBlocks(); save(); drawAt(0); $('stOvl').hidden=!!S.tl.length;
@@ -590,14 +600,14 @@ async function drawAt(t){ if(!S.tl.length){clearCv(); return} S.outT=t; const i=
 /* ================= drawing ================= */
 const cv=$('cv'), ctx=cv.getContext('2d');
 function clearCv(){ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height)}
-const ZOOM={wide:1,close:1.32,punch:1.62,extreme:2.05,shake:1.5,dutch:1.4,pan:1.45};
+const ZOOM={wide:1,close:1.45,punch:1.45,extreme:1.45,shake:1.3,dutch:1.25,pan:1.3,bw:1.1,frame:1};
 const ease=x=>x<0?0:x>1?1:1-Math.pow(1-x,3);
 function shotZoom(shot,prog,el){ switch(shot){
   case 'zoomin': return 1.08+0.24*prog;
   case 'zoomout': return 1.34-0.26*prog;
   case 'snap': return 1.0+0.55*ease(el/0.22);
   default: return ZOOM[shot]||1 } }
-function cropFor(m,v,shot,prog,el){ const W=cv.width,H=cv.height, vw=v.videoWidth||1920, vh=v.videoHeight||1080; let z=shotZoom(shot,prog,el||0);
+function cropFor(m,v,shot,prog,el,W=cv.width,H=cv.height){ const vw=v.videoWidth||v.width||1920, vh=v.videoHeight||v.height||1080; let z=shotZoom(shot,prog,el||0);
   if(S.data.format==='long'&&shot==='wide') z=1;
   let ch=vh/z, cw=ch*W/H; if(cw>vw){cw=vw; ch=cw*H/W}
   let cx=m.cx*vw, cy=m.cy*vh;
@@ -606,10 +616,7 @@ function cropFor(m,v,shot,prog,el){ const W=cv.width,H=cv.height, vw=v.videoWidt
   let sx=cx-cw/2, sy=cy-0.38*ch; sx=Math.max(0,Math.min(vw-cw,sx)); sy=Math.max(0,Math.min(vh-ch,sy)); return [sx,sy,cw,ch] }
 const FILT={mid:'brightness(1.03) contrast(1.06) saturate(1.12)',warm:'brightness(1.04) contrast(1.05) saturate(1.15) sepia(0.08)',off:'none'};
 function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); if(!v||!s) return;
-  const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; const [sx,sy,cw,ch]=cropFor(s.m,v,bk.shot,prog,el);
-  ctx.save(); ctx.filter=FILT[S.data.filter]||'none';
-  if(bk.shot==='dutch'){ const a=-0.06*ease(el/0.3); ctx.translate(W/2,H/2); ctx.rotate(a); ctx.scale(1.12,1.12); ctx.translate(-W/2,-H/2) }
-  try{ctx.drawImage(v,sx,sy,cw,ch,0,0,W,H)}catch(e){} ctx.restore();
+  const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; drawShot(ctx,W,H,v,s.m,bk.shot,prog,el,FILT[S.data.filter]||'none');
   drawOverlays(t); drawCaptions(t,bk); if(!S.exporting) drawSafe(); updTC(); }
 /* safe zones (preview only, never exported) — px on a 1080x1920 frame */
 const SAFE={ig:{n:'인스타 릴스',top:220,bot:420,right:130,rTop:860,left:40,lab:['상단 메뉴','캡션 · 계정명 · 음악','좋아요·댓글·공유']},
@@ -629,6 +636,26 @@ function drawSafe(){ const z=SAFE[safeZ]; if(!z||S.data.format==='long') return;
 function setSafe(z){ safeZ=z; try{localStorage.setItem('kyu-safe',z)}catch(e){} document.querySelectorAll('#safeSel button').forEach(b=>b.classList.toggle('on',b.dataset.z===z)); if(S.tl&&S.tl.length&&!S.playing) drawAt(S.outT) }
 $('safeSel').onclick=e=>{ const b=e.target.closest('button'); if(b) setSafe(b.dataset.z) };
 setSafe(safeZ);
+function drawShot(c,W,H,v,m,shot,prog,el,filt){ const [sx,sy,cw,ch]=cropFor(m,v,shot,prog,el,W,H);
+  c.save(); c.filter=shot==='bw'?'grayscale(1) contrast(1.18) brightness(1.03)':filt||'none';
+  if(shot==='dutch'){ const a=-0.07*ease(el/0.3); c.translate(W/2,H/2); c.rotate(a); c.scale(1.14,1.14); c.translate(-W/2,-H/2) }
+  if(shot==='frame'){ c.filter=(filt&&filt!=='none'?filt+' ':'')+`blur(${Math.round(W/40)}px) brightness(.62)`; try{c.drawImage(v,sx,sy,cw,ch,-W*.05,-H*.05,W*1.1,H*1.1)}catch(e){}
+    c.filter=filt||'none'; const k=0.8, fw=W*k, fh=H*k, fx=(W-fw)/2, fy=H*0.42-fh/2; c.shadowColor='rgba(0,0,0,.55)'; c.shadowBlur=W/25; c.beginPath(); c.roundRect(fx,fy,fw,fh,W*0.035); c.fillStyle='#000'; c.fill(); c.shadowBlur=0; c.clip();
+    try{c.drawImage(v,sx,sy,cw,ch,fx,fy,fw,fh)}catch(e){} c.restore(); return }
+  try{c.drawImage(v,sx,sy,cw,ch,0,0,W,H)}catch(e){} c.restore() }
+function shotPicker(bk){ if(SHOTOLD[bk.shot]) bk.shot=SHOTOLD[bk.shot]; if(SHOTOLD[bk.shot0]) bk.shot0=SHOTOLD[bk.shot0]; if(!bk.shot0){ bk.shot0=bk.shot; save() } const wrap=el('div','shotpick'), long=S.data.format==='long', tw=long?132:70, th=long?74:124;
+  const info=el('div','hint'); info.style.gridColumn='1/-1'; const rs=el('button','btn sm','↺ 처음 설정으로'); const setInfo=()=>{ info.textContent='지금: '+SHOTS[bk.shot]+' — '+(SHOTDESC[bk.shot]||'')+(bk.shot===bk.shot0?'  (처음 설정)':'  · 처음 설정: '+SHOTS[bk.shot0].replace(/^\d+\. /,'')); rs.disabled=bk.shot===bk.shot0 }; setInfo();
+  const tiles=Object.keys(SHOTS).map(k=>{ const b=el('button','shot'+(bk.shot===k?' on':'')); const c=document.createElement('canvas'); c.width=tw*2; c.height=th*2; c.style.width=tw+'px'; c.style.height=th+'px';
+    b.append(c,el('b',null,SHOTS[k].replace(/^\d+\. /,'')),el('small',null,k===bk.shot0?'★ 처음 설정':SHOTDESC[k].split(' · ')[1]||'')); b.title=SHOTDESC[k];
+    b.onclick=()=>{ bk.shot=k; wrap.querySelectorAll('.shot.on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setInfo(); save(); drawAt(bk._o+0.05); const meta=document.querySelector(`.blk[data-i="${S.data.blocks.indexOf(bk)}"] .meta .chip:last-of-type`); if(meta) meta.textContent=SHOTS[k].replace(/^\d+\. /,'') };
+    wrap.appendChild(b); return {k,c,b,x:c.getContext('2d')} });
+  rs.onclick=()=>tiles.find(T=>T.k===bk.shot0)?.b.click();
+  const ir=el('div','row'); ir.style.cssText='grid-column:1/-1;gap:8px;align-items:center'; ir.append(rs,info); wrap.appendChild(ir);
+  (async()=>{ const si=S.tl.findIndex(x=>x.bk===bk); if(si<0||S.playing) return; const p=await prep(si,0.3); if(!p||!p.v.videoWidth) return;
+    const vw=p.v.videoWidth, vh=p.v.videoHeight, sc=Math.min(1,640/Math.max(vw,vh)); const src=document.createElement('canvas'); src.width=Math.round(vw*sc); src.height=Math.round(vh*sc); src.getContext('2d').drawImage(p.v,0,0,src.width,src.height);
+    const m=S.tl[si].m, t0=performance.now();
+    const tick=()=>{ if(!wrap.isConnected) return; const e=((performance.now()-t0)%2600)/1000; tiles.forEach(T=>{ T.x.clearRect(0,0,T.c.width,T.c.height); drawShot(T.x,T.c.width,T.c.height,src,m,T.k,e/2.6,e,'none') }); requestAnimationFrame(tick) }; tick() })();
+  return wrap }
 function rr(x,y,w,h,r){ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath()}
 const pop=(dt)=>dt<0.11?0.55+0.53*(dt/0.11):dt<0.19?1.08-0.08*((dt-0.11)/0.08):1;
 function overlaysAll(){ const out=[]; S.data.blocks.forEach((bk,bi)=>{ if(!bk.on||!bk._d) return; const end=bk._o+bk._d;
@@ -685,7 +712,7 @@ function updTC(){ $('tc').textContent=fmt(S.outT)+' / '+fmt(S.total); const h=$(
 $('scrub').addEventListener('pointerdown',e=>{ const r=$('scrub').getBoundingClientRect(); const t=(e.clientX-r.left)/r.width*S.total; const was=S.playing; stop(); drawAt(t); if(was) play(t) });
 
 /* ================= block list UI ================= */
-function renderBlocks(){ const box=$('blist'); box.textContent=''; const B=S.data.blocks;
+function renderBlocks(){ const box=$('blist'); box.textContent=''; const B=S.data.blocks; B.forEach(b=>{ if(SHOTOLD[b.shot]) b.shot=SHOTOLD[b.shot] });
   $('bInfo').textContent=B.length?`${B.filter(b=>b.on&&b.take).length}/${B.length}개 사용 · ${fmt(S.total)}`:'';
   if(!B.length){box.appendChild(el('div','empty',Object.keys(S.data.takes).some(k=>S.data.takes[k].words)?'대본이 없어요. 왼쪽 설정에서 대본을 고르거나 ✨ 자동 초안을 누르세요.':'먼저 왼쪽 아래 📝 받아쓰기를 눌러 주세요. 받아쓰기가 끝나면 대본 줄마다 블록이 자동으로 생겨요.'));return}
   B.forEach((bk,i)=>{ const c=el('div','blk'+(S.sel===i?' sel':'')+(bk.on?'':' off')+(bk.take?'':' miss')); c.dataset.i=i;
@@ -748,8 +775,8 @@ function blockEditor(bk,i){ const box=el('div','bedit');
   const a2=el('button','btn sm','▶ 결과 듣기'); a2.onclick=()=>playBlock(i); const a3=el('button','btn sm','■'); a3.onclick=()=>{stopAud(); stop()};
   nr.append(el('span','grow'),a1,a2,a3); box.appendChild(nr);
   // shot / cam / chapter
-  const sr=el('div','row'); const ss=el('select'); Object.entries(SHOTS).forEach(([k,v])=>{const o=el('option',null,v); o.value=k; ss.appendChild(o)}); ss.value=bk.shot; ss.onchange=()=>{bk.shot=ss.value; renderBlocks(); save(); drawAt(bk._o+0.05)};
-  sr.append(el('span','lab','화면'),ss); const ms=takeList()[bk.take]||[];
+  box.appendChild(el('div','lab','화면 효과 — 움직이는 예시를 보고 고르세요')); box.appendChild(shotPicker(bk));
+  const sr=el('div','row'); const ms=takeList()[bk.take]||[];
   if(ms.length>1){ const cs=el('select'); ms.forEach(m=>{const o=el('option',null,m.cam||'기본'); o.value=m.cam; cs.appendChild(o)}); cs.value=bk.cam; cs.onchange=()=>{bk.cam=cs.value; buildTL(); save(); drawAt(bk._o+0.05)}; sr.append(el('span','lab','카메라'),cs) }
   const chi=el('input'); chi.type='text'; chi.placeholder='챕터 제목 (롱폼)'; chi.value=bk.chapter||''; chi.onchange=()=>{bk.chapter=chi.value.trim()||undefined; renderBlocks(); save()};
   const del=el('button','btn sm','블록 삭제'); del.onclick=()=>{ if(!confirm('이 블록을 지울까요?')) return; S.data.blocks.splice(i,1); S.sel=null; buildTL(); renderBlocks(); save() };
