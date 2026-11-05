@@ -27,6 +27,15 @@ button,select,input,textarea{font:inherit;color:inherit}
 .btn.on{border-color:var(--accent);color:var(--accent)}
 .btn.sm{padding:4px 9px;font-size:12px}
 .btn.claude{border-color:#b38bff;color:#d6c2ff}
+.acc{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.acc button{text-align:left;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:12px;line-height:1.35;color:var(--fg)}
+.acc button b{display:block;font-size:13px}
+.acc button.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.capm{display:grid;gap:6px;margin:8px 0}
+.capm .cm{border:1px solid var(--line);background:var(--panel2);border-radius:9px;padding:8px 10px;cursor:pointer;font-size:12px;line-height:1.45;white-space:pre-wrap;max-height:120px;overflow:auto}
+.capm .cm b{display:block;font-size:12px;color:var(--accent);margin-bottom:3px;white-space:normal}
+.capm .cm.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.upst{font-size:12px;margin-top:6px;padding:7px 9px;border-radius:8px;background:#1d2a20;color:#9fe0b8;display:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 select,input[type=text],input[type=number],textarea{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
 textarea{width:100%;resize:vertical}
@@ -146,13 +155,23 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <div class="hint" id="expInfo">미리보기 그대로 프로젝트 폴더의 renders에 mp4로 저장해요. 소리와 화면을 원본 시간 기준으로 맞춰서 입싱크가 어긋나지 않아요.</div>
       <div class="prog" id="expProg" hidden><i></i></div>
       <div class="renders hint" id="renders" style="margin-top:8px"></div>
-      <label class="lab" style="display:block;margin-top:10px">캡션 (업로드용)</label>
-      <textarea id="caption" rows="4" placeholder="캡션을 적거나 Claude에게 부탁하세요"></textarea>
-      <div class="row" style="margin-top:6px">
-        <button class="btn sm" id="capCopy">캡션 복사</button>
+      <label class="lab" style="display:block;margin-top:12px">① 어디에 올릴까요?</label>
+      <div class="acc" id="accSel">
+        <button data-a="personal"><b>🙋 개인용</b>@soykyu_coreano · 인스타 + 틱톡</button>
+        <button data-a="academy"><b>🏫 학원용</b>@institutocoreanokyu · 인스타 + 페이스북</button>
+      </div>
+      <label class="lab" style="display:block;margin-top:6px">② 캡션 추천 3가지 — 눌러서 고르세요</label>
+      <div class="capm" id="capModes"></div>
+      <textarea id="caption" rows="5" placeholder="고른 캡션이 여기 들어와요. 직접 고쳐도 돼요."></textarea>
+      <label class="lab" style="display:block;margin-top:6px">③ 해시태그 (계정별로 저장돼요)</label>
+      <textarea id="tags" rows="2"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="upBtn">🚀 올리기</button>
+        <button class="btn sm" id="capCopy">캡션+태그 복사</button>
         <a class="btn sm" href="https://app.metricool.com/planner" target="_blank" rel="noopener" style="text-decoration:none">Metricool 열기</a>
         <button class="btn sm" id="chapCopy" title="롱폼: 블록에 적은 챕터로 YouTube 설명용 시간표 만들기">YouTube 챕터 복사</button>
       </div>
+      <div class="upst" id="upSt"></div>
     </div>
   </section>
 
@@ -321,7 +340,7 @@ async function openProject(p){
     if(id) S.data.script={id,name:SCRIPTS.list.find(o=>o.id===id)?.name||id,text:SCRIPTS.text[id]||''} }
   syncSettings(); renderMedia(); $('setBox').hidden=$('medBox').hidden=$('expBox').hidden=false;
   ['askClaude','expBtn','playBtn','draftBtn','addBlk'].forEach(id=>$(id).disabled=false);
-  $('caption').value=S.data.caption||'';
+  $('caption').value=S.data.caption||''; renderCaps();
   await ensurePeaks();
   if(Object.keys(S.data.takes).some(k=>S.data.takes[k].words)) S.data.blocks.forEach(bk=>{ if(bk.take&&!(bk.cands||[]).length) bk.cands=findCands(bk.text) });
   if(!S.data.blocks.length){
@@ -346,7 +365,7 @@ setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
     const d=JSON.parse(await f.text()); const wasPlaying=S.playing; stop();
     const keep=S.data.media; S.data=Object.assign(structuredClone(DEF),d); S.data.cap=Object.assign({},DEF.cap,d.cap||{});
     for(const m of S.data.media){const o=keep.find(x=>x.file===m.file); if(o) Object.assign(m,{dur:o.dur,w:o.w,h:o.h,ok:o.ok})}
-    syncSettings(); buildTL(); renderBlocks(); renderRenders(); setPill(); drawAt(S.outT); $('caption').value=S.data.caption||'';
+    syncSettings(); buildTL(); renderBlocks(); renderRenders(); setPill(); drawAt(S.outT); $('caption').value=S.data.caption||''; renderCaps();
     toast(d.status&&d.status.state==='claude-editing'?'🤖 Claude가 편집 중이에요':'🤖 Claude가 바꾼 내용을 불러왔어요');
   }catch(e){}
 },2500);
@@ -819,7 +838,33 @@ async function exportExact(){
   catch(e){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); $('expInfo').textContent='다운로드로 저장했어요: '+name }
   S.exporting=false; S.data.status={state:'idle'}; $('expBtn').disabled=false; bar.style.width='100%'; setTimeout(()=>pr.hidden=true,2500); renderRenders(); save(); drawAt(S.outT);
 }
-$('capCopy').onclick=()=>{navigator.clipboard.writeText($('caption').value); toast('캡션을 복사했어요')};
+/* ================= caption · upload ================= */
+const ACC={personal:{name:'개인 @soykyu_coreano',nets:['instagram','tiktok'],tags:'#coreano #aprendecoreano #idiomacoreano #coreanoparaprincipiantes #corea #hangul #kdrama #kpop #mexico'},
+  academy:{name:'학원 @institutocoreanokyu',nets:['instagram','facebook'],tags:'📍 Clases de coreano en CDMX · Inscripciones por DM\n#InstitutoCoreanoKYU #clasesdecoreano #coreanoCDMX #aprendecoreano #coreano #cdmx #idiomas #corea'}};
+const CMODE={hook:'🔥 훅형 — 짧고 궁금하게',info:'📚 정보형 — 배우고 저장하게',ask:'💬 참여형 — 댓글 달게'};
+function lsGet(k,d){try{return localStorage.getItem(k)??d}catch(e){return d}} function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function autoCaps(){ const T=S.data.blocks.filter(b=>b.on&&b.take).map(b=>b.text.replace(/\*/g,'').trim()).filter(Boolean); if(!T.length) return {hook:'',info:'',ask:''};
+  const q=T.find(t=>/[¿?]/.test(t))||T[0], body=T.slice(1,6).join('\n');
+  return {hook:`${T[0]} 🤔\n${q!==T[0]?q+' 👀':'Te lo explico en 30 segundos 👀'}`,
+    info:`${T.slice(0,2).join(' ')}\n\n${body}\n\n📌 Guárdalo para repasar después.`,
+    ask:`${q} 👇\nCuéntame en comentarios y te respondo 😉\n¿Qué otra palabra coreana quieres que te explique?`} }
+function capData(){ const c=S.data.captions; return c&&c.hook!=null?c:autoCaps() }
+function curAcc(){ return S.data.upload?.acc||lsGet('kyu-acc','personal') }
+function renderCaps(){ if(!S.data) return; const a=curAcc(); $('accSel').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.a===a));
+  $('tags').value=lsGet('kyu-tags-'+a,ACC[a].tags); const C=capData(), box=$('capModes'); box.textContent='';
+  Object.entries(CMODE).forEach(([k,lab])=>{ const d=el('div','cm'+(S.data.capMode===k?' on':'')); d.appendChild(el('b',null,lab+(S.data.captions?.[k]?'':' · 자동 초안'))); d.appendChild(document.createTextNode(C[k]||'(블록이 없어요)'));
+    d.onclick=()=>{ S.data.capMode=k; S.data.caption=C[k]; $('caption').value=C[k]; renderCaps(); save() }; box.appendChild(d) });
+  const u=S.data.upload, st=$('upSt'); if(u&&u.state){ st.style.display='block'; st.textContent={requested:'🕓 올리기 요청됨 — Claude 채팅에 붙여 넣으면 바로 올려요',posted:'✅ 올렸어요'}[u.state]+' · '+ACC[u.acc].name+' · '+new Date(u.at).toLocaleString().slice(0,-3)+(u.url?' · '+u.url:'') } else st.style.display='none' }
+$('accSel').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; lsSet('kyu-acc',b.dataset.a); if(S.data.upload) S.data.upload.acc=b.dataset.a; renderCaps() };
+$('tags').addEventListener('input',()=>lsSet('kyu-tags-'+curAcc(),$('tags').value));
+function fullText(){ return ($('caption').value.trim()+'\n\n'+$('tags').value.trim()).trim() }
+$('capCopy').onclick=()=>{navigator.clipboard.writeText(fullText()); toast('캡션+해시태그를 복사했어요')};
+$('upBtn').onclick=async()=>{ const R=S.data.renders||[]; if(!R.length){toast('먼저 🎬 내보내기로 영상을 만들어 주세요',3500);return}
+  if(!$('caption').value.trim()){toast('캡션을 하나 골라 주세요');return}
+  const a=curAcc(), r=R[R.length-1]; if(!confirm(ACC[a].name+'에 「'+r.file.replace('renders/','')+'」을 올릴까요?')) return;
+  S.data.upload={state:'requested',acc:a,nets:ACC[a].nets,text:fullText(),file:r.file,at:Date.now()}; S.data.status={state:'claude-requested',note:'upload',at:Date.now(),by:'user'}; await saveNow(); setPill(); renderCaps();
+  const msg=`🚀 KYU 올리기: 「${S.folder}」 → ${ACC[a].name} (${ACC[a].nets.join('+')})\n영상: 콘텐츠/${S.folder}/${r.file}\n캡션: 콘텐츠/${S.folder}/project.json 의 upload`;
+  try{await navigator.clipboard.writeText(msg); toast('올리기 요청을 복사했어요. Claude 채팅에 붙여 넣으면 바로 올려요',4500)}catch(e){prompt('Claude 채팅에 붙여 넣기',msg)} };
 $('chapCopy').onclick=()=>{ const L=S.data.blocks.filter(b=>b.chapter&&b._d).map(b=>fmt(b._o).replace(/\.\d$/,'')+' '+b.chapter); if(!L.length){toast('블록에 챕터 제목을 적어 주세요');return} if(!/^0:00/.test(L[0])) L.unshift('0:00 Intro'); navigator.clipboard.writeText(L.join('\n')); toast('챕터 '+L.length+'개를 복사했어요') };
 
 /* ================= Claude hand-off ================= */
