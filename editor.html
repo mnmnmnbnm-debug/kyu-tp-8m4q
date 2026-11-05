@@ -831,6 +831,18 @@ function audition(take,a,b,file){ const ms=takeList()[take]; const m=file?S.data
   raw.currentTime=Math.max(0,a); raw.onseeked=()=>{raw.onseeked=null; raw.play()}; const h=()=>{ if(!raw) return; if(raw.currentTime>=b){stopAud();return} audPos=raw.currentTime; if(waveCtx) waveCtx.redraw(); requestAnimationFrame(h)}; requestAnimationFrame(h) }
 let audPos=null; function stopAud(){ if(raw){raw.pause(); raw.removeAttribute('src'); raw.load(); raw=null} audPos=null; if(waveCtx) waveCtx.redraw() }
 let waveCtx=null;
+/* enumerations: "el sabor, la calidad y la gente" -> one hit per listed item */
+const LISTSKIP=new Set('el la los las un una unos unas y e o u ni que de del a al en con por para su sus mi mis tu tus lo muy más'.split(' '));
+function listHits(bk){ const W=(bk.words||[]).filter(w=>w[1]!=null); if(W.length<3) return [];
+  const items=[]; let cur=[];
+  W.forEach((w,i)=>{ const raw=w[0], bare=raw.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+    if(['y','e','o','u','ni','이랑','하고','그리고'].includes(bare)&&cur.length){ items.push(cur); cur=[]; return }
+    cur.push(w); if(/[,،、·]$/.test(raw)){ items.push(cur); cur=[] } });
+  if(cur.length) items.push(cur);
+  const real=items.filter(it=>it.length&&it.length<=8); if(real.length<3&&!(real.length===2&&W.some(w=>/,$/.test(w[0])))) return [];
+  if(!W.some(w=>/,$/.test(w[0]))) return [];
+  const ok=w=>!LISTSKIP.has(w[0].toLowerCase().replace(/[^\p{L}]/gu,'')); return real.map((it,i)=>{ const pool=i===0?it.slice(-2):it; const c=pool.find(ok)||it.find(ok)||it[0]; return c[1] }) }
+function autoAccent(blocks,k){ let n=0, hit=0; blocks.forEach(bk=>{ bk.sfx=(bk.sfx||[]).filter(x=>!x.auto); const ts=listHits(bk); if(ts.length){ hit++; ts.forEach(t=>{ if(t>=bk.a&&t<=bk.b){ bk.sfx.push({k,t:+(t-0.02).toFixed(2),v:1,auto:true}); n++ } }); bk.sfx.sort((a,b)=>a.t-b.t) } }); return {n,hit} }
 function sfxAll(){ const out=[]; S.data.blocks.forEach((bk,bi)=>{ if(!bk.on||!bk._d||!bk.sfx) return; bk.sfx.forEach((x,k)=>{ if(x.t<bk.a||x.t>bk.b) return; if((bk.cuts||[]).some(([a,b])=>x.t>a&&x.t<b)) return; out.push({k:x.k,v:x.v,t:srcToOut(bk,x.t),key:'sx'+bi+':'+k}) }) }); return out }
 let sfxPick=(()=>{try{return localStorage.getItem('kyu-sfx')||'pop'}catch(e){return 'pop'}})();
 function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); lane.appendChild(el('span','lb','🔊 효과음 줄 — 여기를 누르면 아래에서 고른 소리가 들어가요'));
@@ -855,7 +867,14 @@ function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); l
       const del=el('button','btn sm','✕'); del.onclick=()=>{ bk.sfx.splice(k,1); save(); draw(); list() }; const r=el('div','row'); r.style.gap='4px'; r.append(ks,vs,del); lst.appendChild(r) }) };
   Object.entries(SFXLIB).forEach(([k,[ic,nm]])=>{ const b=el('button','snd'+(k===sfxPick?' on':''),ic+' '+nm); b.title='눌러서 미리 듣고 고르기'; b.onclick=()=>{ sfxPick=k; try{localStorage.setItem('kyu-sfx',k)}catch(e){} bar.querySelectorAll('.snd').forEach(x=>x.classList.toggle('on',x===b)); if(S.playSrc!=null&&S.playSrc>=bk.a&&S.playSrc<=bk.b&&!S.playing) addAt(+S.playSrc.toFixed(2),k); else sfxPlay(k) }; bar.appendChild(b) });
   const bl=el('div','lab','넣을 소리 — 초록 줄(재생 위치)이 있으면 누르는 순간 그 자리에 바로 붙어요. 줄을 누르거나 끌면 초록 줄·단어 시작에 자석처럼 붙어요'); bl.style.margin='6px 0 4px';
-  wrap.append(lane,bl,bar,lst); requestAnimationFrame(draw); list(); laneDraw=draw; return wrap }
+  const ar=el('div','row'); ar.style.cssText='gap:6px;align-items:center;margin-top:6px';
+  const as=el('select'); Object.entries(SFXLIB).forEach(([kk,[ic,nm]])=>{const o=el('option',null,ic+' '+nm); o.value=kk; as.appendChild(o)}); as.value=(()=>{try{return localStorage.getItem('kyu-accent')||'pop'}catch(e){return 'pop'}})(); as.onchange=()=>{ try{localStorage.setItem('kyu-accent',as.value)}catch(e){} sfxPlay(as.value) };
+  const go=(all)=>{ const r=autoAccent(all?S.data.blocks:[bk],as.value); save(); draw(); list(); if(all&&S.sel!=null) renderBlocks(); toast(r.n?'✨ 열거 '+r.hit+'곳에 강조음 '+r.n+'개를 넣었어요':'단어를 나열하는 부분을 못 찾았어요 (예: el sabor, la calidad y la gente)',3500) };
+  const b1=el('button','btn sm primary','✨ 강조음 자동 넣기 (이 블록)'); b1.onclick=()=>go(false);
+  const b2=el('button','btn sm','전체 블록에'); b2.onclick=()=>go(true);
+  const b3=el('button','btn sm','자동 강조음 지우기'); b3.onclick=()=>{ bk.sfx=(bk.sfx||[]).filter(x=>!x.auto); save(); draw(); list() };
+  ar.append(el('span','lab','열거 강조음'),as,b1,b2,b3,el('span','hint','단어를 나열할 때 단어마다 소리를 넣어요'));
+  wrap.append(lane,bl,bar,ar,lst); requestAnimationFrame(draw); list(); laneDraw=draw; return wrap }
 let laneDraw=null;
 function wavePlayhead(s,src){ const open=S.sel!=null&&S.data.blocks[S.sel]===s.bk; const v=open?src:null; if(v===S.playSrc) return; S.playSrc=v; if(waveCtx&&(open||v==null)) waveCtx.redraw(); if(laneDraw&&!S.playing) laneDraw() }
 function blockEditor(bk,i){ const box=el('div','bedit');
