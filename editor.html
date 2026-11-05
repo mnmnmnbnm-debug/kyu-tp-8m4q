@@ -868,7 +868,7 @@ function blockEditor(bk,i){ const box=el('div','bedit');
   if(!bk.take) return box;
   // waveform
   const wv=el('div','wave'); const c=el('canvas'); c.height=168; wv.appendChild(c); box.appendChild(wv); const lane=sfxLane(bk,()=>[v0,v1]); box.appendChild(lane);
-  const hint=el('div','hint','파형을 누르면 그 위치부터 원본 소리로 들려줘요. 노란 손잡이를 끌어 시작·끝을 맞추고, 회색 띠(잘라낸 쉼)는 눌러서 되살릴 수 있어요.'); box.appendChild(hint);
+  const hint=el('div','hint','파형을 누르거나 끌면 초록 줄(재생 위치)이 옮겨져요. 노란 손잡이로 시작·끝을 맞추고, 회색 띠(잘라낸 쉼)는 눌러서 되살려요. 노란 범위 밖을 누르면 원본 소리를 들려줘요.'); box.appendChild(hint);
   const g=c.getContext('2d'); const pad=1.6; let v0=Math.max(0,bk.a-pad), v1=Math.min(prim(bk.take).dur||bk.b+pad,bk.b+pad);
   const X=t=>(t-v0)/(v1-v0)*c.width, T=x=>v0+x/c.width*(v1-v0);
   function redraw(){ const w=c.clientWidth||600; if(c.width!==w*2) c.width=w*2; const W=c.width,H=c.height; g.clearRect(0,0,W,H); const p=pkGet(bk.take), thr=(S.data.takes[bk.take]||{}).thr??-45;
@@ -886,10 +886,12 @@ function blockEditor(bk,i){ const box=el('div','bedit');
     if(Math.abs(x-X(bk.a))<22) dragH='a'; else if(Math.abs(x-X(bk.b))<22) dragH='b';
     if(dragH){ c.setPointerCapture(e.pointerId); return }
     const ci=(bk.cuts||[]).findIndex(([a,b])=>t>=a&&t<=b); if(ci>=0){ bk.cuts.splice(ci,1); buildTL(); renderBlocks(); save(); return }
-    audition(bk.take,t,Math.max(t+1.5,bk.b+0.5)) });
-  c.addEventListener('pointermove',e=>{ if(!dragH) return; const r=c.getBoundingClientRect(); const t=+T((e.clientX-r.left)/r.width*c.width).toFixed(2);
+    if(t<bk.a||t>bk.b){ audition(bk.take,t,Math.max(t+1.5,bk.b+0.5)); return }
+    stopAud(); scrubWas=S.playing; if(S.playing) stop(); dragH='play'; c.setPointerCapture(e.pointerId); seekSrc(t) });
+  let scrubWas=false; const seekSrc=t=>{ t=Math.max(bk.a,Math.min(bk.b-0.02,t)); const o=Math.min(bk._o+bk._d-0.02,srcToOut(bk,t)); S.playSrc=t; drawAt(o); redraw() };
+  c.addEventListener('pointermove',e=>{ if(!dragH) return; const r=c.getBoundingClientRect(); const t=+T((e.clientX-r.left)/r.width*c.width).toFixed(2); if(dragH==='play'){ seekSrc(t); return }
     if(dragH==='a') bk.a=Math.min(t,bk.b-0.2); else bk.b=Math.max(t,bk.a+0.2); redraw() });
-  c.addEventListener('pointerup',()=>{ if(!dragH) return; const h=dragH; dragH=null; autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save(); audition(bk.take,h==='a'?bk.a:Math.max(bk.a,bk.b-1.5),h==='a'?bk.a+1.6:bk.b+0.3) });
+  c.addEventListener('pointerup',()=>{ if(!dragH) return; const h=dragH; dragH=null; if(h==='play'){ if(scrubWas) play(S.outT); return } autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save(); audition(bk.take,h==='a'?bk.a:Math.max(bk.a,bk.b-1.5),h==='a'?bk.a+1.6:bk.b+0.3) });
   // nudges & audition
   const nr=el('div','row');
   const nb=(lab,fn)=>{const b=el('button','btn sm',lab); b.onclick=()=>{fn(); autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save()}; return b};
