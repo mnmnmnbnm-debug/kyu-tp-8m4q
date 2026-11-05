@@ -1087,7 +1087,7 @@ function saveTake(ch,type,suffix,sec,no){
 /* ---------- auto-save to a folder (콘텐츠/<대본 폴더>) ---------- */
 let recStamp='', dirH=null, dirOK=false;
 const FS=!!window.showDirectoryPicker;
-const FOLDERS={sarang:'#3 사랑하다',konglish:'#4 콩글리시',dongji:'#5 동지 팥죽',buffet:'#4 한식뷔페',baek:'백년가게',seul:'seul',han:'han'};
+const FOLDERS={bap:'#5 밥 먹었어',sarang:'#3 사랑하다',konglish:'#4 콩글리시',dongji:'#5 동지 팥죽',buffet:'#4 한식뷔페',baek:'백년가게',seul:'seul',han:'han'};
 function folderName(){const o=$('pick').selectedOptions[0]; return (FOLDERS[cur]||(o?o.textContent:cur)).replace(/[\/\\:*?"<>|]/g,'').trim()}
 function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('kyu-fs',1); r.onupgradeneeded=()=>r.result.createObjectStore('h'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error)})}
 async function idbGet(){try{const d=await idb(); return await new Promise(r=>{const q=d.transaction('h').objectStore('h').get('root'); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null)})}catch(e){return null}}
