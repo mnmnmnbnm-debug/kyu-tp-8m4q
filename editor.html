@@ -98,9 +98,14 @@ textarea{width:100%;resize:vertical}
 .sfxl .lb{position:absolute;left:8px;top:8px;font-size:11px;color:var(--dim);pointer-events:none}
 .sfxl .mk{position:absolute;top:3px;transform:translateX(-50%);height:26px;min-width:26px;padding:0 4px;border-radius:7px;background:#2a2410;border:1px solid var(--accent);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none}
 .sfxl .mk.on{background:var(--accent)}
+.sfxl .mk .x{display:none;position:absolute;top:-8px;right:-8px;width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:10px;line-height:16px;text-align:center;cursor:pointer}
+.sfxl .mk:hover .x,.sfxl .mk.on .x{display:block}
 .sfxbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.sfxbar .snd{font-size:12px;padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;color:var(--fg)}
-.sfxbar .snd.on{border-color:var(--accent);color:var(--accent)}
+.sfxgrid{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:5px}
+@media (max-width:1300px){.sfxgrid{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}}
+.sfxgrid .snd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.sfxbar .snd,.sfxgrid .snd{font-size:12px;padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;color:var(--fg)}
+.sfxgrid .snd.on,.sfxbar .snd.on{border-color:var(--accent);color:var(--accent)}
 .wave canvas{width:100%;height:84px;display:block;background:#0a0d11;border:1px solid var(--line);border-radius:8px;cursor:pointer}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .lab{font-size:12px;color:var(--dim)}
@@ -828,23 +833,25 @@ let waveCtx=null;
 function sfxAll(){ const out=[]; S.data.blocks.forEach((bk,bi)=>{ if(!bk.on||!bk._d||!bk.sfx) return; bk.sfx.forEach((x,k)=>{ if(x.t<bk.a||x.t>bk.b) return; if((bk.cuts||[]).some(([a,b])=>x.t>a&&x.t<b)) return; out.push({k:x.k,v:x.v,t:srcToOut(bk,x.t),key:'sx'+bi+':'+k}) }) }); return out }
 let sfxPick=(()=>{try{return localStorage.getItem('kyu-sfx')||'pop'}catch(e){return 'pop'}})();
 function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); lane.appendChild(el('span','lb','🔊 효과음 줄 — 여기를 누르면 아래에서 고른 소리가 들어가요'));
-  const bar=el('div','sfxbar'); bar.style.marginTop='6px';
+  const bar=el('div','sfxgrid');
   const X=t=>{ const [v0,v1]=range(); return (t-v0)/(v1-v0)*100 }, T=px=>{ const [v0,v1]=range(), r=lane.getBoundingClientRect(); return v0+(px-r.left)/r.width*(v1-v0) };
   let selK=-1;
-  const draw=()=>{ lane.querySelectorAll('.mk').forEach(m=>m.remove()); (bk.sfx||[]).forEach((x,k)=>{ const m=el('div','mk'+(k===selK?' on':''),SFXLIB[x.k]?.[0]||'🔊'); m.style.left=X(x.t)+'%'; m.title=(SFXLIB[x.k]?.[1]||x.k)+' · 끌어서 이동 · 두 번 누르면 삭제';
-      m.onpointerdown=e=>{ e.stopPropagation(); selK=k; draw(); sfxPlay(x.k,x.v); let moved=false; m.setPointerCapture(e.pointerId);
+  const draw=()=>{ lane.querySelectorAll('.mk').forEach(m=>m.remove()); (bk.sfx||[]).forEach((x,k)=>{ const m=el('div','mk'+(k===selK?' on':''),SFXLIB[x.k]?.[0]||'🔊'); m.style.left=X(x.t)+'%'; m.title=(SFXLIB[x.k]?.[1]||x.k)+' · 끌어서 이동 · 두 번 누르거나 오른쪽 클릭하면 삭제'; const xb=el('span','x','✕'); xb.onpointerdown=e=>e.stopPropagation(); xb.onclick=e=>{ e.stopPropagation(); bk.sfx.splice(k,1); selK=-1; save(); draw(); list() }; m.appendChild(xb);
+      m.onclick=e=>e.stopPropagation(); m.oncontextmenu=e=>{ e.preventDefault(); e.stopPropagation(); bk.sfx.splice(k,1); selK=-1; save(); draw(); list() };
+      m.onpointerdown=e=>{ e.stopPropagation(); if(e.button!==0) return; selK=k; lane.querySelectorAll('.mk.on').forEach(z=>z.classList.remove('on')); m.classList.add('on'); sfxPlay(x.k,x.v); let moved=false; m.setPointerCapture(e.pointerId);
         m.onpointermove=ev=>{ moved=true; x.t=+Math.max(bk.a,Math.min(bk.b,T(ev.clientX))).toFixed(2); m.style.left=X(x.t)+'%' };
-        m.onpointerup=()=>{ m.onpointermove=null; if(moved){ save(); drawAt(Math.max(bk._o,srcToOut(bk,x.t))) } } };
+        m.onpointerup=()=>{ m.onpointermove=null; if(moved){ bk.sfx.sort((a,b)=>a.t-b.t); save(); draw(); list(); drawAt(Math.max(bk._o,srcToOut(bk,x.t))) } } };
       m.ondblclick=e=>{ e.stopPropagation(); bk.sfx.splice(k,1); selK=-1; save(); draw(); list() };
       lane.appendChild(m) }) };
   lane.onclick=e=>{ const t=+T(e.clientX).toFixed(2); if(t<bk.a||t>bk.b){ toast('노란 손잡이 사이(쓰는 부분)에 넣어 주세요'); return } (bk.sfx=bk.sfx||[]).push({k:sfxPick,t,v:1}); bk.sfx.sort((a,b)=>a.t-b.t); selK=bk.sfx.findIndex(x=>x.t===t); sfxPlay(sfxPick); save(); draw(); list() };
   const lst=el('div','sfxbar'); lst.style.marginTop='4px';
+  lane.tabIndex=0; lane.onkeydown=e=>{ if((e.key==='Delete'||e.key==='Backspace')&&selK>=0&&bk.sfx&&bk.sfx[selK]){ e.preventDefault(); bk.sfx.splice(selK,1); selK=-1; save(); draw(); list() } };
   const list=()=>{ lst.textContent=''; (bk.sfx||[]).forEach((x,k)=>{ const ch=el('span','chip',(SFXLIB[x.k]?.[0]||'')+' '+(SFXLIB[x.k]?.[1]||x.k)+' · '+(x.t-bk.a).toFixed(1)+'초'); const vs=el('select'); [[0.5,'작게'],[1,'보통'],[1.6,'크게']].forEach(([v,n])=>{const o=el('option',null,n); o.value=v; vs.appendChild(o)}); vs.value=String(x.v??1); vs.onchange=()=>{x.v=+vs.value; save(); sfxPlay(x.k,x.v)};
       const ks=el('select'); Object.entries(SFXLIB).forEach(([kk,[ic,nm]])=>{const o=el('option',null,ic+' '+nm); o.value=kk; ks.appendChild(o)}); ks.value=x.k; ks.onchange=()=>{x.k=ks.value; save(); draw(); sfxPlay(x.k,x.v)};
       const del=el('button','btn sm','✕'); del.onclick=()=>{ bk.sfx.splice(k,1); save(); draw(); list() }; const r=el('div','row'); r.style.gap='4px'; r.append(ks,vs,del); lst.appendChild(r) }) };
-  bar.appendChild(el('span','lab','넣을 소리'));
   Object.entries(SFXLIB).forEach(([k,[ic,nm]])=>{ const b=el('button','snd'+(k===sfxPick?' on':''),ic+' '+nm); b.title='눌러서 미리 듣고 고르기'; b.onclick=()=>{ sfxPick=k; try{localStorage.setItem('kyu-sfx',k)}catch(e){} bar.querySelectorAll('.snd').forEach(x=>x.classList.toggle('on',x===b)); sfxPlay(k) }; bar.appendChild(b) });
-  wrap.append(lane,bar,lst); requestAnimationFrame(draw); list(); return wrap }
+  const bl=el('div','lab','넣을 소리 — 눌러서 미리 듣고 고른 뒤, 위 효과음 줄을 누르세요'); bl.style.margin='6px 0 4px';
+  wrap.append(lane,bl,bar,lst); requestAnimationFrame(draw); list(); return wrap }
 function blockEditor(bk,i){ const box=el('div','bedit');
   // text
   const tr=el('div','row'); const ti=el('input'); ti.type='text'; ti.value=bk.text; ti.style.flex='1'; ti.title='자막 문장 (한글·*단어*는 노란색)';
@@ -953,8 +960,8 @@ function wsola(x,rate){ if(Math.abs(rate-1)<1e-3) return x.slice(); const N=1024
     if(k>0){ const ref=prev+Ho; let bc=-Infinity; for(let d=-SR;d<=SR;d+=2){ const p=nom+d; if(p<0) continue; let c=0; for(let i=0;i<Ho;i+=3) c+=xp[p+i]*xp[ref+i]; if(c>bc){bc=c;best=p} } }
     for(let i=0;i<N;i++){ y[op+i]+=xp[best+i]*win[i]; ws[op+i]+=win[i] } prev=best }
   for(let i=0;i<outLen;i++) if(ws[i]>1e-3) y[i]/=ws[i]; return y.subarray(0,Math.round(x.length/rate)) }
-const SFXLIB={pop:['🫧','톡'],ding:['🔔','띵'],correct:['✅','딩동 (정답)'],buzz:['❌','삐- (오답)'],whoosh:['💨','휙'],boing:['🌀','띠용'],click:['🖱️','딸깍'],shutter:['📸','찰칵'],rise:['📈','두둥 (긴장)'],drum:['🥁','바둠츠'],sparkle:['✨','반짝'],type:['⌨️','타닥타닥'],cash:['💰','차링'],swipe:['👉','슉 (짧게)']};
-const SFXLEN={pop:0.13,ding:0.85,correct:0.7,buzz:0.32,whoosh:0.35,boing:0.6,click:0.05,shutter:0.18,rise:0.9,drum:0.9,sparkle:0.7,type:0.45,cash:0.8,swipe:0.18};
+const SFXLIB={pop:['🫧','톡'],ding:['🔔','띵'],correct:['✅','딩동 (정답)'],buzz:['❌','삐- (오답)'],whoosh:['💨','휙'],boing:['🌀','띠용'],click:['🖱️','딸깍'],shutter:['📸','찰칵'],rise:['📈','두둥 (긴장)'],drum:['🥁','바둠츠'],sparkle:['✨','반짝'],type:['⌨️','타닥타닥'],cash:['💰','차링'],swipe:['👉','슉 (짧게)'],tada:['🎉','짜잔'],fail:['📉','뿌우우 (실패)'],heart:['💓','두근두근'],tick:['⏱️','째깍째깍'],notify:['📱','띠링 (알림)'],bloop:['🎈','뿅'],whistle:['😯','휘익↑'],fall:['⬇️','뚝↓']};
+const SFXLEN={pop:0.13,ding:0.85,correct:0.7,buzz:0.32,whoosh:0.35,boing:0.6,click:0.05,shutter:0.18,rise:0.9,drum:0.9,sparkle:0.7,type:0.45,cash:0.8,swipe:0.18,tada:1.1,fail:1.6,heart:1.0,tick:1.0,notify:0.6,bloop:0.25,whistle:0.6,fall:0.7};
 function synthSfx(kind,sr){ const n=Math.round(sr*(SFXLEN[kind]||0.2)), y=new Float32Array(n), R=()=>Math.random()*2-1, sin=(f,t)=>Math.sin(2*Math.PI*f*t);
   for(let i=0;i<n;i++){ const t=i/sr; let v=0;
     if(kind==='pop') v=0.3*Math.sin(2*Math.PI*(240*t+(660/25)*(1-Math.exp(-t*25))))*Math.exp(-t*30);
@@ -971,6 +978,14 @@ function synthSfx(kind,sr){ const n=Math.round(sr*(SFXLEN[kind]||0.2)), y=new Fl
     else if(kind==='type'){ for(let q=0;q<6;q++){ const a=q*0.07+(q%2)*0.012; if(t>=a&&t<a+0.04) v+=R()*0.4*Math.exp(-(t-a)*250) } }
     else if(kind==='cash'){ v=(t<0.08?R()*0.4*Math.exp(-t*60):0)+(t>=0.08?0.15*(sin(2637,t)+sin(3520,t))*Math.exp(-(t-0.08)*5):0) }
     else if(kind==='swipe') v=R()*0.3*Math.sin(Math.PI*i/n)**2;
+    else if(kind==='tada'){ const ch=(a,fs,d)=>t>=a?fs.reduce((m,f)=>m+sin(f,t)+0.3*sin(f*2,t),0)*Math.exp(-(t-a)*d)*Math.min(1,(t-a)*300):0; v=0.06*(ch(0,[523,659],18)+ch(0.12,[523,659,784,1047],2.5)) }
+    else if(kind==='fail'){ const seg=Math.min(3,Math.floor(t/0.4)), f=[392,370,349,330][seg]*(seg===3?1+0.03*Math.sin(2*Math.PI*6*t):1), tt=t-seg*0.4; let w=0; for(let h=1;h<6;h++) w+=Math.sin(2*Math.PI*f*h*t)/h; v=0.09*w*Math.min(1,tt*30)*(seg===3?Math.exp(-tt*1.5):Math.exp(-tt*2)) }
+    else if(kind==='heart'){ const b=(a)=>t>=a?Math.sin(2*Math.PI*(45*(t-a)))*Math.exp(-(t-a)*22):0; v=0.55*(b(0)+0.8*b(0.18)+b(0.55)+0.8*b(0.73)) }
+    else if(kind==='tick'){ for(let q=0;q<4;q++){ const a=q*0.25; if(t>=a&&t<a+0.03) v+=(q%2?0.25:0.35)*sin(q%2?2600:3200,t)*Math.exp(-(t-a)*150) } }
+    else if(kind==='notify'){ const a=t<0.12?t:t-0.12, f=t<0.12?1319:1760; v=0.16*sin(f,t)*Math.exp(-a*7)*Math.min(1,a*500) }
+    else if(kind==='bloop') v=0.3*Math.sin(2*Math.PI*(300*t+1800*t*t))*Math.exp(-t*12)*Math.min(1,t*400);
+    else if(kind==='whistle') v=0.14*Math.sin(2*Math.PI*(900*t+900*t*t))*Math.min(1,t*20)*Math.min(1,(0.6-t)*10);
+    else if(kind==='fall') v=0.16*Math.sin(2*Math.PI*(1400*t-850*t*t))*Math.min(1,t*30)*Math.exp(-t*2)+(t>0.6?R()*0.3*Math.exp(-(t-0.6)*60):0);
     else v=R()*0.25*Math.sin(Math.PI*i/n)**2;
     y[i]=v }
   if(kind==='whoosh'||kind==='swipe'){let a=0,b=0; for(let i=0;i<n;i++){const c=0.03+0.25*Math.sin(Math.PI*i/n); a+=c*(y[i]-a); b+=c*(a-b); y[i]=b*2}} return y }
