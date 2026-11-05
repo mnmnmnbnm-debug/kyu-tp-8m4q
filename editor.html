@@ -617,7 +617,10 @@ function candQuality(line,c){ const t=S.data.takes[c.take]; if(!t||!t.words) ret
   if(p){ for(let x=c.a+0.1;x<c.b-0.1;x+=0.02){ const d=dbAt(p,x); if(d<thr) sil+=0.02; else { sp++; lv+=d } } }
   let run=0, hes=0; if(p){ for(let x=c.a+0.1;x<c.b-0.1;x+=0.02){ if(dbAt(p,x)<thr){ run+=0.02 } else { if(run>0.6) hes+=run-0.6; run=0 } } }
   const loud=sp?lv/sp:(t.med??-28), quiet=Math.max(0,((t.med??-28)-loud)-3);
-  return +(c.score - extra*0.35 - fill*0.08 - hes*0.12 - quiet*0.03).toFixed(3) }
+  // background noise: quietest 20% of the line and its edges = noise floor; less noise (higher speech-to-noise) wins
+  let snr=30; if(p){ const ds=[]; for(let x=Math.max(0,c.a-0.8);x<c.b+0.8;x+=0.02) ds.push(dbAt(p,x)); ds.sort((u,v)=>u-v); const floor=ds[Math.floor(ds.length*0.2)]??-60; snr=loud-floor; c.noise=+floor.toFixed(1) }
+  c.snr=+snr.toFixed(1); const noisy=Math.max(0,28-snr);
+  return +(c.score - extra*0.35 - fill*0.08 - hes*0.12 - quiet*0.03 - noisy*0.012).toFixed(3) }
 /* angles: push-in/emphasis lines on the front camera, explanations on the side camera, never 3 in a row, long lines switch at a pause */
 function mixCams(){ const TLs=takeList(); let prev='', run=0;
   S.data.blocks.forEach(bk=>{ const ms=TLs[bk.take]||[]; delete bk.camAlt; if(ms.length<2) return; const front=ms[0].cam||'', side=ms[1].cam||'';
@@ -970,7 +973,7 @@ function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const
     const on=bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2&&(bk.cam||'')===(m.cam||''); const card=el('div','tc'+(on?' on':''));
     const v=document.createElement('video'); v.src=S.urls[m.file]; v.muted=true; v.playsInline=true; v.preload='metadata'; v.style.objectPosition=Math.round((m.cx??0.5)*100)+'% 35%';
     v.onloadedmetadata=()=>{ v.currentTime=cd.a+Math.min(1,(cd.b-cd.a)/2) }; vids.push(v);
-    const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,cd.none?'이 줄을 못 찾음 · 전체 '+(m.dur||0).toFixed(1)+'초':Math.round(cd.score*100)+'% 일치'+(cd.q!=null?' · 발음 '+Math.max(0,Math.round(cd.q*100)):'')+' · '+(cd.b-cd.a).toFixed(1)+'초'));
+    const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,cd.none?'이 줄을 못 찾음 · 전체 '+(m.dur||0).toFixed(1)+'초':Math.round(cd.score*100)+'% 일치'+(cd.q!=null?' · 발음 '+Math.max(0,Math.round(cd.q*100)):'')+(cd.snr!=null?' · 잡음 '+(cd.snr>=28?'적음':cd.snr>=20?'보통':'많음'):'')+' · '+(cd.b-cd.a).toFixed(1)+'초'));
     if(cd.none) card.classList.add('none');
     const pb=el('button','btn sm','▶ 보기'); let tmr=null; v.style.cursor='pointer'; v.title='누르면 이 대사 재생 / 다시 누르면 멈춤'; v.onclick=()=>pb.onclick(); const big=el('button','btn sm','⤢'); big.title='크게 보기'; big.onclick=()=>{ stopAll(); bigClip(S.urls[m.file],cd.a,cd.b,lab.querySelector('b').textContent) };
     pb.onclick=()=>{ stop(); stopAud(); const was=!v.paused; stopAll(); clearTimeout(tmr); if(was){ pb.textContent='▶ 보기'; return }
