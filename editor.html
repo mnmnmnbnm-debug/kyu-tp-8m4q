@@ -163,7 +163,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <span class="tc" id="tc">0:00.0 / 0:00.0</span>
     </div>
     <div class="row" id="safeSel" style="margin-top:8px;gap:4px;align-items:center"><span class="lab" style="margin-right:4px">가림 영역</span><button class="btn sm" data-z="ig">인스타</button><button class="btn sm" data-z="tt">틱톡</button><button class="btn sm" data-z="yt">유튜브</button><button class="btn sm" data-z="">안보기</button></div>
-    <div class="hint" style="margin-top:6px">멈춘 상태에서 화면을 끌면 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지 · ←→ 1초 이동 · ↑↓ 블록 이동</div>
+    <div class="hint" style="margin-top:6px">화면을 끌면 지금 블록의 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지 · ←→ 1초 이동 · ↑↓ 블록 이동</div>
     <div class="box" style="margin-top:12px" id="expBox" hidden>
       <h3>내보내기 · 업로드</h3>
       <div class="hint" id="expInfo">미리보기 그대로 프로젝트 폴더의 renders에 mp4로 저장해요. 소리와 화면을 원본 시간 기준으로 맞춰서 입싱크가 어긋나지 않아요.</div>
@@ -615,7 +615,7 @@ function cropFor(m,v,shot,prog,el,W=cv.width,H=cv.height){ const vw=v.videoWidth
   let sx=cx-cw/2, sy=cy-0.38*ch; sx=Math.max(0,Math.min(vw-cw,sx)); sy=Math.max(0,Math.min(vh-ch,sy)); return [sx,sy,cw,ch] }
 const FILT={mid:'brightness(1.03) contrast(1.06) saturate(1.12)',warm:'brightness(1.04) contrast(1.05) saturate(1.15) sepia(0.08)',off:'none'};
 function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); if(!v||!s) return;
-  const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; drawShot(ctx,W,H,v,s.m,bk.shot,prog,el,FILT[S.data.filter]||'none');
+  const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; drawShot(ctx,W,H,v,bk.cx!=null?Object.assign({},s.m,{cx:bk.cx,cy:bk.cy}):s.m,bk.shot,prog,el,FILT[S.data.filter]||'none');
   drawOverlays(t); drawCaptions(t,bk); if(!S.exporting) drawSafe(); updTC(); }
 /* safe zones (preview only, never exported) — px on a 1080x1920 frame */
 const SAFE={ig:{n:'인스타 릴스',top:220,bot:420,right:130,rTop:860,left:40,lab:['상단 메뉴','캡션 · 계정명 · 음악','좋아요·댓글·공유']},
@@ -651,7 +651,8 @@ function shotPicker(bk){ if(SHOTOLD[bk.shot]) bk.shot=SHOTOLD[bk.shot]; if(SHOTO
     const chip=document.querySelector(`.blk[data-i="${bi}"] .meta .chip:last-of-type`); if(chip) chip.textContent=SHOTS[k].replace(/^\d+\. /,''); playBlock(bi) };
   Object.keys(SHOTS).forEach(k=>{ const b=el('button','shot'+(bk.shot===k?' on':'')); b.dataset.k=k; const [d1,d2]=SHOTDESC[k].split(' · ');
     b.append(el('b',null,SHOTS[k]),el('small',null,k===bk.shot0?'★ 처음 설정':d2||d1)); b.title=SHOTDESC[k]+' — 누르면 미리보기 화면에서 바로 재생돼요'; b.onclick=()=>pick(k); wrap.appendChild(b) });
-  rs.onclick=()=>pick(bk.shot0); const ir=el('div','row'); ir.style.cssText='grid-column:1/-1;gap:8px;align-items:center'; ir.append(rs,info); wrap.appendChild(ir);
+  rs.onclick=()=>pick(bk.shot0); const ir=el('div','row'); ir.style.cssText='grid-column:1/-1;gap:8px;align-items:center'; ir.append(rs,info);
+  if(bk.cx!=null){ const pr=el('button','btn sm','↺ 화면 위치 처음으로'); pr.title='화면을 끌어서 옮긴 위치를 원래대로'; pr.onclick=()=>{ delete bk.cx; delete bk.cy; save(); renderBlocks(); drawAt(Math.max(S.outT,bk._o+0.05)) }; ir.append(pr) } wrap.appendChild(ir);
   return wrap }
 function rr(x,y,w,h,r){ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath()}
 const pop=(dt)=>dt<0.11?0.55+0.53*(dt/0.11):dt<0.19?1.08-0.08*((dt-0.11)/0.08):1;
@@ -697,9 +698,9 @@ cv.addEventListener('pointermove',e=>{ if(emDrag){ const [x,y]=cvPt(e); emDrag.o
   if(!drag) cv.style.cursor=emHit(e)?'move':'grab' },true);
 cv.addEventListener('pointerup',e=>{ if(emDrag){ emDrag=null; cv.style.cursor='grab'; save(); if(S.sel!=null) renderBlocks(); e.stopImmediatePropagation() } },true);
 cv.addEventListener('wheel',e=>{ const h=emHit(e); if(!h||!h.o) return; e.preventDefault(); h.o.s=+Math.max(0.3,Math.min(4,(h.o.s||1)*Math.exp(-e.deltaY*0.0015))).toFixed(3); drawAt(S.outT); clearTimeout(cv._wt); cv._wt=setTimeout(()=>{save(); if(S.sel!=null) renderBlocks()},400) },{passive:false});
-cv.addEventListener('pointerdown',e=>{ if(S.playing||!S.tl.length) return; const s=S.tl[segAt(S.outT)]; drag={x:e.clientX,y:e.clientY,m:s.m,cx:s.m.cx,cy:s.m.cy}; cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing' });
-cv.addEventListener('pointermove',e=>{ if(!drag) return; const r=cv.getBoundingClientRect(); const dx=(e.clientX-drag.x)/r.width, dy=(e.clientY-drag.y)/r.height; drag.m.cx=Math.max(0.05,Math.min(0.95,drag.cx-dx*0.35)); drag.m.cy=Math.max(0.1,Math.min(0.9,drag.cy-dy*0.6)); drawAt(S.outT) });
-cv.addEventListener('pointerup',()=>{ if(drag){drag=null; cv.style.cursor='grab'; save()} });
+cv.addEventListener('pointerdown',e=>{ if(!S.tl.length) return; if(S.playing) stop(); const s=S.tl[segAt(S.outT)]; drag={x:e.clientX,y:e.clientY,bk:s.bk,cx:s.bk.cx??s.m.cx,cy:s.bk.cy??s.m.cy}; cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing' });
+cv.addEventListener('pointermove',e=>{ if(!drag) return; const r=cv.getBoundingClientRect(); const dx=(e.clientX-drag.x)/r.width, dy=(e.clientY-drag.y)/r.height; drag.bk.cx=+Math.max(0.05,Math.min(0.95,drag.cx-dx*0.35)).toFixed(4); drag.bk.cy=+Math.max(0.1,Math.min(0.9,drag.cy-dy*0.6)).toFixed(4); drawAt(S.outT) });
+cv.addEventListener('pointerup',()=>{ if(drag){ const bi=S.data.blocks.indexOf(drag.bk); drag=null; cv.style.cursor='grab'; save(); if(S.sel===bi) renderBlocks(); toast((bi+1)+'번 블록 화면 위치를 바꿨어요',1800)} });
 
 /* ================= scrub & time ================= */
 function renderScrub(){ const b=$('scrub'); b.textContent=''; if(!S.total) return;
