@@ -539,7 +539,7 @@ function seedBlocksFromScript(){const L=S.data.script?scriptLines(S.data.script.
 function findCands(line,usedAfter){
   const ln=norm(line.replace(/\*/g,'')); if(ln.length<2) return [];
   const toks=line.split(/\s+/).map(norm).filter(Boolean), tset=new Set(toks), Lt=toks.length; const out=[];
-  for(const [k,t] of Object.entries(S.data.takes)){ if(!t.words||!prim(k)) continue; const W=t.words, wn=W.map(w=>norm(w[0])); const pre=[];
+  for(const [k,t] of Object.entries(S.data.takes)){ if(!t.words||!prim(k)||(prim(k).dur&&prim(k).dur<2.5)) continue; const W=t.words, wn=W.map(w=>norm(w[0])); const pre=[];
     for(let i=0;i<W.length;i++){ let hit=0; for(let j=i;j<Math.min(W.length,i+Math.ceil(Lt*1.6)+2);j++){ if(tset.has(wn[j])) hit++; const len=j-i+1; if(len<Math.max(1,Math.floor(Lt*0.5))) continue;
         const f=2*hit/(len+Lt); pre.push([f,i,j]) } }
     pre.sort((a,b)=>b[0]-a[0]); const top=pre.slice(0,40); const scored=[];
