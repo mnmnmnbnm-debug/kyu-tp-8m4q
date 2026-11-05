@@ -187,6 +187,7 @@ dialog.wide{max-width:1040px;width:94vw}
         <span class="lab">자막 위치</span><input type="range" id="sCapY" min="55" max="88" step="1">
         <span class="lab">업스케일</span><select id="sUp"><option value="1">보통</option><option value="2">강하게 (흐린 카메라용)</option><option value="0">끄기</option></select>
         <span class="lab">필터</span><select id="sFilter"><optgroup label="기본"><option value="off">없음 (원본)</option><option value="mid">기본 보정</option><option value="warm">따뜻하게</option></optgroup><optgroup label="고화질 룩"><option value="hd">✨ 클린 HD — 선명·밝게</option><option value="skin">🧡 피부톤 HD — 따뜻·화사</option><option value="airy">☁️ 밝고 화사 — 부드럽게</option><option value="cine">🎬 시네마틱 — 영화 느낌</option><option value="vivid">🌈 비비드 — 색감 쨍</option></optgroup><optgroup label="너무 밝을 때"><option value="dim1">🌥️ 밝기 낮추기 (약하게)</option><option value="hlsave">☀️ 창가·조명 하이라이트 살리기</option><option value="dim2">🌑 밝기 낮추기 (강하게)</option></optgroup></select>
+        <span class="lab">색상 균일화</span><select id="sCM" title="카메라·조명이 달라도 모든 테이크를 같은 색감으로 맞춰요"><option value="">끄기</option><option value="auto">🎨 켜기 — 가장 많이 쓴 테이크 기준</option></select>
         <span class="lab">효과음</span><select id="sSfx"><option value="1">켜기</option><option value="0">끄기</option></select>
         <span class="lab">효과음 크기</span><input type="range" id="sSfxVol" min="0" max="200" step="5" title="모든 효과음 크기 (100% = 기본)">
         <span class="lab">언어</span><select id="sLang"><option value="spanish">스페인어</option><option value="korean">한국어</option><option value="english">영어</option></select>
@@ -484,11 +485,11 @@ setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
 function fillScriptSel(){const s=$('sScript'); s.textContent=''; s.appendChild(el('option',null,'(대본 없음)')).value='';
   SCRIPTS.list.forEach(o=>{const x=el('option',null,o.name); x.value=o.id; s.appendChild(x)})}
 function syncSettings(){const d=S.data; $('sUp').value=d.upscale===false?'0':d.upscale===2?'2':'1'; $('sSfxVol').value=d.sfxVol??100; $('sFormat').value=d.format; $('sSpeed').value=String(d.speed); $('sGap').value=String(d.gap); $('sCap').value=d.cap.mode; $('sCapSize').value=d.cap.size; $('sCapY').value=d.cap.y;
-  $('sFilter').value=d.filter; $('sSfx').value=String(d.sfx); $('sLang').value=d.lang; $('sScript').value=d.script?d.script.id:'';
+  cmUI(); $('sFilter').value=d.filter; $('sSfx').value=String(d.sfx); $('sLang').value=d.lang; $('sScript').value=d.script?d.script.id:'';
   const cv=$('cv'); const [W,H]=d.format==='long'?[1920,1080]:[1080,1920]; if(cv.width!==W){cv.width=W; cv.height=H}}
 const onSet=(id,fn)=>$(id).addEventListener('change',()=>{fn($(id).value); buildTL(); renderBlocks(); save(); drawAt(S.outT)});
 onSet('sFormat',v=>{S.data.format=v; syncSettings()}); onSet('sSpeed',v=>S.data.speed=+v); onSet('sGap',v=>{S.data.gap=+v; S.data.blocks.forEach(autoCuts)});
-onSet('sCap',v=>S.data.cap.mode=v); onSet('sUp',v=>S.data.upscale=v==='0'?false:v==='2'?2:true); $('sSfxVol').oninput=()=>{ S.data.sfxVol=+$('sSfxVol').value; $('sSfxVol').title='모든 효과음 크기 '+S.data.sfxVol+'%' }; $('sSfxVol').onchange=()=>{ save(); sfxPlay('pop',1) }; onSet('sFilter',v=>S.data.filter=v); onSet('sSfx',v=>S.data.sfx=+v); onSet('sLang',v=>S.data.lang=v);
+onSet('sCap',v=>S.data.cap.mode=v); onSet('sUp',v=>S.data.upscale=v==='0'?false:v==='2'?2:true); $('sSfxVol').oninput=()=>{ S.data.sfxVol=+$('sSfxVol').value; $('sSfxVol').title='모든 효과음 크기 '+S.data.sfxVol+'%' }; $('sSfxVol').onchange=()=>{ save(); sfxPlay('pop',1) }; onSet('sFilter',v=>S.data.filter=v); $('sCM').addEventListener('change',()=>{ const v=$('sCM').value; if(!v){ if(S.data.cmatch) S.data.cmatch.on=false; save(); cmUI(); drawAt(S.outT); return } if(v==='auto'&&S.data.cmatch) S.data.cmatch.auto=true; colorMatch(v==='auto'?null:v) }); onSet('sSfx',v=>S.data.sfx=+v); onSet('sLang',v=>S.data.lang=v);
 $('sCapSize').addEventListener('input',()=>{S.data.cap.size=+$('sCapSize').value; drawAt(S.outT); save()});
 $('sCapY').addEventListener('input',()=>{S.data.cap.y=+$('sCapY').value; drawAt(S.outT); save()});
 onSet('sScript',v=>{ if(!v){S.data.script=null; return} S.data.script={id:v,name:SCRIPTS.list.find(o=>o.id===v)?.name||v,text:SCRIPTS.text[v]||''};
@@ -499,13 +500,7 @@ $('caption').addEventListener('input',()=>{S.data.caption=$('caption').value; sa
 function takeList(){const t={}; S.data.media.filter(m=>m.ok).forEach(m=>{(t[m.take]=t[m.take]||[]).push(m)}); Object.values(t).forEach(a=>a.sort((x,y)=>(x.cam||'').localeCompare(y.cam||''))); return t}
 const prim=take=>{const a=takeList()[take]; return a?a[0]:null};
 function renderMedia(){const b=$('mlist'); b.textContent=''; const T=takeList();
-  const okm=S.data.media.filter(m=>m.ok); if(okm.length>1){ const C=S.data.cmatch||{}; const cr=el('div','row'); cr.style.cssText='gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 8px;padding:6px 8px;border:1px solid var(--line,#333);border-radius:8px';
-    const lab=el('b',null,'🎨 테이크 색 맞추기'); const sel=document.createElement('select'); sel.title='이 영상의 색감에 나머지를 맞춰요'; sel.style.maxWidth='200px';
-    okm.forEach(m=>{ const o=document.createElement('option'); o.value=m.file; o.textContent='기준: '+m.take.replace(/^kyu_[^_]+_/,'')+(m.cam?' '+m.cam.replace('cam','카메라 '):''); sel.appendChild(o) }); sel.value=C.ref||cmRefDefault()||'';
-    const go=el('button','btn sm',C.on?'다시 맞추기':'맞추기'); go.onclick=()=>colorMatch(sel.value);
-    sel.onchange=()=>colorMatch(sel.value);
-    const off=el('button','btn sm',C.on?'끄기':'켜기'); off.disabled=!C.m; off.onclick=()=>{ S.data.cmatch.on=!S.data.cmatch.on; save(); renderMedia(); drawAt(S.outT) };
-    cr.append(lab,sel,go,off,el('span','hint',C.on?'✓ 켜짐 — 미리보기·내보내기에 적용':'카메라·조명이 달라도 같은 색감으로')); b.appendChild(cr) }
+
   Object.entries(T).forEach(([k,ms])=>{const tr=S.data.takes[k]; const r=el('div',null); r.style.margin='4px 0';
     r.append(el('b',null,k),document.createTextNode(' · '+fmt(ms[0].dur)+(ms.length>1?' · 카메라 '+ms.length+'대':'')+(tr&&tr.words?' · 받아쓰기 ✓':' · 받아쓰기 전')));
     const fr=el('div','row'); fr.style.cssText='gap:6px;flex-wrap:wrap;margin-top:3px;align-items:center'; fr.appendChild(el('span','hint','🎨 필터'));
@@ -824,15 +819,20 @@ async function colorStats(m){ const v=document.createElement('video'); v.muted=t
     const vw=v.videoWidth,vh=v.videoHeight; if(!vw) continue; const cw=Math.min(vw,vh*9/16); x.drawImage(v,(vw-cw)/2,0,cw,vh,0,0,36,64);
     const d=x.getImageData(0,0,36,64).data; for(let i=0;i<d.length;i+=4) for(let ch=0;ch<3;ch++){ const val=d[i+ch]/255; sum[ch]+=val; sq[ch]+=val*val } n+=d.length/4 }
   v.removeAttribute('src'); v.load(); if(!n) return null; const mu=sum.map(a=>a/n); return {mu,sd:sq.map((a,i)=>Math.sqrt(Math.max(1e-4,a/n-mu[i]*mu[i])))} }
-function cmRefDefault(){ const use={}; S.data.blocks.forEach(bk=>{ const m=bk.on&&bk.take&&mediaOf(bk); if(m) use[m.file]=(use[m.file]||0)+Math.max(0.1,bk.b-bk.a) });
-  const ms=S.data.media.filter(m=>m.ok); return (Object.entries(use).sort((a,b)=>b[1]-a[1])[0]||[])[0]||(ms[0]&&ms[0].file) }
+function cmRefDefault(){ const use={}, tk={}; S.data.blocks.forEach(bk=>{ const m=bk.on&&bk.take&&mediaOf(bk); if(!m) return; const d=Math.max(0.1,bk.b-bk.a); use[m.file]=(use[m.file]||0)+d; tk[m.take]=(tk[m.take]||0)+d });
+  const ms=S.data.media.filter(m=>m.ok); const top=(Object.entries(tk).sort((a,b)=>b[1]-a[1])[0]||[])[0]; // the take used most, then its most-used camera
+  const inTop=ms.filter(m=>m.take===top).sort((a,b)=>(use[b.file]||0)-(use[a.file]||0)); return (inTop[0]&&inTop[0].file)||(ms[0]&&ms[0].file) }
 async function colorMatch(ref,quiet){ const ms=S.data.media.filter(m=>m.ok&&S.urls[m.file]); if(ms.length<2){ if(!quiet) toast('영상이 2개 이상일 때 맞출 수 있어요'); return }
-  const C=S.data.cmatch=Object.assign(S.data.cmatch||{},{on:true}); C.ref=ref||C.ref||cmRefDefault(); C.st=C.st||{}; if(!quiet) toast('🎨 테이크 색을 맞추는 중…',2500);
+  const C=S.data.cmatch=Object.assign(S.data.cmatch||{},{on:true}); if(ref){ C.ref=ref; C.auto=false } else if(C.auto!==false||!C.ref){ C.ref=cmRefDefault(); C.auto=true } C.st=C.st||{}; if(!quiet) toast('🎨 테이크 색을 맞추는 중…',2500);
   for(const m of ms) if(!C.st[m.file]){ try{ C.st[m.file]=await colorStats(m) }catch(e){} }
   const R0=C.st[C.ref]; if(!R0){ if(!quiet) toast('기준 영상을 못 읽었어요'); return } C.m={};
   ms.forEach(m=>{ const s0=C.st[m.file]; if(!s0||m.file===C.ref) return; const g=[0,1,2].map(i=>Math.min(1.35,Math.max(0.75,R0.sd[i]/s0.sd[i])));
     C.m[m.file]={g,o:[0,1,2].map(i=>Math.min(0.15,Math.max(-0.15,R0.mu[i]-s0.mu[i]*g[i])))} });
-  save(); renderMedia(); drawAt(S.outT); if(!quiet) toast('🎨 모든 테이크를 「'+C.ref.replace(/^kyu_[^_]+_/,'').replace(/\.\w+$/,'')+'」 색감에 맞췄어요',3500) }
+  save(); cmUI(); drawAt(S.outT); if(!quiet) toast('🎨 모든 테이크를 「'+C.ref.replace(/^kyu_[^_]+_/,'').replace(/\.\w+$/,'')+'」 색감에 맞췄어요',3500) }
+function cmName(f){ const m=S.data.media.find(x=>x.file===f); return m?m.take.replace(/^kyu_[^_]+_/,'')+(m.cam?' '+m.cam.replace('cam','카메라 '):''):f }
+function cmUI(){ const sel=$('sCM'); if(!sel||!S.data) return; const C=S.data.cmatch||{}; const okm=S.data.media.filter(m=>m.ok);
+  sel.innerHTML='<option value="">끄기</option><option value="auto">🎨 켜기 — 가장 많이 쓴 테이크 기준'+(C.on&&C.auto!==false&&C.ref?' ('+cmName(C.ref)+')':'')+'</option>'+(okm.length>1?'<optgroup label="기준 직접 고르기">'+okm.map(m=>'<option value="'+m.file+'">기준: '+cmName(m.file)+'</option>').join('')+'</optgroup>':'');
+  sel.value=!C.on?'':C.auto===false?C.ref:'auto'; sel.disabled=okm.length<2; sel.title=okm.length<2?'영상이 2개 이상일 때 쓸 수 있어요':'카메라·조명이 달라도 모든 테이크를 같은 색감으로 맞춰요' }
 function filtOf(m){ const tf=S.data.tfilt||{}; return (m&&(tf[m.take+'|'+(m.cam||'')]||tf[m.take]))||S.data.filter }
 const LOOK0={sh:0,b:1,c:1,s:1,t:[1,1,1],l:[0,0,0],g:1};
 function cmOf(m){ const C=S.data.cmatch; return C&&C.on&&m&&C.m&&C.m[m.file]||null }
@@ -1367,7 +1367,7 @@ function draftWithSkills(){ const on=new Set(SK.filter(s=>s.on).map(s=>s.id)), h
   if(B.length>1&&has('s11')){ const L=B[B.length-1]; if(/[¿?]/.test(L.text)&&!(L.ov||[]).some(o=>o.type==='cta')) (L.ov=L.ov||[]).push({type:'cta',text:L.text.replace(/\*/g,'').slice(0,40),at:null}) }
   mixCams();
   D.skills=SK.filter(s=>s.on).map(s=>({id:s.id,name:s.name,auto:AUTO.has(s.id)}));
-  D.draftSig=blkSig(); syncSettings(); buildTL(); renderBlocks(); save(); drawAt(0);
+  D.draftSig=blkSig(); if(D.cmatch&&D.cmatch.on&&D.cmatch.auto!==false) setTimeout(()=>colorMatch(null,true),300); syncSettings(); buildTL(); renderBlocks(); save(); drawAt(0);
   const cl=D.skills.filter(s=>!s.auto); if(cl.length) toast('🤖 '+cl.map(s=>s.name).slice(0,3).join(', ')+(cl.length>3?' 외 '+(cl.length-3)+'개':'')+'는 Claude에게 맡기면 적용돼요',5000) }
 
 /* ================= teaching screen (small face + explanation / photo) ================= */
