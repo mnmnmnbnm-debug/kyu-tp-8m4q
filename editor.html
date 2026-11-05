@@ -180,7 +180,7 @@ dialog.wide{max-width:1040px;width:94vw}
         <span class="lab">자막</span><select id="sCap"><option value="pop">단어별 팝업</option><option value="line">한 줄 통째로</option><option value="off">없음</option></select>
         <span class="lab">자막 크기</span><input type="range" id="sCapSize" min="56" max="120" step="2">
         <span class="lab">자막 위치</span><input type="range" id="sCapY" min="55" max="88" step="1">
-        <span class="lab">필터</span><select id="sFilter"><optgroup label="기본"><option value="off">없음 (원본)</option><option value="mid">기본 보정</option><option value="warm">따뜻하게</option></optgroup><optgroup label="고화질 룩"><option value="hd">✨ 클린 HD — 선명·밝게</option><option value="skin">🧡 피부톤 HD — 따뜻·화사</option><option value="airy">☁️ 밝고 화사 — 부드럽게</option><option value="cine">🎬 시네마틱 — 영화 느낌</option><option value="vivid">🌈 비비드 — 색감 쨍</option></optgroup></select>
+        <span class="lab">필터</span><select id="sFilter"><optgroup label="기본"><option value="off">없음 (원본)</option><option value="mid">기본 보정</option><option value="warm">따뜻하게</option></optgroup><optgroup label="고화질 룩"><option value="hd">✨ 클린 HD — 선명·밝게</option><option value="skin">🧡 피부톤 HD — 따뜻·화사</option><option value="airy">☁️ 밝고 화사 — 부드럽게</option><option value="cine">🎬 시네마틱 — 영화 느낌</option><option value="vivid">🌈 비비드 — 색감 쨍</option></optgroup><optgroup label="너무 밝을 때"><option value="dim1">🌥️ 밝기 낮추기 (약하게)</option><option value="hlsave">☀️ 창가·조명 하이라이트 살리기</option><option value="dim2">🌑 밝기 낮추기 (강하게)</option></optgroup></select>
         <span class="lab">효과음</span><select id="sSfx"><option value="1">켜기</option><option value="0">끄기</option></select>
         <span class="lab">효과음 크기</span><input type="range" id="sSfxVol" min="0" max="200" step="5" title="모든 효과음 크기 (100% = 기본)">
         <span class="lab">언어</span><select id="sLang"><option value="spanish">스페인어</option><option value="korean">한국어</option><option value="english">영어</option></select>
@@ -703,22 +703,25 @@ const LOOK={hd:{sh:.5,b:1.05,c:1.1,s:1.1,t:[1,1,1],l:[0,0,0],g:1},
   skin:{sh:.32,b:1.06,c:1.05,s:1.08,t:[1.05,1.0,.94],l:[.012,.006,0],g:.97},
   airy:{sh:.28,b:1.1,c:.92,s:1.04,t:[1,1,1.01],l:[.03,.03,.036],g:.94},
   cine:{sh:.42,b:.99,c:1.15,s:.86,t:[1.05,1.0,.9],l:[-.01,.018,.05],g:1.03},
-  vivid:{sh:.42,b:1.02,c:1.12,s:1.38,t:[1,1,1],l:[0,0,0],g:1}};
+  vivid:{sh:.42,b:1.02,c:1.12,s:1.38,t:[1,1,1],l:[0,0,0],g:1},
+  dim1:{sh:.3,b:.9,c:1.08,s:1.12,t:[1,1,1],l:[0,0,0],g:1.12,hl:.45},
+  dim2:{sh:.3,b:.8,c:1.12,s:1.2,t:[1,1,1],l:[0,0,0],g:1.25,hl:.7},
+  hlsave:{sh:.35,b:.96,c:1.04,s:1.1,t:[1,1,1],l:[.01,.01,.01],g:1.04,hl:.85}};
 let GL=null;
 function lookGL(){ if(GL!==null) return GL; try{ const c=document.createElement('canvas'), g=c.getContext('webgl',{premultipliedAlpha:false,antialias:false}); if(!g) return GL=false;
   const sh=(t,src)=>{const x=g.createShader(t); g.shaderSource(x,src); g.compileShader(x); return x};
   const pr=g.createProgram(); g.attachShader(pr,sh(g.VERTEX_SHADER,'attribute vec2 p;varying vec2 u;void main(){u=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0,1);}'));
-  g.attachShader(pr,sh(g.FRAGMENT_SHADER,`precision mediump float;varying vec2 u;uniform sampler2D T;uniform vec2 px;uniform float sh,b,c,s,g;uniform vec3 t,l;
+  g.attachShader(pr,sh(g.FRAGMENT_SHADER,`precision mediump float;varying vec2 u;uniform sampler2D T;uniform vec2 px;uniform float sh,b,c,s,g,hl;uniform vec3 t,l;
    void main(){vec3 o=texture2D(T,u).rgb;vec3 n=texture2D(T,u+vec2(px.x,0.)).rgb+texture2D(T,u-vec2(px.x,0.)).rgb+texture2D(T,u+vec2(0.,px.y)).rgb+texture2D(T,u-vec2(0.,px.y)).rgb;
-   vec3 x=o+sh*(4.*o-n);x*=b;x=(x-.5)*c+.5;float L=dot(x,vec3(.299,.587,.114));x=mix(vec3(L),x,s);x=x*t+l*(1.-x);x=pow(clamp(x,0.,1.),vec3(g));gl_FragColor=vec4(x,1.);}`));
+   vec3 x=o+sh*(4.*o-n);x*=b;x=mix(x,.62+(x-.62)*(1.-hl),step(.62,x)*hl/max(hl,.0001));x=(x-.5)*c+.5;float L=dot(x,vec3(.299,.587,.114));x=mix(vec3(L),x,s);x=x*t+l*(1.-x);x=pow(clamp(x,0.,1.),vec3(g));gl_FragColor=vec4(x,1.);}`));
   g.linkProgram(pr); if(!g.getProgramParameter(pr,g.LINK_STATUS)) return GL=false; g.useProgram(pr);
   const bf=g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER,bf); g.bufferData(g.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),g.STATIC_DRAW); const a=g.getAttribLocation(pr,'p'); g.enableVertexAttribArray(a); g.vertexAttribPointer(a,2,g.FLOAT,false,0,0);
   const tx=g.createTexture(); g.bindTexture(g.TEXTURE_2D,tx); [g.TEXTURE_WRAP_S,g.TEXTURE_WRAP_T].forEach(k=>g.texParameteri(g.TEXTURE_2D,k,g.CLAMP_TO_EDGE)); [g.TEXTURE_MIN_FILTER,g.TEXTURE_MAG_FILTER].forEach(k=>g.texParameteri(g.TEXTURE_2D,k,g.LINEAR));
-  const U={}; ['px','sh','b','c','s','g','t','l'].forEach(k=>U[k]=g.getUniformLocation(pr,k)); return GL={c,g,U} }catch(e){ return GL=false } }
+  const U={}; ['px','sh','b','c','s','g','t','l','hl'].forEach(k=>U[k]=g.getUniformLocation(pr,k)); return GL={c,g,U} }catch(e){ return GL=false } }
 function applyLook(cx,W,H){ const L=LOOK[S.data.filter]; if(!L) return; const G=lookGL(); if(!G) return; const {c,g,U}=G;
   if(c.width!==W||c.height!==H){c.width=W;c.height=H} g.viewport(0,0,W,H);
   g.texImage2D(g.TEXTURE_2D,0,g.RGBA,g.RGBA,g.UNSIGNED_BYTE,cx.canvas);
-  g.uniform2f(U.px,1/W,1/H); g.uniform1f(U.sh,L.sh*(W/1080)); g.uniform1f(U.b,L.b); g.uniform1f(U.c,L.c); g.uniform1f(U.s,L.s); g.uniform1f(U.g,L.g); g.uniform3fv(U.t,L.t); g.uniform3fv(U.l,L.l);
+  g.uniform2f(U.px,1/W,1/H); g.uniform1f(U.sh,L.sh*(W/1080)); g.uniform1f(U.b,L.b); g.uniform1f(U.c,L.c); g.uniform1f(U.s,L.s); g.uniform1f(U.g,L.g); g.uniform3fv(U.t,L.t); g.uniform3fv(U.l,L.l); g.uniform1f(U.hl,L.hl||0);
   g.drawArrays(g.TRIANGLE_STRIP,0,4); cx.drawImage(c,0,0,W,H) }
 function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); S.emHits=[]; if(!v||!s) return;
   const bk=s.bk, el=Math.max(0,t-bk._o), prog=bk._d?el/bk._d:0; const mm=Object.assign({},s.m,bk.cx!=null?{cx:bk.cx,cy:bk.cy}:{},bk.z?{zm:bk.z}:{});
