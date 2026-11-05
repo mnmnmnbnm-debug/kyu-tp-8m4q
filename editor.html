@@ -642,6 +642,8 @@ function drawShot(c,W,H,v,m,shot,prog,el,filt){ const [sx,sy,cw,ch]=cropFor(m,v,
     c.filter=filt||'none'; const k=0.8, fw=W*k, fh=H*k, fx=(W-fw)/2, fy=H*0.42-fh/2; c.shadowColor='rgba(0,0,0,.55)'; c.shadowBlur=W/25; c.beginPath(); c.roundRect(fx,fy,fw,fh,W*0.035); c.fillStyle='#000'; c.fill(); c.shadowBlur=0; c.clip();
     try{c.drawImage(v,sx,sy,cw,ch,fx,fy,fw,fh)}catch(e){} c.restore(); return }
   try{c.drawImage(v,sx,sy,cw,ch,0,0,W,H)}catch(e){} c.restore() }
+function ovTime(bk,o){ const t=o.at==null||o.at==='start'||!bk.words||!bk.words[o.at]?bk._o:srcToOut(bk,bk.words[o.at][1]); return Math.min((bk._o||0)+(bk._d||0)-0.05,t+0.3) }
+function showOv(bk,o){ if(!bk._d||S.playing) return; drawAt(ovTime(bk,o)) }
 function shotPicker(bk){ if(SHOTOLD[bk.shot]) bk.shot=SHOTOLD[bk.shot]; if(SHOTOLD[bk.shot0]) bk.shot0=SHOTOLD[bk.shot0]; if(!bk.shot0){ bk.shot0=bk.shot; save() }
   const wrap=el('div','shotpick'), bi=S.data.blocks.indexOf(bk); const info=el('div','hint'); const rs=el('button','btn sm','↺ 처음 설정으로');
   const setInfo=()=>{ info.textContent='지금: '+SHOTS[bk.shot]+' — '+(SHOTDESC[bk.shot]||'')+(bk.shot===bk.shot0?'  (처음 설정)':'  · 처음 설정: '+SHOTS[bk.shot0].replace(/^\d+\. /,'')); rs.disabled=bk.shot===bk.shot0 }; setInfo();
@@ -782,15 +784,15 @@ function blockEditor(bk,i){ const box=el('div','bedit');
   const wsel=(val,cb,first)=>{ const s=el('select'); const o0=el('option',null,first); o0.value=''; s.appendChild(o0); (bk.words||[]).forEach((w,k)=>{const o=el('option',null,(k+1)+'. '+w[0].replace(/\*/g,'')); o.value=String(k); s.appendChild(o)}); s.value=val==null||val==='start'?'':String(val); s.onchange=()=>cb(s.value===''?null:+s.value); return s };
   (bk.ov||[]).forEach((o,oi)=>{ const r=el('div','ov'); const ty=el('select'); Object.entries(OVT).forEach(([k,v])=>{const x=el('option',null,v); x.value=k; ty.appendChild(x)}); ty.value=o.type;
     const t1=el('input'); t1.type='text'; t1.value=o.text||''; t1.placeholder=o.type==='emoji'?'😀':'글씨'; const t2=el('input'); t2.type='text'; t2.value=o.sub||''; t2.placeholder='작은 설명'; t2.disabled=!/card|red/.test(o.type);
-    const at=wsel(o.at,v=>{o.at=v; save(); drawAt(S.outT)},'블록 시작부터'); const x=el('button','btn sm','✕');
+    const at=wsel(o.at,v=>{o.at=v; save(); showOv(bk,o)},'블록 시작부터'); r.addEventListener('focusin',()=>showOv(bk,o)); const x=el('button','btn sm','✕');
     ty.onchange=()=>{o.type=ty.value; t2.disabled=!/card|red/.test(o.type); save(); renderBlocks(); drawAt(S.outT)}; t1.oninput=()=>{o.text=t1.value; save(); drawAt(S.outT)}; t2.oninput=()=>{o.sub=t2.value||undefined; save(); drawAt(S.outT)};
     x.onclick=()=>{bk.ov.splice(oi,1); renderBlocks(); save(); drawAt(S.outT)}; r.append(ty,t1,t2,at,x);
     if(o.type==='emoji'){ const sz=el('input'); sz.type='range'; sz.min=0.3; sz.max=4; sz.step=0.05; sz.value=o.s||1; sz.title='이모지 크기'; sz.style.width='110px';
-      const lab=el('span','lab','크기 '+Math.round((o.s||1)*100)+'%'); sz.oninput=()=>{o.s=+sz.value; lab.textContent='크기 '+Math.round(o.s*100)+'%'; drawAt(S.outT)}; sz.onchange=()=>save();
+      const lab=el('span','lab','크기 '+Math.round((o.s||1)*100)+'%'); sz.oninput=()=>{o.s=+sz.value; lab.textContent='크기 '+Math.round(o.s*100)+'%'; if(!S.playing&&Math.abs(S.outT-ovTime(bk,o))>0.4) drawAt(ovTime(bk,o)); else drawAt(S.outT)}; sz.onchange=()=>save();
       const rs=el('button','btn sm','위치·크기 초기화'); rs.onclick=()=>{delete o.x; delete o.y; delete o.s; renderBlocks(); save(); drawAt(S.outT)};
       const r2=el('div','ov'); r2.append(lab,sz,el('span','hint','화면에서 이모지를 끌면 이동, 휠을 굴리면 크기 조절'),rs);
-      const pk=el('div','emopick'); pk.hidden=true; const chg=el('button','btn sm','이모지 변경 ▾'); chg.onclick=()=>{ pk.hidden=!pk.hidden; chg.textContent=pk.hidden?'이모지 변경 ▾':'닫기 ▴' }; r.replaceChild(chg,t2); Object.entries(EMOJIS).forEach(([g,list])=>{ pk.appendChild(el('div','eg',g)); (window.Intl&&Intl.Segmenter?[...new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(list)].map(x=>x.segment):[...list]).forEach(ch=>{ if(!ch.trim()) return; const b=el('button',o.text===ch?'on':null,ch); b.title=ch;
-        b.onclick=()=>{ o.text=ch; t1.value=ch; pk.querySelectorAll('button.on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); pk.hidden=true; chg.textContent='이모지 변경 ▾'; save(); drawAt(S.outT) }; pk.appendChild(b) }) });
+      const pk=el('div','emopick'); pk.hidden=true; const chg=el('button','btn sm','이모지 변경 ▾'); chg.onclick=()=>{ showOv(bk,o); pk.hidden=!pk.hidden; chg.textContent=pk.hidden?'이모지 변경 ▾':'닫기 ▴' }; r.replaceChild(chg,t2); Object.entries(EMOJIS).forEach(([g,list])=>{ pk.appendChild(el('div','eg',g)); (window.Intl&&Intl.Segmenter?[...new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(list)].map(x=>x.segment):[...list]).forEach(ch=>{ if(!ch.trim()) return; const b=el('button',o.text===ch?'on':null,ch); b.title=ch;
+        b.onclick=()=>{ o.text=ch; t1.value=ch; pk.querySelectorAll('button.on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); pk.hidden=true; chg.textContent='이모지 변경 ▾'; save(); showOv(bk,o) }; pk.appendChild(b) }) });
       ob.append(r,pk,r2); return }
     ob.appendChild(r) });
   const add=el('button','btn sm','＋ 추가'); add.style.alignSelf='flex-start'; add.onclick=()=>{(bk.ov=bk.ov||[]).push({type:'card',text:'',at:null}); renderBlocks()}; ob.appendChild(add);
