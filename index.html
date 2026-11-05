@@ -1141,11 +1141,12 @@ $('dirBtn').onclick=async e=>{e.currentTarget.blur();
 };
 $('dirChange').onclick=async e=>{e.currentTarget.blur(); if(await pickDir()){ if(!isScriptDir(dirH)) await createSub(); } await refreshDir()};
 $('pick').addEventListener('change',()=>setTimeout(refreshDir,0));
-$('toEdit').addEventListener('click',async e=>{ if(!unsaved) return; e.preventDefault(); const b=$('toEdit'); b.textContent='저장하는 중…';
+function edURL(){ let n=''; try{ n=dirH?(isScriptDir(dirH)?dirH.name:folderName()):'' }catch(e){} return 'editor.html'+(n?'?p='+encodeURIComponent(n)+'&tr=1':'') }
+$('toEdit').addEventListener('click',async e=>{ e.preventDefault(); if(!unsaved){ location.href=edURL(); return } const b=$('toEdit'); b.textContent='저장하는 중…';
   if(!dirH){ alert('녹화한 영상을 먼저 폴더에 저장할게요. 다음 창에서 「콘텐츠」 폴더를 골라 주세요.'); await pickDir() } else if(!dirOK) await ensureDir();
   for(const g of document.querySelectorAll('.take')) for(const f of (g.files||[])) await f.save();
   if(unsaved){ updUnsaved(); if(!confirm('아직 저장 안 된 영상이 '+unsaved+'개 있어요. 그래도 편집실로 갈까요? (브라우저에 백업은 남아 있어요)')) return }
-  location.href='editor.html' });
+  location.href=edURL() });
 window.addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnValue='' } });
 /* restore recordings that were never saved (page closed or moved away) */
 (async()=>{ const L=await bkAll(); if(!L.length) return; const box=document.createElement('div'); box.className='hint'; box.style.cssText='border:1px solid var(--accent);border-radius:10px;padding:10px;margin:8px 0';

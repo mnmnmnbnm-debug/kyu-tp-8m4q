@@ -342,7 +342,7 @@ async function initRoot(){
 async function setRoot(h,ask){
   S.root=h; const ok=await perm(h,ask);
   $('rootInfo').textContent='연결됨: '+h.name+(ok?'':' (허락 필요 — 버튼을 눌러 주세요)');
-  if(!ok){$('connect').textContent='🔓 폴더 사용 허락'; return}
+  if(!ok){$('connect').textContent='🔓 폴더 사용 허락'; if(new URLSearchParams(location.search).get('p')){ toast('화면을 한 번 눌러 주세요 — 폴더를 열고 받아쓰기를 시작해요',6000); document.addEventListener('pointerdown',async()=>{ if(await perm(h,true)) setRoot(h,false) },{once:true,capture:true}) } return}
   $('connect').textContent='📂 다른 폴더 연결';
   await listProjects();
 }
@@ -367,7 +367,8 @@ async function listProjects(){
   S.projects=out; renderPlist();
   const last=localStorage.getItem('kyu-editor-last'); const q=new URLSearchParams(location.search).get('p');
   const want=out.find(p=>p.name===nf(q))||out.find(p=>p.name===last);
-  if(want&&!S.dir&&want.st!=='✅ 올림') openProject(want);
+  if(want&&!S.dir&&(want.st!=='✅ 올림'||(q&&want.name===nf(q)))) openProject(want);
+  if(q&&!want) toast('「'+q+'」 폴더를 아직 못 찾았어요. 콘텐츠 폴더가 연결됐는지 확인해 주세요',4000);
 }
 function renderPlist(){
   const b=$('plist'); b.textContent='';
