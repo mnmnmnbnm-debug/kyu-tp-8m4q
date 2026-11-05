@@ -104,7 +104,7 @@ textarea{width:100%;resize:vertical}
 .tcmp .tc.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .tcmp video{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:7px;background:#000;max-height:260px}
 .tcmp .tl b{display:block;font-size:12px}.tcmp .tl small{font-size:11px;color:var(--dim)}
-.tcmp .tcb{display:flex;gap:4px}.tcmp .tcb button{flex:1}
+.tcmp .tcb{display:flex;gap:4px}.tcmp .tcb button{flex:1}.tcmp .tcb button:nth-child(2){flex:0 0 auto}
 .sfxl{position:relative;height:34px;background:#0a0d11;border:1px solid var(--line);border-radius:8px;cursor:copy;margin-top:-4px}
 .sfxl .lb{position:absolute;left:8px;top:8px;font-size:11px;color:var(--dim);pointer-events:none}
 .sfxl .mk{position:absolute;top:3px;transform:translateX(-50%);height:26px;min-width:26px;padding:0 4px;border-radius:7px;background:#2a2410;border:1px solid var(--accent);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none}
@@ -961,22 +961,23 @@ function bigClip(url,a,b,title){ stop(); stopAud(); const d=document.createEleme
   v.onloadedmetadata=()=>{ v.currentTime=Math.max(0,a-0.1); v.play().catch(()=>{}) }; v.ontimeupdate=()=>{ if(v.currentTime>=b+0.2){ v.currentTime=Math.max(0,a-0.1) } } }
 function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const vids=[];
   const stopAll=()=>vids.forEach(v=>{ v.pause(); v.muted=true });
-  const list=[]; (bk.cands||[]).forEach(cd=>list.push(cd)); Object.keys(T).forEach(k=>{ if(!list.some(c=>c.take===k)) list.push({take:k,a:0,b:Math.min(T[k][0].dur||3,6),score:null,none:true}) });
+  const list=[...(bk.cands||[])]; const miss=Object.keys(T).filter(k=>!list.some(c=>c.take===k));
   list.slice(0,8).forEach(cd=>{ (T[cd.take]||[]).forEach(m=>{ if(!S.urls[m.file]) return;
     const on=bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2&&(bk.cam||'')===(m.cam||''); const card=el('div','tc'+(on?' on':''));
     const v=document.createElement('video'); v.src=S.urls[m.file]; v.muted=true; v.playsInline=true; v.preload='metadata'; v.style.objectPosition=Math.round((m.cx??0.5)*100)+'% 35%';
     v.onloadedmetadata=()=>{ v.currentTime=cd.a+Math.min(1,(cd.b-cd.a)/2) }; vids.push(v);
     const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,cd.none?'이 줄을 못 찾음 · 전체 '+(m.dur||0).toFixed(1)+'초':Math.round(cd.score*100)+'% 일치'+(cd.q!=null?' · 발음 '+Math.max(0,Math.round(cd.q*100)):'')+' · '+(cd.b-cd.a).toFixed(1)+'초'));
     if(cd.none) card.classList.add('none');
-    const pb=el('button','btn sm','▶ 보기'); let tmr=null; v.style.cursor='zoom-in'; v.title='누르면 크게 보기'; v.onclick=()=>{ stopAll(); bigClip(S.urls[m.file],cd.none?0:cd.a,cd.none?(m.dur||cd.b):cd.b,lab.querySelector('b').textContent) };
+    const pb=el('button','btn sm','▶ 보기'); let tmr=null; v.style.cursor='pointer'; v.title='누르면 이 대사 재생 / 다시 누르면 멈춤'; v.onclick=()=>pb.onclick(); const big=el('button','btn sm','⤢'); big.title='크게 보기'; big.onclick=()=>{ stopAll(); bigClip(S.urls[m.file],cd.a,cd.b,lab.querySelector('b').textContent) };
     pb.onclick=()=>{ stop(); stopAud(); const was=!v.paused; stopAll(); clearTimeout(tmr); if(was){ pb.textContent='▶ 보기'; return }
       vids.forEach(x=>x.parentNode.querySelector('.tcb button')&&(x.parentNode.querySelector('.tcb button').textContent='▶ 보기'));
       v.currentTime=Math.max(0,cd.a-0.1); v.muted=false; v.play(); pb.textContent='■ 멈춤'; const chk=()=>{ if(v.currentTime>=cd.b+0.15||v.paused){ v.pause(); v.muted=true; pb.textContent='▶ 보기'; return } tmr=setTimeout(chk,60) }; chk() };
     const use=el('button','btn sm primary',on?'✓ 사용 중':cd.none?'🔍 여기서 찾기':'이걸로'); use.disabled=on;
     if(cd.none) use.onclick=()=>{ stopAll(); S.findTake=cd.take; S.findOpen=true; S.cmpOpen=false; renderBlocks() };
     if(!cd.none) use.onclick=()=>{ stopAll(); pickCand(bk,cd); bk.cam=m.cam||''; buildTL(); renderBlocks(); save(); drawAt(bk._o+0.05); toast('이 블록을 '+lab.querySelector('b').textContent+'(으)로 바꿨어요') };
-    const bb=el('div','tcb'); bb.append(pb,use); card.append(v,lab,bb); wrap.appendChild(card) }) });
-  if(!wrap.children.length) wrap.appendChild(el('div','hint','비교할 영상이 없어요.'));
+    const bb=el('div','tcb'); bb.append(pb,big,use); card.append(v,lab,bb); wrap.appendChild(card) }) });
+  if(!wrap.children.length) wrap.appendChild(el('div','hint','이 대사가 들어 있는 테이크가 없어요. 🔍 직접 찾기로 골라 주세요.'));
+  if(miss.length){ const n=el('div','hint'); n.style.gridColumn='1/-1'; n.textContent='이 대사가 없는 테이크: '+miss.map(k=>k.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+' ('+((T[k][0]||{}).dur||0).toFixed(1)+'초)').join(', ')+' — 비교에서 뺐어요'; wrap.appendChild(n) }
   return wrap }
 function blockEditor(bk,i){ const box=el('div','bedit');
   // text
