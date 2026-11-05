@@ -1159,7 +1159,8 @@ window.addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.r
   dlb.onclick=async()=>{ for(const [name,r] of L){ const a=document.createElement('a'); a.href=URL.createObjectURL(r.blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); await new Promise(z=>setTimeout(z,500)); await bkDel(name) } box.innerHTML='✓ 다운로드 폴더에 저장했어요.' };
   del.onclick=async()=>{ if(!confirm('정말 버릴까요? 되돌릴 수 없어요.')) return; for(const [name] of L) await bkDel(name); box.remove() };
   box.append(sv,dlb,del); const clips=$('clips'); clips.parentNode.insertBefore(box,clips) })();
-(async()=>{ if(!FS) return dirUI(); dirH=await idbGet(); if(dirH){ try{dirOK=(await dirH.queryPermission({mode:'readwrite'}))==='granted'}catch(e){dirOK=false} } refreshDir() })();
+async function edRoot(){try{const d=await new Promise((res,rej)=>{const r=indexedDB.open('kyu-editor'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error)}); if(!d.objectStoreNames.contains('kv')) return null; return await new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get('root'); q.onsuccess=()=>r(q.result||null); q.onerror=()=>r(null)})}catch(e){return null}}
+(async()=>{ if(!FS) return dirUI(); dirH=await idbGet(); if(!dirH){ dirH=await edRoot(); if(dirH) idbSet(dirH) } if(dirH){ try{dirOK=(await dirH.queryPermission({mode:'readwrite'}))==='granted'}catch(e){dirOK=false} } refreshDir() })();
 $('camBtn1').onclick=e=>{toggleCam(1);e.currentTarget.blur()};
 $('camBtn2').onclick=e=>{toggleCam(2);e.currentTarget.blur()};
 $('vSel').onchange=e=>{const o=e.target.selectedOptions[0]; setPref('kyu-cam1',{id:o.value,label:o.textContent}); openCamN(1)};
@@ -1171,7 +1172,9 @@ try{navigator.mediaDevices.addEventListener('devicechange',()=>{if(camOn[1]||cam
 $('flipBtn').onclick=e=>{const on=$('camview').classList.toggle('flip');$('camview2').classList.toggle('flip',on);e.currentTarget.classList.toggle('on',!on);e.currentTarget.blur()};
 $('recBtn').onclick=async e=>{e.currentTarget.blur();
   if(recs.some(r=>r.state==='recording')){stopRec(); if(running) stop(); return}
+  if(FS&&!dirH){ if(confirm('녹화가 끝나면 바로 저장될 「콘텐츠」 폴더를 먼저 골라 주세요. (바탕화면 › 수업용 AI › 콘텐츠)')){ await pickDir(); await refreshDir() } }
   if(dirH&&!dirOK) await ensureDir();
+  if(dirH&&dirOK&&!subOK&&!target()&&!isScriptDir(dirH)){ await createSub(); await refreshDir() }
   if(!camOn[1]&&!camOn[2]){await toggleCam(1)}
   startRec(); if(recs.length){stop(); elapsed=0; start();}
 };
