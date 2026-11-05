@@ -852,11 +852,15 @@ let drag=null;
 function cvPt(e){ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)/r.width*cv.width,(e.clientY-r.top)/r.height*cv.height] }
 function emHit(e){ const [x,y]=cvPt(e); return (S.emHits||[]).slice().reverse().find(h=>h.w?Math.abs(h.x-x)<h.w/2&&Math.abs(h.y-y)<h.h/2:Math.hypot(h.x-x,h.y-y)<h.r) }
 let emDrag=null;
-cv.addEventListener('pointerdown',e=>{ const h=emHit(e); if(h&&h.o){ if(S.playing) stop(); const [x,y]=cvPt(e); emDrag={o:h.o,dx:h.x-x,dy:h.y-y}; cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing'; e.stopImmediatePropagation(); return } },true);
-cv.addEventListener('pointermove',e=>{ if(emDrag){ const [x,y]=cvPt(e); emDrag.o.x=+Math.max(0.04,Math.min(0.96,(x+emDrag.dx)/cv.width)).toFixed(4); emDrag.o.y=+Math.max(0.04,Math.min(0.96,(y+emDrag.dy)/cv.height)).toFixed(4); drawAt(S.outT); e.stopImmediatePropagation(); return }
-  if(!drag) cv.style.cursor=emHit(e)?'move':'grab' },true);
+cv.addEventListener('pointerdown',e=>{ const h=emHit(e); if(h&&h.o){ if(S.playing) stop(); const [x,y]=cvPt(e); const inner=h.face&&Math.abs(x-h.x)<h.w/2-h.edge&&Math.abs(y-h.y)<h.h/2-h.edge;
+    const sb=S.tl.length?S.tl[segAt(S.outT)]:null, mm=sb?(sb.bk.cx!=null?{cx:sb.bk.cx,cy:sb.bk.cy}:sb.m):{cx:.5,cy:.36};
+    emDrag=inner?{o:h.o,pan:true,x0:x,y0:y,cx:h.o.cx??mm.cx,cy:h.o.cy??mm.cy,w:h.w,h:h.h}:{o:h.o,dx:h.x-x,dy:h.y-y}; cv.setPointerCapture(e.pointerId); cv.style.cursor='grabbing'; e.stopImmediatePropagation(); return } },true);
+cv.addEventListener('pointermove',e=>{ if(emDrag&&emDrag.pan){ const [x,y]=cvPt(e), D=emDrag, z=D.o.z||1; D.o.cx=+Math.max(0.05,Math.min(0.95,D.cx-(x-D.x0)/D.w*0.45/z)).toFixed(4); D.o.cy=+Math.max(0.1,Math.min(0.9,D.cy-(y-D.y0)/D.h*0.45/z)).toFixed(4); drawAt(S.outT); e.stopImmediatePropagation(); return }
+  if(emDrag){ const [x,y]=cvPt(e); emDrag.o.x=+Math.max(0.04,Math.min(0.96,(x+emDrag.dx)/cv.width)).toFixed(4); emDrag.o.y=+Math.max(0.04,Math.min(0.96,(y+emDrag.dy)/cv.height)).toFixed(4); drawAt(S.outT); e.stopImmediatePropagation(); return }
+  if(!drag){ const h=emHit(e); if(h&&h.face){ const [x,y]=cvPt(e); cv.style.cursor=Math.abs(x-h.x)<h.w/2-h.edge&&Math.abs(y-h.y)<h.h/2-h.edge?'all-scroll':'move' } else cv.style.cursor=h?'move':'grab' } },true);
 cv.addEventListener('pointerup',e=>{ if(emDrag){ emDrag=null; cv.style.cursor='grab'; save(); if(S.sel!=null) renderBlocks(); e.stopImmediatePropagation() } },true);
-cv.addEventListener('wheel',e=>{ const h=emHit(e); if(!h||!h.o) return; e.preventDefault(); h.o.s=+Math.max(0.3,Math.min(h.w?2.5:4,(h.o.s||1)*Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)))).toFixed(3); drawAt(S.outT); clearTimeout(cv._wt); cv._wt=setTimeout(()=>{save(); if(S.sel!=null) renderBlocks()},400) },{passive:false});
+cv.addEventListener('wheel',e=>{ const h=emHit(e); if(!h||!h.o) return; e.preventDefault();
+  if(h.face){ const [x,y]=cvPt(e); if(Math.abs(x-h.x)<h.w/2-h.edge&&Math.abs(y-h.y)<h.h/2-h.edge){ h.o.z=+Math.max(0.7,Math.min(3,(h.o.z||1)*Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)))).toFixed(3); drawAt(S.outT); clearTimeout(cv._wt); cv._wt=setTimeout(()=>save(),400); return } } h.o.s=+Math.max(0.3,Math.min(h.w?2.5:4,(h.o.s||1)*Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)))).toFixed(3); drawAt(S.outT); clearTimeout(cv._wt); cv._wt=setTimeout(()=>{save(); if(S.sel!=null) renderBlocks()},400) },{passive:false});
 cv.addEventListener('wheel',e=>{ if(e.defaultPrevented||!S.tl.length||emHit(e)) return; e.preventDefault(); const bk=S.tl[segAt(S.outT)].bk;
   bk.z=+Math.max(0.6,Math.min(3,(bk.z||1)*Math.exp(-e.deltaY*(e.ctrlKey?0.01:0.0015)))).toFixed(3); if(Math.abs(bk.z-1)<0.02) delete bk.z;
   if(!S.playing) drawAt(S.outT); clearTimeout(cv._zt); cv._zt=setTimeout(()=>{ save(); if(S.sel===S.data.blocks.indexOf(bk)) renderBlocks() },500);
@@ -1315,8 +1319,8 @@ function drawTeach(c,W,H,v,m,bk,prog,el,filt){ const T=bk.teach, k=W/1080, top=T
   const F=T.face||(T.face={}), shp=F.shape||'round', fs=F.s||1, dims={round:[1,1.3],circle:[1.05,1.05],oval:[1,1.3],wide:[1.35,0.9],square:[1,1],tall:[1,1.3]}[shp]||[1,1.3];
   const fw=pw*dims[0]*fs, fh=pw*dims[1]*fs, fcx=F.x!=null?F.x*W:px+pw/2, fcy=F.y!=null?F.y*H:py+ph/2, fx=fcx-fw/2, fy=fcy-fh/2, bw=6*k;
   const path=(x,y,w,h)=>{ c.beginPath(); if(shp==='circle'||shp==='oval') c.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); else c.roundRect(x,y,w,h,shp==='round'?Math.min(w,h)*0.16:Math.min(w,h)*0.03) };
-  (S.emHits=S.emHits||[]).push({o:F,x:fcx,y:fcy,w:fw,h:fh});
-  const [sx,sy,cw,ch]=cropFor(m,v,'close',prog,el,fw,fh);
+  (S.emHits=S.emHits||[]).push({o:F,x:fcx,y:fcy,w:fw,h:fh,face:true,edge:Math.max(18*k,Math.min(fw,fh)*0.16)});
+  const fm=Object.assign({},m,{cx:F.cx??m.cx,cy:F.cy??m.cy,zm:(m.zm||1)*(F.z||1)}); const [sx,sy,cw,ch]=cropFor(fm,v,'close',prog,el,fw,fh);
   c.save(); c.shadowColor='rgba(0,0,0,.35)'; c.shadowBlur=30*k; path(fx,fy,fw,fh); c.fillStyle=F.border||'#fff'; c.fill(); c.shadowBlur=0;
   path(fx+bw,fy+bw,fw-bw*2,fh-bw*2); c.clip(); c.filter=filt||'none'; try{c.drawImage(v,sx,sy,cw,ch,fx+bw,fy+bw,fw-bw*2,fh-bw*2)}catch(e){} c.restore() }
 function teachUI(bk){ const T=bk.teach||{}; const box=el('div','teach'); const r1=el('div','row'); const cb=el('input'); cb.type='checkbox'; cb.checked=!!T.on;
@@ -1341,8 +1345,8 @@ function teachUI(bk){ const T=bk.teach||{}; const box=el('div','teach'); const r
   const F=T.face||{}; const fr=el('div','row'); fr.style.gap='4px'; fr.appendChild(el('span','lab','얼굴 창'));
   [['round','▢ 둥근 사각'],['circle','● 원형'],['oval','⬭ 타원'],['wide','▭ 가로 직사각'],['tall','▯ 세로 직사각'],['square','■ 정사각']].forEach(([v,n])=>{ const b=el('button','btn sm'+((F.shape||'round')===v?' on':''),n); b.onclick=()=>{ T.face=Object.assign(T.face||{},{shape:v}); save(); renderBlocks(); drawAt(Math.max(S.outT,bk._o+0.3)) }; fr.appendChild(b) });
   const fb=el('select'); [['#ffffff','테두리 흰색'],['#ffcc33','테두리 노랑'],['#1a1407','테두리 검정'],['#ff5c8a','테두리 분홍'],['#4cd28a','테두리 초록']].forEach(([v,n])=>{const o=el('option',null,n); o.value=v; fb.appendChild(o)}); fb.value=F.border||'#ffffff'; fb.onchange=()=>{ T.face=Object.assign(T.face||{},{border:fb.value}); save(); drawAt(Math.max(S.outT,bk._o+0.3)) };
-  const frs=el('button','btn sm','↺ 얼굴 창 위치·크기'); frs.onclick=()=>{ if(T.face){ delete T.face.x; delete T.face.y; delete T.face.s } save(); renderBlocks(); drawAt(Math.max(S.outT,bk._o+0.3)) };
-  fr.append(fb,frs,el('span','hint','화면에서 얼굴 창을 끌면 이동, 휠·핀치로 크기'));
+  const frs=el('button','btn sm','↺ 얼굴 창 위치·크기'); frs.onclick=()=>{ if(T.face){ delete T.face.x; delete T.face.y; delete T.face.s; delete T.face.cx; delete T.face.cy; delete T.face.z } save(); renderBlocks(); drawAt(Math.max(S.outT,bk._o+0.3)) };
+  fr.append(fb,frs,el('span','hint','테두리를 끌면 창 이동 · 안쪽을 끌면 영상 위치 · 안쪽 휠=영상 확대, 테두리 휠=창 크기'));
   const L=T.list||{}; const lb=el('div','teach'); lb.style.marginTop='4px'; const lr=el('div','row'); const lc=el('input'); lc.type='checkbox'; lc.checked=!!L.on;
   lr.append(lc,el('b',null,'📋 열거 날아오기'),el('span','hint','나열하는 단어가 말하는 순간 차례로 날아와요'));
   lb.appendChild(lr);
