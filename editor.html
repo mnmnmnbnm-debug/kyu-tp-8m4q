@@ -98,6 +98,7 @@ textarea{width:100%;resize:vertical}
 .sfxl .lb{position:absolute;left:8px;top:8px;font-size:11px;color:var(--dim);pointer-events:none}
 .sfxl .mk{position:absolute;top:3px;transform:translateX(-50%);height:26px;min-width:26px;padding:0 4px;border-radius:7px;background:#2a2410;border:1px solid var(--accent);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none}
 .sfxl .mk.on{background:var(--accent)}
+.sfxl .ph{position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;background:#4cd28a;pointer-events:none}
 .sfxl .mk .x{display:none;position:absolute;top:-8px;right:-8px;width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:10px;line-height:16px;text-align:center;cursor:pointer}
 .sfxl .mk:hover .x,.sfxl .mk.on .x{display:block}
 .sfxbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -836,23 +837,27 @@ function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); l
   const bar=el('div','sfxgrid');
   const X=t=>{ const [v0,v1]=range(); return (t-v0)/(v1-v0)*100 }, T=px=>{ const [v0,v1]=range(), r=lane.getBoundingClientRect(); return v0+(px-r.left)/r.width*(v1-v0) };
   let selK=-1;
-  const draw=()=>{ lane.querySelectorAll('.mk').forEach(m=>m.remove()); (bk.sfx||[]).forEach((x,k)=>{ const m=el('div','mk'+(k===selK?' on':''),SFXLIB[x.k]?.[0]||'🔊'); m.style.left=X(x.t)+'%'; m.title=(SFXLIB[x.k]?.[1]||x.k)+' · 끌어서 이동 · 두 번 누르거나 오른쪽 클릭하면 삭제'; const xb=el('span','x','✕'); xb.onpointerdown=e=>e.stopPropagation(); xb.onclick=e=>{ e.stopPropagation(); bk.sfx.splice(k,1); selK=-1; save(); draw(); list() }; m.appendChild(xb);
+  const snap=t=>{ const [v0,v1]=range(), th=(v1-v0)*0.035; const pts=[]; if(S.playSrc!=null) pts.push(S.playSrc); (bk.words||[]).forEach(w=>{ if(w[1]!=null) pts.push(w[1]) });
+    let best=t, bd=th; pts.forEach(p=>{ const d=Math.abs(p-t); if(d<bd){ bd=d; best=p } }); return +Math.max(bk.a,Math.min(bk.b,best)).toFixed(2) };
+  const addAt=(t,k)=>{ (bk.sfx=bk.sfx||[]).push({k,t,v:1}); bk.sfx.sort((a,b)=>a.t-b.t); selK=bk.sfx.findIndex(x=>x.t===t&&x.k===k); sfxPlay(k); save(); draw(); list() };
+  const draw=()=>{ lane.querySelectorAll('.mk,.ph').forEach(m=>m.remove()); if(S.playSrc!=null){ const ph=el('div','ph'); ph.style.left=X(S.playSrc)+'%'; lane.appendChild(ph) } (bk.sfx||[]).forEach((x,k)=>{ const m=el('div','mk'+(k===selK?' on':''),SFXLIB[x.k]?.[0]||'🔊'); m.style.left=X(x.t)+'%'; m.title=(SFXLIB[x.k]?.[1]||x.k)+' · 끌어서 이동 · 두 번 누르거나 오른쪽 클릭하면 삭제'; const xb=el('span','x','✕'); xb.onpointerdown=e=>e.stopPropagation(); xb.onclick=e=>{ e.stopPropagation(); bk.sfx.splice(k,1); selK=-1; save(); draw(); list() }; m.appendChild(xb);
       m.onclick=e=>e.stopPropagation(); m.oncontextmenu=e=>{ e.preventDefault(); e.stopPropagation(); bk.sfx.splice(k,1); selK=-1; save(); draw(); list() };
       m.onpointerdown=e=>{ e.stopPropagation(); if(e.button!==0) return; selK=k; lane.querySelectorAll('.mk.on').forEach(z=>z.classList.remove('on')); m.classList.add('on'); sfxPlay(x.k,x.v); let moved=false; m.setPointerCapture(e.pointerId);
-        m.onpointermove=ev=>{ moved=true; x.t=+Math.max(bk.a,Math.min(bk.b,T(ev.clientX))).toFixed(2); m.style.left=X(x.t)+'%' };
+        m.onpointermove=ev=>{ moved=true; x.t=snap(T(ev.clientX)); m.style.left=X(x.t)+'%' };
         m.onpointerup=()=>{ m.onpointermove=null; if(moved){ bk.sfx.sort((a,b)=>a.t-b.t); save(); draw(); list(); drawAt(Math.max(bk._o,srcToOut(bk,x.t))) } } };
       m.ondblclick=e=>{ e.stopPropagation(); bk.sfx.splice(k,1); selK=-1; save(); draw(); list() };
       lane.appendChild(m) }) };
-  lane.onclick=e=>{ const t=+T(e.clientX).toFixed(2); if(t<bk.a||t>bk.b){ toast('노란 손잡이 사이(쓰는 부분)에 넣어 주세요'); return } (bk.sfx=bk.sfx||[]).push({k:sfxPick,t,v:1}); bk.sfx.sort((a,b)=>a.t-b.t); selK=bk.sfx.findIndex(x=>x.t===t); sfxPlay(sfxPick); save(); draw(); list() };
+  lane.onclick=e=>{ const t0=T(e.clientX); if(t0<bk.a-0.05||t0>bk.b+0.05){ toast('노란 손잡이 사이(쓰는 부분)에 넣어 주세요'); return } addAt(snap(t0),sfxPick) };
   const lst=el('div','sfxbar'); lst.style.marginTop='4px';
   lane.tabIndex=0; lane.onkeydown=e=>{ if((e.key==='Delete'||e.key==='Backspace')&&selK>=0&&bk.sfx&&bk.sfx[selK]){ e.preventDefault(); bk.sfx.splice(selK,1); selK=-1; save(); draw(); list() } };
   const list=()=>{ lst.textContent=''; (bk.sfx||[]).forEach((x,k)=>{ const ch=el('span','chip',(SFXLIB[x.k]?.[0]||'')+' '+(SFXLIB[x.k]?.[1]||x.k)+' · '+(x.t-bk.a).toFixed(1)+'초'); const vs=el('select'); [[0.5,'작게'],[1,'보통'],[1.6,'크게']].forEach(([v,n])=>{const o=el('option',null,n); o.value=v; vs.appendChild(o)}); vs.value=String(x.v??1); vs.onchange=()=>{x.v=+vs.value; save(); sfxPlay(x.k,x.v)};
       const ks=el('select'); Object.entries(SFXLIB).forEach(([kk,[ic,nm]])=>{const o=el('option',null,ic+' '+nm); o.value=kk; ks.appendChild(o)}); ks.value=x.k; ks.onchange=()=>{x.k=ks.value; save(); draw(); sfxPlay(x.k,x.v)};
       const del=el('button','btn sm','✕'); del.onclick=()=>{ bk.sfx.splice(k,1); save(); draw(); list() }; const r=el('div','row'); r.style.gap='4px'; r.append(ks,vs,del); lst.appendChild(r) }) };
-  Object.entries(SFXLIB).forEach(([k,[ic,nm]])=>{ const b=el('button','snd'+(k===sfxPick?' on':''),ic+' '+nm); b.title='눌러서 미리 듣고 고르기'; b.onclick=()=>{ sfxPick=k; try{localStorage.setItem('kyu-sfx',k)}catch(e){} bar.querySelectorAll('.snd').forEach(x=>x.classList.toggle('on',x===b)); sfxPlay(k) }; bar.appendChild(b) });
-  const bl=el('div','lab','넣을 소리 — 눌러서 미리 듣고 고른 뒤, 위 효과음 줄을 누르세요'); bl.style.margin='6px 0 4px';
-  wrap.append(lane,bl,bar,lst); requestAnimationFrame(draw); list(); return wrap }
-function wavePlayhead(s,src){ const open=S.sel!=null&&S.data.blocks[S.sel]===s.bk; const v=open?src:null; if(v===S.playSrc) return; S.playSrc=v; if(waveCtx&&(open||v==null)) waveCtx.redraw() }
+  Object.entries(SFXLIB).forEach(([k,[ic,nm]])=>{ const b=el('button','snd'+(k===sfxPick?' on':''),ic+' '+nm); b.title='눌러서 미리 듣고 고르기'; b.onclick=()=>{ sfxPick=k; try{localStorage.setItem('kyu-sfx',k)}catch(e){} bar.querySelectorAll('.snd').forEach(x=>x.classList.toggle('on',x===b)); if(S.playSrc!=null&&S.playSrc>=bk.a&&S.playSrc<=bk.b&&!S.playing) addAt(+S.playSrc.toFixed(2),k); else sfxPlay(k) }; bar.appendChild(b) });
+  const bl=el('div','lab','넣을 소리 — 초록 줄(재생 위치)이 있으면 누르는 순간 그 자리에 바로 붙어요. 줄을 누르거나 끌면 초록 줄·단어 시작에 자석처럼 붙어요'); bl.style.margin='6px 0 4px';
+  wrap.append(lane,bl,bar,lst); requestAnimationFrame(draw); list(); laneDraw=draw; return wrap }
+let laneDraw=null;
+function wavePlayhead(s,src){ const open=S.sel!=null&&S.data.blocks[S.sel]===s.bk; const v=open?src:null; if(v===S.playSrc) return; S.playSrc=v; if(waveCtx&&(open||v==null)) waveCtx.redraw(); if(laneDraw&&!S.playing) laneDraw() }
 function blockEditor(bk,i){ const box=el('div','bedit');
   // text
   const tr=el('div','row'); const ti=el('input'); ti.type='text'; ti.value=bk.text; ti.style.flex='1'; ti.title='자막 문장 (한글·*단어*는 노란색)';
@@ -888,7 +893,7 @@ function blockEditor(bk,i){ const box=el('div','bedit');
     const ci=(bk.cuts||[]).findIndex(([a,b])=>t>=a&&t<=b); if(ci>=0){ bk.cuts.splice(ci,1); buildTL(); renderBlocks(); save(); return }
     if(t<bk.a||t>bk.b){ audition(bk.take,t,Math.max(t+1.5,bk.b+0.5)); return }
     stopAud(); scrubWas=S.playing; if(S.playing) stop(); dragH='play'; c.setPointerCapture(e.pointerId); seekSrc(t) });
-  let scrubWas=false; const seekSrc=t=>{ t=Math.max(bk.a,Math.min(bk.b-0.02,t)); const o=Math.min(bk._o+bk._d-0.02,srcToOut(bk,t)); S.playSrc=t; drawAt(o); redraw() };
+  let scrubWas=false; const seekSrc=t=>{ t=Math.max(bk.a,Math.min(bk.b-0.02,t)); const o=Math.min(bk._o+bk._d-0.02,srcToOut(bk,t)); S.playSrc=t; drawAt(o); redraw(); laneDraw&&laneDraw() };
   c.addEventListener('pointermove',e=>{ if(!dragH) return; const r=c.getBoundingClientRect(); const t=+T((e.clientX-r.left)/r.width*c.width).toFixed(2); if(dragH==='play'){ seekSrc(t); return }
     if(dragH==='a') bk.a=Math.min(t,bk.b-0.2); else bk.b=Math.max(t,bk.a+0.2); redraw() });
   c.addEventListener('pointerup',()=>{ if(!dragH) return; const h=dragH; dragH=null; if(h==='play'){ if(scrubWas) play(S.outT); return } autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save(); audition(bk.take,h==='a'?bk.a:Math.max(bk.a,bk.b-1.5),h==='a'?bk.a+1.6:bk.b+0.3) });
