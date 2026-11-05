@@ -841,7 +841,7 @@ function listHits(bk){ const W=(bk.words||[]).filter(w=>w[1]!=null); if(W.length
   if(cur.length) items.push(cur);
   const real=items.filter(it=>it.length&&it.length<=8); if(real.length<3&&!(real.length===2&&W.some(w=>/,$/.test(w[0])))) return [];
   if(!W.some(w=>/,$/.test(w[0]))) return [];
-  const ok=w=>!LISTSKIP.has(w[0].toLowerCase().replace(/[^\p{L}]/gu,'')); return real.map((it,i)=>{ const pool=i===0?it.slice(-2):it; const c=pool.find(ok)||it.find(ok)||it[0]; return c[1] }) }
+  const ok=w=>!LISTSKIP.has(w[0].toLowerCase().replace(/[^\p{L}]/gu,'')); return real.map((it,i)=>{ const c=i===0?([...it].reverse().find(ok)||it[it.length-1]):(it.find(ok)||it[0]); return c[1] }) }
 function autoAccent(blocks,k){ let n=0, hit=0; blocks.forEach(bk=>{ bk.sfx=(bk.sfx||[]).filter(x=>!x.auto); const ts=listHits(bk); if(ts.length){ hit++; ts.forEach(t=>{ if(t>=bk.a&&t<=bk.b){ bk.sfx.push({k,t:+(t-0.02).toFixed(2),v:1,auto:true}); n++ } }); bk.sfx.sort((a,b)=>a.t-b.t) } }); return {n,hit} }
 function sfxAll(){ const out=[]; S.data.blocks.forEach((bk,bi)=>{ if(!bk.on||!bk._d||!bk.sfx) return; bk.sfx.forEach((x,k)=>{ if(x.t<bk.a||x.t>bk.b) return; if((bk.cuts||[]).some(([a,b])=>x.t>a&&x.t<b)) return; out.push({k:x.k,v:x.v,t:srcToOut(bk,x.t),key:'sx'+bi+':'+k}) }) }); return out }
 let sfxPick=(()=>{try{return localStorage.getItem('kyu-sfx')||'pop'}catch(e){return 'pop'}})();
