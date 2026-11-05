@@ -788,8 +788,8 @@ function blockEditor(bk,i){ const box=el('div','bedit');
       const lab=el('span','lab','크기 '+Math.round((o.s||1)*100)+'%'); sz.oninput=()=>{o.s=+sz.value; lab.textContent='크기 '+Math.round(o.s*100)+'%'; drawAt(S.outT)}; sz.onchange=()=>save();
       const rs=el('button','btn sm','위치·크기 초기화'); rs.onclick=()=>{delete o.x; delete o.y; delete o.s; renderBlocks(); save(); drawAt(S.outT)};
       const r2=el('div','ov'); r2.append(lab,sz,el('span','hint','화면에서 이모지를 끌면 이동, 휠을 굴리면 크기 조절'),rs);
-      const pk=el('div','emopick'); Object.entries(EMOJIS).forEach(([g,list])=>{ pk.appendChild(el('div','eg',g)); (window.Intl&&Intl.Segmenter?[...new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(list)].map(x=>x.segment):[...list]).forEach(ch=>{ if(!ch.trim()) return; const b=el('button',o.text===ch?'on':null,ch); b.title=ch;
-        b.onclick=()=>{ o.text=ch; t1.value=ch; pk.querySelectorAll('button.on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); save(); drawAt(S.outT) }; pk.appendChild(b) }) });
+      const pk=el('div','emopick'); pk.hidden=true; const chg=el('button','btn sm','이모지 변경 ▾'); chg.onclick=()=>{ pk.hidden=!pk.hidden; chg.textContent=pk.hidden?'이모지 변경 ▾':'닫기 ▴' }; r.replaceChild(chg,t2); Object.entries(EMOJIS).forEach(([g,list])=>{ pk.appendChild(el('div','eg',g)); (window.Intl&&Intl.Segmenter?[...new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(list)].map(x=>x.segment):[...list]).forEach(ch=>{ if(!ch.trim()) return; const b=el('button',o.text===ch?'on':null,ch); b.title=ch;
+        b.onclick=()=>{ o.text=ch; t1.value=ch; pk.querySelectorAll('button.on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); pk.hidden=true; chg.textContent='이모지 변경 ▾'; save(); drawAt(S.outT) }; pk.appendChild(b) }) });
       ob.append(r,pk,r2); return }
     ob.appendChild(r) });
   const add=el('button','btn sm','＋ 추가'); add.style.alignSelf='flex-start'; add.onclick=()=>{(bk.ov=bk.ov||[]).push({type:'card',text:'',at:null}); renderBlocks()}; ob.appendChild(add);
