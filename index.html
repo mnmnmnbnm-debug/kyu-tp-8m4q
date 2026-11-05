@@ -1176,9 +1176,10 @@ $('recBtn').onclick=async e=>{e.currentTarget.blur();
   if(dirH&&!dirOK) await ensureDir();
   if(dirH&&dirOK&&!subOK&&!target()&&!isScriptDir(dirH)){ await createSub(); await refreshDir() }
   if(!camOn[1]&&!camOn[2]){await toggleCam(1)}
-  startRec(); if(recs.length){stop(); elapsed=0; start();}
+  elapsed=0; startRec(); if(recs.length){ _stop(); elapsed=0; start(); }
 };
-const _stop=stop; stop=function(){_stop(); if(recs.some(r=>r.state==='recording')&&elapsed>=total) setTimeout(stopRec,800)};
+/* prompter reached the end -> stop that recording a moment later (only the same take, never a freshly started one) */
+const _stop=stop; stop=function(){ _stop(); if(recs.some(r=>r.state==='recording')&&elapsed>=total){ const tk=takeNo; setTimeout(()=>{ if(tk===takeNo) stopRec() },800) } };
 /* ---------- split ---------- */
 let camPct=+(store.get('kyu-cam-pct')||30);
 function setCamPct(v,save){camPct=Math.round(Math.max(15,Math.min(60,v)));$('mainBox').style.setProperty('--camw',camPct+'%');
