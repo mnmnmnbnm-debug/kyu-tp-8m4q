@@ -114,6 +114,11 @@ dialog.wide{max-width:1040px;width:94vw}
 .skc .ic{font-size:17px}.skc .bd{font-size:11px}
 .skc.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.skc.off{opacity:.55}
 .skc input{accent-color:var(--accent);margin-top:2px}
+.skrec{border:1px solid #6b5a1e;background:#221d0c;border-radius:10px;padding:8px 10px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px}
+.skrec[hidden]{display:none}
+.skrec .rh{display:flex;gap:8px;align-items:center;font-weight:700;font-size:13px}
+.skrec .rr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.skrec .rr b{font-size:12.5px}.skrec .rr small{display:block;font-size:11px;color:var(--dim)}
 .skpv{border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;display:flex;flex-direction:column;gap:8px}
 .skpv video{width:100%;max-height:380px;object-fit:contain;background:#000;border-radius:8px}
 @media (max-width:800px){.skbody{grid-template-columns:1fr;height:auto}.skpv{display:none}}
@@ -227,6 +232,7 @@ dialog.wide{max-width:1040px;width:94vw}
 </div>
 
 <dialog id="dlgSkills" class="wide"><div class="skhead"><h3 style="margin:0">✨ 자동 초안 — 편집 스킬 고르기</h3><span class="hint" id="skInfo"></span><button class="btn sm" id="skClose" style="margin-left:auto">✕</button></div>
+  <div class="skrec" id="skRec" hidden></div>
   <div class="skbody"><div class="skgrid" id="skGrid"></div><div class="skpv" id="skPv"><div class="hint">왼쪽에서 스킬을 누르면 예시를 보여 줘요.</div></div></div>
   <div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn sm" id="skAdd">＋ 스킬 추가</button><span class="hint" style="margin-right:auto">✅ = 에디터가 자동으로 적용 · 🤖 = Claude에게 맡길 때 적용</span><button class="btn" id="skCancel">취소</button><button class="btn primary" id="skGo">✨ 이 스킬로 초안 만들기</button></div>
 </dialog>
@@ -1010,12 +1016,24 @@ const EXBASE='https://mnmnmnbnm-debug.github.io/kyu-tp-8m4q/ex/';
 const EXV={'ac73a20a9ede':'s15','8cef415a3b34':'s16','46f87e64544c':'r1','a0527d174e30':'r2','6eae7fbd4ed5':'r3'};
 const SKICO={s01:'✂️',s02:'🎬',s03:'📱',s04:'🎥',s05:'💬',s06:'🟨',s07:'🏷️',s08:'🔊',s09:'🎨',s10:'⏩',s11:'💭',s12:'📶',s13:'🎚️',s14:'🎤',s15:'🔁',s16:'✨',s17:'🇰🇷',s18:'🔤',s19:'🔍',s20:'↔️',s21:'🖼️',s22:'😆',s23:'⭕',s24:'⏱️',s25:'⌨️',s26:'💨',s27:'🥁',s28:'🎵',s29:'⏸️',s30:'🐢',s31:'🪟',s32:'🔢',s33:'📕',s34:'📳',s35:'👥',s36:'📌',r1:'🍲',r2:'💥',r3:'📅'};
 const AUTO=new Set(['s01','s02','s03','s04','s05','s07','s08','s09','s10','s11','s13','s19','s22','s31','s34','8cef415a3b34','6eae7fbd4ed5','72b9219a9819']);
-let SK=[], skSel=null;
+let SK=[], skSel=null, RECS=[];
 function hubKey(){try{return localStorage.getItem('kyu-gate')||localStorage.getItem('kyu-hub-key')||''}catch(e){return ''}}
 async function hubApi(action,payload){ const r=await fetch(HUB_URL,{method:'POST',body:JSON.stringify(Object.assign({key:hubKey(),action},payload||{}))}); return r.json() }
 async function openSkills(){ $('dlgSkills').showModal(); $('skInfo').textContent='불러오는 중…';
-  try{ const j=await hubApi('all'); SK=(j.data&&j.data.skills||[]).sort((a,b)=>(a.order??999)-(b.order??999)) }catch(e){ if(!SK.length){ $('skInfo').textContent='스킬을 불러오지 못했어요 (인터넷 연결)'; } }
-  renderSkills() }
+  try{ const j=await hubApi('all'); SK=(j.data&&j.data.skills||[]).sort((a,b)=>(a.order??999)-(b.order??999)); RECS=j.data&&j.data.recs||[] }catch(e){ if(!SK.length){ $('skInfo').textContent='스킬을 불러오지 못했어요 (인터넷 연결)'; } }
+  renderSkills(); renderRecs() }
+function renderRecs(){ const box=$('skRec'); box.textContent=''; if(!RECS.length){box.hidden=true;return}
+  const week=RECS.reduce((m,r)=>String(r.week)>m?String(r.week):m,''); const pool=RECS.filter(r=>String(r.week)===week&&!r.used).sort((a,b)=>(a.order||0)-(b.order||0)).slice(0,3);
+  box.hidden=false; const h=el('div','rh','✨ 이번 주 추천 스킬'); h.appendChild(el('span','hint',week.replace(/^(\d{4})-W(\d+)$/,'$1년 $2주차'))); box.appendChild(h);
+  if(!pool.length){ box.appendChild(el('div','hint','이번 주 추천을 모두 썼어요. 다음 주 월요일에 새 추천이 와요.')); return }
+  pool.forEach(r=>{ const row=el('div','rr'), t=el('div'); t.append(el('b',null,r.name),el('small',null,(r.desc||'')+(r.why?' · '+r.why:'')));
+    const b=el('button','btn sm primary','추가하고 켜기'); b.onclick=async()=>{ b.disabled=true; try{
+      let sk=SK.find(x=>x.name===r.name);
+      if(!sk){ const order=SK.reduce((m,x)=>Math.max(m,x.order||0),0)+1, data={name:r.name,desc:r.desc||'',on:true,order,fromRec:r.week}; const j=await hubApi('add',{collection:'skills',data}); sk={id:j.id||('n'+Date.now()),...data}; SK.push(sk) }
+      else if(!sk.on){ sk.on=true; await hubApi('update',{collection:'skills',id:sk.id,data:{on:true}}) }
+      r.used=true; await hubApi('update',{collection:'recs',id:r.id,data:{used:true,usedAt:Date.now()}}); skSel=sk.id; renderSkills(); renderRecs(); skPreview(sk); toast('‘'+r.name+'’을 스킬에 추가하고 켰어요')
+    }catch(e){ toast('추가하지 못했어요'); b.disabled=false } };
+    row.append(t,b); box.appendChild(row) }) }
 function renderSkills(){ const g=$('skGrid'); g.textContent=''; $('skInfo').textContent=SK.filter(s=>s.on).length+'개 켜짐 / '+SK.length+'개';
   SK.forEach(s=>{ const key=EXV[s.id]||s.id, c=el('div','skc'+(s.id===skSel?' sel':'')+(s.on?'':' off')); const cb=el('input'); cb.type='checkbox'; cb.checked=!!s.on;
     cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>{ s.on=cb.checked; c.classList.toggle('off',!s.on); $('skInfo').textContent=SK.filter(x=>x.on).length+'개 켜짐 / '+SK.length+'개'; hubApi('update',{collection:'skills',id:s.id,data:{on:s.on}}).catch(()=>toast('스킬 저장 실패')) };
