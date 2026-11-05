@@ -625,7 +625,7 @@ async function play(from){ if(!S.tl.length) return; const c=audio(); await c.res
   ovFired=new Set(overlaysAll().filter(o=>o.t<=t).map(o=>o.key).concat(sfxAll().filter(x=>x.t<t-0.02).map(x=>x.key)));
   S.playing=true; $('playBtn').textContent='❚❚'; p.g.gain.setValueAtTime(0,c.currentTime); p.g.gain.linearRampToValueAtTime(takeGain(s.m.take),c.currentTime+0.008);
   await p.v.play(); musStart(t); loop(); }
-function stop(){ S.playing=false; musStop(); cancelAnimationFrame(raf); POOL.forEach(p=>{p.v.pause(); try{p.g.gain.setValueAtTime(0,AC.currentTime)}catch(e){}}); $('playBtn').textContent='▶' }
+function stop(){ S.playing=false; musStop(); stopAud(); cancelAnimationFrame(raf); POOL.forEach(p=>{p.v.pause(); try{p.g.gain.setValueAtTime(0,AC.currentTime)}catch(e){}}); $('playBtn').textContent='▶' }
 async function advance(){ const c=AC; const old=slot(cur); old.g.gain.setValueAtTime(old.g.gain.value,c.currentTime); old.g.gain.linearRampToValueAtTime(0,c.currentTime+0.006); setTimeout(()=>old.v.pause(),8);
   cur++; if(cur>=S.tl.length){ S.outT=S.total; stop(); if(S.onEnd){const f=S.onEnd; S.onEnd=null; f()} return }
   const s=S.tl[cur], p=slot(cur); if(p.seg!==cur||p.file!==s.m.file) await prep(cur);
@@ -640,7 +640,7 @@ $('playBtn').onclick=()=>S.playing?stop():play();
 function typing(t){ if(!t) return false; if(t.isContentEditable||/TEXTAREA|SELECT/.test(t.tagName)) return true;
   return t.tagName==='INPUT'&&!/^(checkbox|radio|button|submit|range|color|file)$/.test(t.type) }
 document.addEventListener('keydown',e=>{ if(typing(e.target)||e.metaKey||e.ctrlKey||e.altKey) return;
-  if(e.code==='Space'){ e.preventDefault(); e.stopPropagation(); if(e.repeat) return; if(e.target!==document.body&&e.target.blur) e.target.blur(); S.playing?stop():play(); return }
+  if(e.code==='Space'){ e.preventDefault(); e.stopPropagation(); if(e.repeat) return; if(e.target!==document.body&&e.target.blur) e.target.blur(); if(raw){ stopAud(); return } S.playing?stop():play(); return }
   if(e.target.type==='range') return;
   const sk={ArrowLeft:-1,ArrowRight:1}[e.key], dir={ArrowUp:-1,ArrowDown:1}[e.key]; if(!sk&&!dir) return;
   e.preventDefault(); if(e.target!==document.body&&e.target.blur) e.target.blur();
