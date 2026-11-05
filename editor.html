@@ -595,10 +595,10 @@ function draft(rebuild){
     // keep one recording session when possible (same clothes, light, camera)
     const cnt={}; S.data.blocks.forEach(bk=>{ const c=bk.cands; if(!c.length) return; new Set(c.filter(x=>x.score>=c[0].score-0.12).map(x=>x.take)).forEach(k=>cnt[k]=(cnt[k]||0)+1) });
     const order=Object.keys(cnt).sort((a,b)=>(cnt[b]-cnt[a])||b.localeCompare(a)); const primary=order[0];
-    S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ const pc=c.find(x=>x.take===primary&&x.score>=c[0].score-0.12); pickCand(bk,pc||c[0],true) } else {bk.take=null} if(rebuild){ bk.shot=SHOTROT[i%SHOTROT.length]; delete bk.shot0 } });
+    S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ c.forEach(x=>x.q=candQuality(bk.text,x)+(x.take===primary?0.03:0)); const best=[...c].sort((x,y)=>(y.q-x.q)||(y.a-x.a))[0]; pickCand(bk,best,true) } else {bk.take=null} if(rebuild){ bk.shot=SHOTROT[i%SHOTROT.length]; delete bk.shot0 } });
     gapFill();
     if(S.data.blocks.length) S.data.blocks[S.data.blocks.length-1].shot='close';
-    { const TLs=takeList(); let ci=0; S.data.blocks.forEach(bk=>{ const ms=TLs[bk.take]||[]; if(ms.length>1){ bk.cam=ms[ci%ms.length].cam||''; ci++ } }) }
+    mixCams();
   }
   buildTL(); renderBlocks(); save(); drawAt(0); $('stOvl').hidden=!!S.tl.length;
   const miss=S.data.blocks.filter(b=>!b.take).length; toast('초안을 만들었어요'+(miss?' · 못 찾은 줄 '+miss+'개 (빨간 블록)':''));
@@ -608,6 +608,23 @@ function gapFill(){ const B=S.data.blocks; let n=0;
   B.forEach((bk,i)=>{ if(bk.take) return; const p=B.slice(0,i).reverse().find(x=>x.take), q=B.slice(i+1).find(x=>x.take); if(!p||!q||p.take!==q.take) return;
     const a=p.b, b=q.a; if(b-a<0.25||b-a>8) return; bk.take=p.take; bk.cam=p.cam||''; const [A,Bb]=refineEdges(bk.take,a,b-0.05,null,null); bk.a=Math.max(a-0.05,A); bk.b=Math.min(b,Bb); bk.guess=true; autoCuts(bk); alignWords(bk); n++ });
   return n }
+/* how cleanly a take says the line: text match, no repeats/fillers, no long hesitations, not too quiet */
+const FILLER=new Set(['eh','em','este','mmm','mm','ah','eeh','ehh','umm','um','o','sea']);
+function candQuality(line,c){ const t=S.data.takes[c.take]; if(!t||!t.words) return c.score; const toks=line.split(/\s+/).filter(Boolean).length||1;
+  const ws=t.words.filter(w=>w[1]>=c.a-0.05&&w[1]<=c.b); const extra=Math.max(0,ws.length-toks)/toks;
+  const fill=ws.filter(w=>FILLER.has(norm(w[0]))&&!norm(line).includes(norm(w[0]))).length;
+  const p=pkGet(c.take), thr=t.thr??-45; let sil=0, sp=0, lv=0;
+  if(p){ for(let x=c.a+0.1;x<c.b-0.1;x+=0.02){ const d=dbAt(p,x); if(d<thr) sil+=0.02; else { sp++; lv+=d } } }
+  let run=0, hes=0; if(p){ for(let x=c.a+0.1;x<c.b-0.1;x+=0.02){ if(dbAt(p,x)<thr){ run+=0.02 } else { if(run>0.6) hes+=run-0.6; run=0 } } }
+  const loud=sp?lv/sp:(t.med??-28), quiet=Math.max(0,((t.med??-28)-loud)-3);
+  return +(c.score - extra*0.35 - fill*0.08 - hes*0.12 - quiet*0.03).toFixed(3) }
+/* angles: push-in/emphasis lines on the front camera, explanations on the side camera, never 3 in a row, long lines switch at a pause */
+function mixCams(){ const TLs=takeList(); let prev='', run=0;
+  S.data.blocks.forEach(bk=>{ const ms=TLs[bk.take]||[]; delete bk.camAlt; if(ms.length<2) return; const front=ms[0].cam||'', side=ms[1].cam||'';
+    let want=['close','zoomin','snap','shake','dutch'].includes(bk.shot)?front:side;
+    if(want===prev&&run>=2) want=want===front?side:front;
+    bk.cam=want; run=want===prev?run+1:1; prev=want;
+    if((bk.b-bk.a)>4.5&&(bk.cuts||[]).length) bk.camAlt=true }) }
 function pickCand(bk,c,keepShot){ const t=S.data.takes[c.take]; const W=t.words; const [a,b]=refineEdges(c.take,c.a,c.b,W[c.i],W[c.j]);
   bk.take=c.take; bk.a=a; bk.b=b; const ms=takeList()[c.take]||[]; if(!ms.find(m=>m.cam===bk.cam)) bk.cam=ms[0]?ms[0].cam:''; autoCuts(bk); alignWords(bk) }
 
@@ -616,7 +633,8 @@ function partsOf(bk){ let ps=[[bk.a,bk.b]]; (bk.cuts||[]).slice().sort((x,y)=>x[
 function mediaOf(bk){ const ms=takeList()[bk.take]||[]; return ms.find(m=>m.cam===bk.cam)||ms[0]||null }
 function buildTL(){ const sp=S.data.speed; S.tl=[]; let o=0;
   S.data.blocks.forEach((bk,bi)=>{ bk._o=o; if(!bk.on||!bk.take||!mediaOf(bk)){bk._d=0; return}
-    partsOf(bk).forEach(([a,b],pi)=>{ const d=(b-a)/sp; S.tl.push({bi,bk,m:mediaOf(bk),a,b,o,d,pi}); o+=d }); bk._d=o-bk._o });
+    const ms=takeList()[bk.take]||[], m0=mediaOf(bk), i0=Math.max(0,ms.indexOf(m0));
+    partsOf(bk).forEach(([a,b],pi)=>{ const d=(b-a)/sp; const m=bk.camAlt&&ms.length>1?ms[(i0+pi)%ms.length]:m0; S.tl.push({bi,bk,m,a,b,o,d,pi}); o+=d }); bk._d=o-bk._o });
   S.total=o; renderScrub(); }
 function srcToOut(bk,t){ const segs=S.tl.filter(s=>s.bk===bk); for(const s of segs){ if(t>=s.a-1e-3&&t<=s.b+1e-3) return s.o+(t-s.a)/S.data.speed; if(t<s.a) return s.o } return segs.length?segs[segs.length-1].o+segs[segs.length-1].d:0 }
 function segAt(t){ for(let i=0;i<S.tl.length;i++){ const s=S.tl[i]; if(t<s.o+s.d) return i } return S.tl.length-1 }
@@ -948,7 +966,7 @@ function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const
     const on=bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2&&(bk.cam||'')===(m.cam||''); const card=el('div','tc'+(on?' on':''));
     const v=document.createElement('video'); v.src=S.urls[m.file]; v.muted=true; v.playsInline=true; v.preload='metadata'; v.style.objectPosition=Math.round((m.cx??0.5)*100)+'% 35%';
     v.onloadedmetadata=()=>{ v.currentTime=cd.a+Math.min(1,(cd.b-cd.a)/2) }; vids.push(v);
-    const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,cd.none?'이 줄을 못 찾음 · 전체 '+(m.dur||0).toFixed(1)+'초':Math.round(cd.score*100)+'% 일치 · '+(cd.b-cd.a).toFixed(1)+'초'));
+    const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,cd.none?'이 줄을 못 찾음 · 전체 '+(m.dur||0).toFixed(1)+'초':Math.round(cd.score*100)+'% 일치'+(cd.q!=null?' · 발음 '+Math.max(0,Math.round(cd.q*100)):'')+' · '+(cd.b-cd.a).toFixed(1)+'초'));
     if(cd.none) card.classList.add('none');
     const pb=el('button','btn sm','▶ 보기'); let tmr=null; v.style.cursor='zoom-in'; v.title='누르면 크게 보기'; v.onclick=()=>{ stopAll(); bigClip(S.urls[m.file],cd.none?0:cd.a,cd.none?(m.dur||cd.b):cd.b,lab.querySelector('b').textContent) };
     pb.onclick=()=>{ stop(); stopAud(); const was=!v.paused; stopAll(); clearTimeout(tmr); if(was){ pb.textContent='▶ 보기'; return }
@@ -1246,12 +1264,13 @@ function draftWithSkills(){ const on=new Set(SK.filter(s=>s.on).map(s=>s.id)), h
     D.cap.mode=has('8cef415a3b34')?'pop':has('s05')?'line':'off'; D.format=has('s03')?'reel':D.format }
   draft(true);
   const B=D.blocks, mix=!SK.length||has('s04');
-  let prevShot='', camI=0; const TLs=takeList(); B.forEach((bk,i)=>{ if(mix){ bk.shot=shotFor(bk.text,i,B.length,prevShot); prevShot=bk.shot; const ms=TLs[bk.take]||[]; if(ms.length>1){ bk.cam=ms[camI%ms.length].cam||''; camI++ } } else bk.shot=has('s19')&&i%2?'zoomin':'wide'; if(SK.length&&has('s34')&&/[!¡]/.test(bk.text)&&i>0) bk.shot='shake';
+  let prevShot=''; B.forEach((bk,i)=>{ if(mix){ bk.shot=shotFor(bk.text,i,B.length,prevShot); prevShot=bk.shot } else bk.shot=has('s19')&&i%2?'zoomin':'wide'; if(SK.length&&has('s34')&&/[!¡]/.test(bk.text)&&i>0) bk.shot='shake';
     if(SK.length&&!has('s07')) bk.ov=(bk.ov||[]).filter(o=>o.type!=='card');
     if(has('s22')){ const em=/[¿?]/.test(bk.text)?'🤔':/[!¡]/.test(bk.text)?'😮':''; if(em&&!(bk.ov||[]).some(o=>o.type==='emoji')) (bk.ov=bk.ov||[]).push({type:'emoji',text:em,at:null}) }
     if(has('s31')){ const h=(bk.text.match(/[가-힣]+/g)||[]); if(h.length&&!bk.teach){ bk.teach={on:true,text:h.join(' '),sub:romanize(h.join(''),true),pos:'bl'}; bk.ov=(bk.ov||[]).filter(o=>o.type!=='card') } } });
   if(B.length&&has('72b9219a9819')&&!(B[0].ov||[]).some(o=>o.type==='hook'||o.type==='cta')){ const t=B[0].text.replace(/\*/g,'').split(/(?<=[?!.])\s/)[0].slice(0,40); (B[0].ov=B[0].ov||[]).unshift({type:'hook',text:t,at:null}) }
   if(B.length>1&&has('s11')){ const L=B[B.length-1]; if(/[¿?]/.test(L.text)&&!(L.ov||[]).some(o=>o.type==='cta')) (L.ov=L.ov||[]).push({type:'cta',text:L.text.replace(/\*/g,'').slice(0,40),at:null}) }
+  mixCams();
   D.skills=SK.filter(s=>s.on).map(s=>({id:s.id,name:s.name,auto:AUTO.has(s.id)}));
   syncSettings(); buildTL(); renderBlocks(); save(); drawAt(0);
   const cl=D.skills.filter(s=>!s.auto); if(cl.length) toast('🤖 '+cl.map(s=>s.name).slice(0,3).join(', ')+(cl.length>3?' 외 '+(cl.length-3)+'개':'')+'는 Claude에게 맡기면 적용돼요',5000) }
