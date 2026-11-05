@@ -100,6 +100,7 @@ textarea{width:100%;resize:vertical}
 .wfind .w.used{opacity:.4}.wfind .w.gap{border-color:#3ecf8e;background:#13261d}.wfind .w.me{background:#2a2410;border-color:var(--accent)}.wfind .w.st{background:var(--accent);color:#14110a}
 .tcmp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:2px 0 4px}
 .tcmp .tc{border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:6px;display:flex;flex-direction:column;gap:5px}
+.tcmp .tc.none{opacity:.6}
 .tcmp .tc.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .tcmp video{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:7px;background:#000;max-height:260px}
 .tcmp .tl b{display:block;font-size:12px}.tcmp .tl small{font-size:11px;color:var(--dim)}
@@ -919,7 +920,7 @@ function sfxLane(bk,range){ const wrap=el('div'); const lane=el('div','sfxl'); l
   wrap.append(lane,bl,bar,ar,lst); requestAnimationFrame(draw); list(); laneDraw=draw; return wrap }
 let laneDraw=null;
 function wavePlayhead(s,src){ const open=S.sel!=null&&S.data.blocks[S.sel]===s.bk; const v=open?src:null; if(v===S.playSrc) return; S.playSrc=v; if(waveCtx&&(open||v==null)) waveCtx.redraw(); if(laneDraw&&!S.playing) laneDraw() }
-function wordFinder(bk){ const wrap=el('div','wfind'); const T=takeList(); let take=bk.take||S.findTake||Object.keys(T).find(k=>(S.data.takes[k]||{}).words&&(S.data.takes[k].words||[]).length)||Object.keys(T)[0];
+function wordFinder(bk){ const wrap=el('div','wfind'); const T=takeList(); let take=S.findTake||bk.take||Object.keys(T).find(k=>(S.data.takes[k]||{}).words&&(S.data.takes[k].words||[]).length)||Object.keys(T)[0];
   const head=el('div','row'); head.style.cssText='gap:6px;align-items:center';
   const ts=el('select'); Object.keys(T).forEach(k=>{ const w=(S.data.takes[k]||{}).words; const o=el('option',null,k.replace(/^kyu_[^_]+_/,'')+' ('+(w?w.length:0)+'단어)'); o.value=k; ts.appendChild(o) }); ts.value=take; ts.onchange=()=>{ S.findTake=ts.value; renderBlocks() };
   const B=S.data.blocks, i=B.indexOf(bk), p=B.slice(0,i).reverse().find(x=>x.take===take), q=B.slice(i+1).find(x=>x.take===take);
@@ -932,22 +933,25 @@ function wordFinder(bk){ const wrap=el('div','wfind'); const T=takeList(); let t
     const c=el('span','w'+(inMe?' me':used?' used':'')+(p&&q&&w[1]>=p.b-0.05&&w[1]<q.a?' gap':''),w[0]); c.title=fmt(w[1])+(used?' · '+(B.indexOf(used)+1)+'번 블록에서 사용 중':'');
     c.onclick=()=>{ if(a0==null){ a0=k; lst.querySelectorAll('.w.st').forEach(x=>x.classList.remove('st')); c.classList.add('st'); info.textContent='② 끝 단어를 누르세요'; audition(take,Math.max(0,w[1]-0.2),w[2]+1.2); return }
       const s0=Math.min(a0,k), s1=Math.max(a0,k); a0=null; bk.take=take; const ms=T[take]||[]; if(!ms.find(m=>m.cam===bk.cam)) bk.cam=ms[0]?ms[0].cam:'';
-      const [A,Bb]=refineEdges(take,W[s0][1],W[s1][2],W[s0],W[s1]); bk.a=A; bk.b=Bb; delete bk.guess; autoCuts(bk); alignWords(bk); S.findOpen=false; buildTL(); renderBlocks(); save(); audition(take,bk.a,bk.b); toast('이 블록 구간을 정했어요') };
+      const [A,Bb]=refineEdges(take,W[s0][1],W[s1][2],W[s0],W[s1]); bk.a=A; bk.b=Bb; delete bk.guess; autoCuts(bk); alignWords(bk); S.findOpen=false; S.findTake=null; buildTL(); renderBlocks(); save(); audition(take,bk.a,bk.b); toast('이 블록 구간을 정했어요') };
     lst.appendChild(c) });
   wrap.appendChild(lst); requestAnimationFrame(()=>{ const g=lst.querySelector('.w.gap,.w.me'); if(g) g.scrollIntoView({block:'nearest'}) }); return wrap }
 function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const vids=[];
   const stopAll=()=>vids.forEach(v=>{ v.pause(); v.muted=true });
-  (bk.cands||[]).slice(0,6).forEach(cd=>{ (T[cd.take]||[]).forEach(m=>{ if(!S.urls[m.file]) return;
+  const list=[]; (bk.cands||[]).forEach(cd=>list.push(cd)); Object.keys(T).forEach(k=>{ if(!list.some(c=>c.take===k)) list.push({take:k,a:0,b:Math.min(T[k][0].dur||3,6),score:null,none:true}) });
+  list.slice(0,8).forEach(cd=>{ (T[cd.take]||[]).forEach(m=>{ if(!S.urls[m.file]) return;
     const on=bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2&&(bk.cam||'')===(m.cam||''); const card=el('div','tc'+(on?' on':''));
     const v=document.createElement('video'); v.src=S.urls[m.file]; v.muted=true; v.playsInline=true; v.preload='metadata'; v.style.objectPosition=Math.round((m.cx??0.5)*100)+'% 35%';
     v.onloadedmetadata=()=>{ v.currentTime=cd.a+Math.min(1,(cd.b-cd.a)/2) }; vids.push(v);
-    const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,Math.round(cd.score*100)+'% 일치 · '+(cd.b-cd.a).toFixed(1)+'초'));
+    const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,cd.none?'이 줄을 못 찾음 · 전체 '+(m.dur||0).toFixed(1)+'초':Math.round(cd.score*100)+'% 일치 · '+(cd.b-cd.a).toFixed(1)+'초'));
+    if(cd.none) card.classList.add('none');
     const pb=el('button','btn sm','▶ 듣기'); let tmr=null;
     pb.onclick=()=>{ stop(); stopAud(); const was=!v.paused; stopAll(); clearTimeout(tmr); if(was){ pb.textContent='▶ 듣기'; return }
       vids.forEach(x=>x.parentNode.querySelector('.tcb button')&&(x.parentNode.querySelector('.tcb button').textContent='▶ 듣기'));
       v.currentTime=Math.max(0,cd.a-0.1); v.muted=false; v.play(); pb.textContent='■ 멈춤'; const chk=()=>{ if(v.currentTime>=cd.b+0.15||v.paused){ v.pause(); v.muted=true; pb.textContent='▶ 듣기'; return } tmr=setTimeout(chk,60) }; chk() };
-    const use=el('button','btn sm primary',on?'✓ 사용 중':'이걸로'); use.disabled=on;
-    use.onclick=()=>{ stopAll(); pickCand(bk,cd); bk.cam=m.cam||''; buildTL(); renderBlocks(); save(); drawAt(bk._o+0.05); toast('이 블록을 '+lab.querySelector('b').textContent+'(으)로 바꿨어요') };
+    const use=el('button','btn sm primary',on?'✓ 사용 중':cd.none?'🔍 여기서 찾기':'이걸로'); use.disabled=on;
+    if(cd.none) use.onclick=()=>{ stopAll(); S.findTake=cd.take; S.findOpen=true; S.cmpOpen=false; renderBlocks() };
+    if(!cd.none) use.onclick=()=>{ stopAll(); pickCand(bk,cd); bk.cam=m.cam||''; buildTL(); renderBlocks(); save(); drawAt(bk._o+0.05); toast('이 블록을 '+lab.querySelector('b').textContent+'(으)로 바꿨어요') };
     const bb=el('div','tcb'); bb.append(pb,use); card.append(v,lab,bb); wrap.appendChild(card) }) });
   if(!wrap.children.length) wrap.appendChild(el('div','hint','비교할 영상이 없어요.'));
   return wrap }
@@ -960,7 +964,7 @@ function blockEditor(bk,i){ const box=el('div','bedit');
   const cands=(bk.cands||[]); if(!cands.length) cr.appendChild(el('span','hint','자동으로 못 찾았어요. 아래 테이크를 고르고 파형에서 구간을 지정하세요.'));
   cands.forEach(cd=>{ const x=el('button','cand'+(bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2?' on':'')); x.textContent=`${cd.take.replace(/^kyu_[^_]+_/,'')} · ${(cd.b-cd.a).toFixed(1)}초 · ${Math.round(cd.score*100)}%`; x.title='누르면 이 테이크로 바꾸고 들려줘요';
     x.onclick=()=>{ pickCand(bk,cd); buildTL(); renderBlocks(); save(); audition(cd.take,bk.a,bk.b) }; cr.appendChild(x) });
-  const fnd=el('button','btn sm'+(S.findOpen?' on':''),'🔍 직접 찾기'); fnd.title='받아쓴 단어에서 시작·끝을 눌러 이 블록 구간 정하기'; fnd.onclick=()=>{ S.findOpen=!S.findOpen; renderBlocks() };
+  const fnd=el('button','btn sm'+(S.findOpen?' on':''),'🔍 직접 찾기'); fnd.title='받아쓴 단어에서 시작·끝을 눌러 이 블록 구간 정하기'; fnd.onclick=()=>{ S.findOpen=!S.findOpen; if(!S.findOpen) S.findTake=null; renderBlocks() };
   const tsel=el('select'); Object.keys(takeList()).forEach(k=>{const o=el('option',null,k); o.value=k; tsel.appendChild(o)}); tsel.value=bk.take||''; tsel.title='테이크 직접 고르기';
   tsel.onchange=()=>{ bk.take=tsel.value; if(!bk.b||bk.b<=bk.a){bk.a=0; bk.b=Math.min(3,prim(bk.take).dur)} autoCuts(bk); alignWords(bk); buildTL(); renderBlocks(); save() }; cr.appendChild(tsel);
   const cmpB=el('button','btn sm'+(S.cmpOpen?' on':''),'🎞️ 테이크 비교'); cmpB.title='후보 테이크와 카메라를 영상으로 나란히 보고 고르기'; cmpB.onclick=()=>{ S.cmpOpen=!S.cmpOpen; renderBlocks() }; if(cands.length) cr.appendChild(cmpB);
