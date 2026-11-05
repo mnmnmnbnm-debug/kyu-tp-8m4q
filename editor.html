@@ -968,7 +968,7 @@ function bigClip(url,a,b,title){ stop(); stopAud(); const d=document.createEleme
   v.onloadedmetadata=()=>{ v.currentTime=Math.max(0,a-0.1); v.play().catch(()=>{}) }; v.ontimeupdate=()=>{ if(v.currentTime>=b+0.2){ v.currentTime=Math.max(0,a-0.1) } } }
 function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const vids=[];
   const stopAll=()=>vids.forEach(v=>{ v.pause(); v.muted=true });
-  const list=[...(bk.cands||[])]; const miss=Object.keys(T).filter(k=>!list.some(c=>c.take===k));
+  const list=[...(bk.cands||[])]; list.forEach(cd=>{ if(cd.q==null||cd.snr==null) cd.q=candQuality(bk.text,cd) }); list.sort((x,y)=>(y.q-x.q)); const miss=Object.keys(T).filter(k=>!list.some(c=>c.take===k));
   list.slice(0,8).forEach(cd=>{ (T[cd.take]||[]).forEach(m=>{ if(!S.urls[m.file]) return;
     const on=bk.take===cd.take&&Math.abs(bk.a-cd.a)<1.2&&(bk.cam||'')===(m.cam||''); const card=el('div','tc'+(on?' on':''));
     const v=document.createElement('video'); v.src=S.urls[m.file]; v.muted=true; v.playsInline=true; v.preload='metadata'; v.style.objectPosition=Math.round((m.cx??0.5)*100)+'% 35%';
