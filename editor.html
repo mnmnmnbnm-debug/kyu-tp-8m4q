@@ -149,6 +149,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
       <div class="scrub" id="scrub"></div>
       <span class="tc" id="tc">0:00.0 / 0:00.0</span>
     </div>
+    <div class="row" id="safeSel" style="margin-top:8px;gap:4px;align-items:center"><span class="lab" style="margin-right:4px">가림 영역</span><button class="btn sm" data-z="ig">인스타</button><button class="btn sm" data-z="tt">틱톡</button><button class="btn sm" data-z="yt">유튜브</button><button class="btn sm" data-z="">안보기</button></div>
     <div class="hint" style="margin-top:6px">멈춘 상태에서 화면을 끌면 얼굴 위치를 옮길 수 있어요. 스페이스 = 재생/정지 · ←→ 1초 이동 · ↑↓ 블록 이동</div>
     <div class="box" style="margin-top:12px" id="expBox" hidden>
       <h3>내보내기 · 업로드</h3>
@@ -601,7 +602,25 @@ function draw(t,v,s){ const W=cv.width,H=cv.height; clearCv(); if(!v||!s) return
   ctx.save(); ctx.filter=FILT[S.data.filter]||'none';
   if(bk.shot==='dutch'){ const a=-0.06*ease(el/0.3); ctx.translate(W/2,H/2); ctx.rotate(a); ctx.scale(1.12,1.12); ctx.translate(-W/2,-H/2) }
   try{ctx.drawImage(v,sx,sy,cw,ch,0,0,W,H)}catch(e){} ctx.restore();
-  drawOverlays(t); drawCaptions(t,bk); updTC(); }
+  drawOverlays(t); drawCaptions(t,bk); if(!S.exporting) drawSafe(); updTC(); }
+/* safe zones (preview only, never exported) — px on a 1080x1920 frame */
+const SAFE={ig:{n:'인스타 릴스',top:220,bot:420,right:130,rTop:860,left:40,lab:['상단 메뉴','캡션 · 계정명 · 음악','좋아요·댓글·공유']},
+  tt:{n:'틱톡',top:160,bot:480,right:150,rTop:760,left:50,lab:['상단 탭 · 검색','캡션 · 계정명 · 음악','좋아요·댓글·저장·공유']},
+  yt:{n:'유튜브 쇼츠',top:140,bot:430,right:150,rTop:900,left:50,lab:['상단 메뉴','제목 · 채널 · 구독','좋아요·싫어요·댓글·공유']}};
+let safeZ=(()=>{try{return localStorage.getItem('kyu-safe')||''}catch(e){return ''}})();
+function drawSafe(){ const z=SAFE[safeZ]; if(!z||S.data.format==='long') return; const W=cv.width,H=cv.height, k=W/1080, kh=H/1920;
+  const R=[[0,0,W,z.top*kh,z.lab[0]],[0,H-z.bot*kh,W,z.bot*kh,z.lab[1]],[W-z.right*k,z.rTop*kh,z.right*k,H-z.bot*kh-z.rTop*kh,z.lab[2]]];
+  ctx.save(); R.forEach(([x,y,w,h])=>{ ctx.fillStyle='rgba(255,60,60,.28)'; ctx.fillRect(x,y,w,h);
+    ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); ctx.strokeStyle='rgba(255,90,90,.45)'; ctx.lineWidth=3*k; for(let d=-H;d<W+H;d+=34*k){ctx.beginPath(); ctx.moveTo(x+d,y); ctx.lineTo(x+d+h,y+h); ctx.stroke()} ctx.restore() });
+  ctx.strokeStyle='rgba(80,230,140,.9)'; ctx.lineWidth=4*k; ctx.setLineDash([18*k,12*k]); ctx.strokeRect(z.left*k,z.top*kh,W-(z.left+z.right)*k,H-(z.top+z.bot)*kh); ctx.setLineDash([]);
+  ctx.font=`800 ${34*k}px "Noto Sans KR"`; ctx.textBaseline='middle';
+  const tag=(t,x,y,al)=>{ ctx.textAlign=al; const w=ctx.measureText(t).width+24*k, bx=al==='center'?x-w/2:al==='right'?x-w:x; ctx.fillStyle='rgba(0,0,0,.65)'; rr(bx,y-26*k,w,52*k,10*k); ctx.fill(); ctx.fillStyle='#ffb3b3'; ctx.fillText(t,al==='center'?x:al==='right'?x-12*k:x+12*k,y) };
+  tag('⛔ '+z.lab[0],W/2,z.top*kh/2+6*k,'center'); tag('⛔ '+z.lab[1],W/2,H-z.bot*kh/2,'center');
+  ctx.save(); ctx.translate(W-z.right*k/2,(z.rTop*kh+H-z.bot*kh)/2); ctx.rotate(Math.PI/2); tag('⛔ '+z.lab[2],0,0,'center'); ctx.restore();
+  ctx.fillStyle='rgba(80,230,140,.95)'; ctx.font=`800 ${30*k}px "Noto Sans KR"`; ctx.textAlign='left'; ctx.fillText('✅ '+z.n+' 안전 영역',z.left*k+14*k,z.top*kh+34*k); ctx.restore() }
+function setSafe(z){ safeZ=z; try{localStorage.setItem('kyu-safe',z)}catch(e){} document.querySelectorAll('#safeSel button').forEach(b=>b.classList.toggle('on',b.dataset.z===z)); if(S.tl&&S.tl.length&&!S.playing) drawAt(S.outT) }
+$('safeSel').onclick=e=>{ const b=e.target.closest('button'); if(b) setSafe(b.dataset.z) };
+setSafe(safeZ);
 function rr(x,y,w,h,r){ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath()}
 const pop=(dt)=>dt<0.11?0.55+0.53*(dt/0.11):dt<0.19?1.08-0.08*((dt-0.11)/0.08):1;
 function overlaysAll(){ const out=[]; S.data.blocks.forEach((bk,bi)=>{ if(!bk.on||!bk._d) return; const end=bk._o+bk._d;
