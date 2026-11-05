@@ -879,7 +879,7 @@ function blockEditor(bk,i){ const box=el('div','bedit');
     ws.forEach((w,k)=>{ const x=X(w[1]); g.fillStyle='rgba(255,255,255,.18)'; g.fillRect(x,H-46,1,46); g.fillStyle=w[1]>=bk.a&&w[1]<bk.b?'#dfe6ee':'#5f6b7b'; g.fillText(w[0],x+3,H-(k%2?4:24)) });
     [bk.a,bk.b].forEach(t=>{ g.fillStyle='#ffcc33'; g.fillRect(X(t)-3,0,6,H); g.fillRect(X(t)-12,0,24,18) });
     if(audPos!=null){ g.fillStyle='#4cd28a'; g.fillRect(X(audPos)-1,0,3,H) }
-    if(S.playSrc!=null&&audPos==null){ const x=X(S.playSrc); g.fillStyle='#4cd28a'; g.fillRect(x-2,0,4,H); g.beginPath(); g.moveTo(x-10,0); g.lineTo(x+10,0); g.lineTo(x,14); g.fill() } }
+    if(S.playSrc!=null&&audPos==null){ const x=X(S.playSrc); g.fillStyle='rgba(0,0,0,.55)'; g.fillRect(x-6,0,12,H); g.fillStyle='#4cd28a'; g.fillRect(x-3,0,6,H); g.beginPath(); g.moveTo(x-14,0); g.lineTo(x+14,0); g.lineTo(x,20); g.fill() } }
   waveCtx={redraw}; requestAnimationFrame(redraw);
   let dragH=null;
   c.addEventListener('pointerdown',e=>{ const r=c.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width*c.width, t=T(x);
