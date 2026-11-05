@@ -40,14 +40,12 @@ button,select,input,textarea{font:inherit;color:inherit}
 .emopick button{font-size:22px;line-height:1;width:36px;height:36px;border:1px solid transparent;border-radius:7px;background:none;cursor:pointer}
 .emopick button:hover{background:var(--panel);border-color:var(--line)}
 .emopick button.on{border-color:var(--accent);background:#2a2410}
-.shotpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;margin:4px 0 8px}
-.shotpick .shot{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 3px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;color:var(--fg)}
-.shotpick .shot canvas{border-radius:6px;background:#000;display:block}
-.shotpick .shot b{font-size:11px;white-space:nowrap}
-.shotpick .shot small{font-size:10px;color:var(--dim);white-space:nowrap}
+.shotpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:5px;margin:4px 0 8px}
+.shotpick .shot{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);cursor:pointer;color:var(--fg);text-align:left}
+.shotpick .shot b{font-size:12px;white-space:nowrap}
+.shotpick .shot small{font-size:10.5px;color:var(--dim);white-space:nowrap}
 .shotpick .shot.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .shotpick .shot.on b{color:var(--accent)}
-.shotpick .hint{grid-column:auto}
 .upst{font-size:12px;margin-top:6px;padding:7px 9px;border-radius:8px;background:#1d2a20;color:#9fe0b8;display:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 select,input[type=text],input[type=number],textarea{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
@@ -643,18 +641,14 @@ function drawShot(c,W,H,v,m,shot,prog,el,filt){ const [sx,sy,cw,ch]=cropFor(m,v,
     c.filter=filt||'none'; const k=0.8, fw=W*k, fh=H*k, fx=(W-fw)/2, fy=H*0.42-fh/2; c.shadowColor='rgba(0,0,0,.55)'; c.shadowBlur=W/25; c.beginPath(); c.roundRect(fx,fy,fw,fh,W*0.035); c.fillStyle='#000'; c.fill(); c.shadowBlur=0; c.clip();
     try{c.drawImage(v,sx,sy,cw,ch,fx,fy,fw,fh)}catch(e){} c.restore(); return }
   try{c.drawImage(v,sx,sy,cw,ch,0,0,W,H)}catch(e){} c.restore() }
-function shotPicker(bk){ if(SHOTOLD[bk.shot]) bk.shot=SHOTOLD[bk.shot]; if(SHOTOLD[bk.shot0]) bk.shot0=SHOTOLD[bk.shot0]; if(!bk.shot0){ bk.shot0=bk.shot; save() } const wrap=el('div','shotpick'), long=S.data.format==='long', tw=long?132:70, th=long?74:124;
-  const info=el('div','hint'); info.style.gridColumn='1/-1'; const rs=el('button','btn sm','↺ 처음 설정으로'); const setInfo=()=>{ info.textContent='지금: '+SHOTS[bk.shot]+' — '+(SHOTDESC[bk.shot]||'')+(bk.shot===bk.shot0?'  (처음 설정)':'  · 처음 설정: '+SHOTS[bk.shot0].replace(/^\d+\. /,'')); rs.disabled=bk.shot===bk.shot0 }; setInfo();
-  const tiles=Object.keys(SHOTS).map(k=>{ const b=el('button','shot'+(bk.shot===k?' on':'')); const c=document.createElement('canvas'); c.width=tw*2; c.height=th*2; c.style.width=tw+'px'; c.style.height=th+'px';
-    b.append(c,el('b',null,SHOTS[k].replace(/^\d+\. /,'')),el('small',null,k===bk.shot0?'★ 처음 설정':SHOTDESC[k].split(' · ')[1]||'')); b.title=SHOTDESC[k];
-    b.onclick=()=>{ bk.shot=k; wrap.querySelectorAll('.shot.on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setInfo(); save(); drawAt(bk._o+0.05); const meta=document.querySelector(`.blk[data-i="${S.data.blocks.indexOf(bk)}"] .meta .chip:last-of-type`); if(meta) meta.textContent=SHOTS[k].replace(/^\d+\. /,'') };
-    wrap.appendChild(b); return {k,c,b,x:c.getContext('2d')} });
-  rs.onclick=()=>tiles.find(T=>T.k===bk.shot0)?.b.click();
-  const ir=el('div','row'); ir.style.cssText='grid-column:1/-1;gap:8px;align-items:center'; ir.append(rs,info); wrap.appendChild(ir);
-  (async()=>{ const si=S.tl.findIndex(x=>x.bk===bk); if(si<0||S.playing) return; const p=await prep(si,0.3); if(!p||!p.v.videoWidth) return;
-    const vw=p.v.videoWidth, vh=p.v.videoHeight, sc=Math.min(1,640/Math.max(vw,vh)); const src=document.createElement('canvas'); src.width=Math.round(vw*sc); src.height=Math.round(vh*sc); src.getContext('2d').drawImage(p.v,0,0,src.width,src.height);
-    const m=S.tl[si].m, t0=performance.now();
-    const tick=()=>{ if(!wrap.isConnected) return; const e=((performance.now()-t0)%2600)/1000; tiles.forEach(T=>{ T.x.clearRect(0,0,T.c.width,T.c.height); drawShot(T.x,T.c.width,T.c.height,src,m,T.k,e/2.6,e,'none') }); requestAnimationFrame(tick) }; tick() })();
+function shotPicker(bk){ if(SHOTOLD[bk.shot]) bk.shot=SHOTOLD[bk.shot]; if(SHOTOLD[bk.shot0]) bk.shot0=SHOTOLD[bk.shot0]; if(!bk.shot0){ bk.shot0=bk.shot; save() }
+  const wrap=el('div','shotpick'), bi=S.data.blocks.indexOf(bk); const info=el('div','hint'); const rs=el('button','btn sm','↺ 처음 설정으로');
+  const setInfo=()=>{ info.textContent='지금: '+SHOTS[bk.shot]+' — '+(SHOTDESC[bk.shot]||'')+(bk.shot===bk.shot0?'  (처음 설정)':'  · 처음 설정: '+SHOTS[bk.shot0].replace(/^\d+\. /,'')); rs.disabled=bk.shot===bk.shot0 }; setInfo();
+  const pick=k=>{ bk.shot=k; wrap.querySelectorAll('.shot').forEach(x=>x.classList.toggle('on',x.dataset.k===k)); setInfo(); save();
+    const chip=document.querySelector(`.blk[data-i="${bi}"] .meta .chip:last-of-type`); if(chip) chip.textContent=SHOTS[k].replace(/^\d+\. /,''); playBlock(bi) };
+  Object.keys(SHOTS).forEach(k=>{ const b=el('button','shot'+(bk.shot===k?' on':'')); b.dataset.k=k; const [d1,d2]=SHOTDESC[k].split(' · ');
+    b.append(el('b',null,SHOTS[k]),el('small',null,k===bk.shot0?'★ 처음 설정':d2||d1)); b.title=SHOTDESC[k]+' — 누르면 미리보기 화면에서 바로 재생돼요'; b.onclick=()=>pick(k); wrap.appendChild(b) });
+  rs.onclick=()=>pick(bk.shot0); const ir=el('div','row'); ir.style.cssText='grid-column:1/-1;gap:8px;align-items:center'; ir.append(rs,info); wrap.appendChild(ir);
   return wrap }
 function rr(x,y,w,h,r){ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath()}
 const pop=(dt)=>dt<0.11?0.55+0.53*(dt/0.11):dt<0.19?1.08-0.08*((dt-0.11)/0.08):1;
@@ -775,7 +769,7 @@ function blockEditor(bk,i){ const box=el('div','bedit');
   const a2=el('button','btn sm','▶ 결과 듣기'); a2.onclick=()=>playBlock(i); const a3=el('button','btn sm','■'); a3.onclick=()=>{stopAud(); stop()};
   nr.append(el('span','grow'),a1,a2,a3); box.appendChild(nr);
   // shot / cam / chapter
-  box.appendChild(el('div','lab','화면 효과 — 움직이는 예시를 보고 고르세요')); box.appendChild(shotPicker(bk));
+  box.appendChild(el('div','lab','화면 효과 — 누르면 왼쪽 화면에서 이 블록이 그 효과로 재생돼요')); box.appendChild(shotPicker(bk));
   const sr=el('div','row'); const ms=takeList()[bk.take]||[];
   if(ms.length>1){ const cs=el('select'); ms.forEach(m=>{const o=el('option',null,m.cam||'기본'); o.value=m.cam; cs.appendChild(o)}); cs.value=bk.cam; cs.onchange=()=>{bk.cam=cs.value; buildTL(); save(); drawAt(bk._o+0.05)}; sr.append(el('span','lab','카메라'),cs) }
   const chi=el('input'); chi.type='text'; chi.placeholder='챕터 제목 (롱폼)'; chi.value=bk.chapter||''; chi.onchange=()=>{bk.chapter=chi.value.trim()||undefined; renderBlocks(); save()};
