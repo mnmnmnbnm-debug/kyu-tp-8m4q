@@ -185,6 +185,7 @@ dialog.wide{max-width:1040px;width:94vw}
         <span class="lab">자막</span><select id="sCap"><option value="pop">단어별 팝업</option><option value="line">한 줄 통째로</option><option value="off">없음</option></select>
         <span class="lab">자막 크기</span><input type="range" id="sCapSize" min="56" max="120" step="2">
         <span class="lab">자막 위치</span><input type="range" id="sCapY" min="55" max="88" step="1">
+        <span class="lab">업스케일</span><select id="sUp"><option value="1">켜기 (선명하게 확대)</option><option value="0">끄기</option></select>
         <span class="lab">필터</span><select id="sFilter"><optgroup label="기본"><option value="off">없음 (원본)</option><option value="mid">기본 보정</option><option value="warm">따뜻하게</option></optgroup><optgroup label="고화질 룩"><option value="hd">✨ 클린 HD — 선명·밝게</option><option value="skin">🧡 피부톤 HD — 따뜻·화사</option><option value="airy">☁️ 밝고 화사 — 부드럽게</option><option value="cine">🎬 시네마틱 — 영화 느낌</option><option value="vivid">🌈 비비드 — 색감 쨍</option></optgroup><optgroup label="너무 밝을 때"><option value="dim1">🌥️ 밝기 낮추기 (약하게)</option><option value="hlsave">☀️ 창가·조명 하이라이트 살리기</option><option value="dim2">🌑 밝기 낮추기 (강하게)</option></optgroup></select>
         <span class="lab">효과음</span><select id="sSfx"><option value="1">켜기</option><option value="0">끄기</option></select>
         <span class="lab">효과음 크기</span><input type="range" id="sSfxVol" min="0" max="200" step="5" title="모든 효과음 크기 (100% = 기본)">
@@ -480,12 +481,12 @@ setInterval(async()=>{ if(!S.dir||S.exporting||S.dirty) return;
 /* ================= settings ================= */
 function fillScriptSel(){const s=$('sScript'); s.textContent=''; s.appendChild(el('option',null,'(대본 없음)')).value='';
   SCRIPTS.list.forEach(o=>{const x=el('option',null,o.name); x.value=o.id; s.appendChild(x)})}
-function syncSettings(){const d=S.data; $('sSfxVol').value=d.sfxVol??100; $('sFormat').value=d.format; $('sSpeed').value=String(d.speed); $('sGap').value=String(d.gap); $('sCap').value=d.cap.mode; $('sCapSize').value=d.cap.size; $('sCapY').value=d.cap.y;
+function syncSettings(){const d=S.data; $('sUp').value=d.upscale===false?'0':'1'; $('sSfxVol').value=d.sfxVol??100; $('sFormat').value=d.format; $('sSpeed').value=String(d.speed); $('sGap').value=String(d.gap); $('sCap').value=d.cap.mode; $('sCapSize').value=d.cap.size; $('sCapY').value=d.cap.y;
   $('sFilter').value=d.filter; $('sSfx').value=String(d.sfx); $('sLang').value=d.lang; $('sScript').value=d.script?d.script.id:'';
   const cv=$('cv'); const [W,H]=d.format==='long'?[1920,1080]:[1080,1920]; if(cv.width!==W){cv.width=W; cv.height=H}}
 const onSet=(id,fn)=>$(id).addEventListener('change',()=>{fn($(id).value); buildTL(); renderBlocks(); save(); drawAt(S.outT)});
 onSet('sFormat',v=>{S.data.format=v; syncSettings()}); onSet('sSpeed',v=>S.data.speed=+v); onSet('sGap',v=>{S.data.gap=+v; S.data.blocks.forEach(autoCuts)});
-onSet('sCap',v=>S.data.cap.mode=v); $('sSfxVol').oninput=()=>{ S.data.sfxVol=+$('sSfxVol').value; $('sSfxVol').title='모든 효과음 크기 '+S.data.sfxVol+'%' }; $('sSfxVol').onchange=()=>{ save(); sfxPlay('pop',1) }; onSet('sFilter',v=>S.data.filter=v); onSet('sSfx',v=>S.data.sfx=+v); onSet('sLang',v=>S.data.lang=v);
+onSet('sCap',v=>S.data.cap.mode=v); onSet('sUp',v=>S.data.upscale=v==='1'); $('sSfxVol').oninput=()=>{ S.data.sfxVol=+$('sSfxVol').value; $('sSfxVol').title='모든 효과음 크기 '+S.data.sfxVol+'%' }; $('sSfxVol').onchange=()=>{ save(); sfxPlay('pop',1) }; onSet('sFilter',v=>S.data.filter=v); onSet('sSfx',v=>S.data.sfx=+v); onSet('sLang',v=>S.data.lang=v);
 $('sCapSize').addEventListener('input',()=>{S.data.cap.size=+$('sCapSize').value; drawAt(S.outT); save()});
 $('sCapY').addEventListener('input',()=>{S.data.cap.y=+$('sCapY').value; drawAt(S.outT); save()});
 onSet('sScript',v=>{ if(!v){S.data.script=null; return} S.data.script={id:v,name:SCRIPTS.list.find(o=>o.id===v)?.name||v,text:SCRIPTS.text[v]||''};
@@ -752,6 +753,34 @@ const LOOK={hd:{sh:.5,b:1.05,c:1.1,s:1.1,t:[1,1,1],l:[0,0,0],g:1},
   dim1:{sh:.3,b:.9,c:1.08,s:1.12,t:[1,1,1],l:[0,0,0],g:1.12,hl:.45},
   dim2:{sh:.3,b:.8,c:1.12,s:1.2,t:[1,1,1],l:[0,0,0],g:1.25,hl:.7},
   hlsave:{sh:.35,b:.96,c:1.04,s:1.1,t:[1,1,1],l:[.01,.01,.01],g:1.04,hl:.85}};
+/* upscaling: edge-aware bicubic (Catmull-Rom) + contrast-adaptive sharpening on the GPU, instead of plain bilinear stretch */
+let UP=null;
+function upGL(){ if(UP!==null) return UP; try{ const c=document.createElement('canvas'), g=c.getContext('webgl',{premultipliedAlpha:false,antialias:false,preserveDrawingBuffer:false}); if(!g) return UP=false;
+  const sh=(t,src)=>{const x=g.createShader(t); g.shaderSource(x,src); g.compileShader(x); return x};
+  const pr=g.createProgram(); g.attachShader(pr,sh(g.VERTEX_SHADER,'attribute vec2 p;varying vec2 u;void main(){u=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0,1);}'));
+  g.attachShader(pr,sh(g.FRAGMENT_SHADER,`precision highp float;varying vec2 u;uniform sampler2D T;uniform vec2 ts;uniform vec4 cr;uniform float k;
+   vec3 cat(vec2 uv){ vec2 sp=uv*ts, tp=floor(sp-.5)+.5, f=sp-tp;
+     vec2 w0=f*(-.5+f*(1.-.5*f)), w1=1.+f*f*(-2.5+1.5*f), w2=f*(.5+f*(2.-1.5*f)), w3=f*f*(-.5+.5*f), w12=w1+w2, o12=w2/w12;
+     vec2 t0=(tp-1.)/ts, t3=(tp+2.)/ts, t12=(tp+o12)/ts;
+     vec3 r=texture2D(T,vec2(t0.x,t0.y)).rgb*w0.x*w0.y+texture2D(T,vec2(t12.x,t0.y)).rgb*w12.x*w0.y+texture2D(T,vec2(t3.x,t0.y)).rgb*w3.x*w0.y
+      +texture2D(T,vec2(t0.x,t12.y)).rgb*w0.x*w12.y+texture2D(T,vec2(t12.x,t12.y)).rgb*w12.x*w12.y+texture2D(T,vec2(t3.x,t12.y)).rgb*w3.x*w12.y
+      +texture2D(T,vec2(t0.x,t3.y)).rgb*w0.x*w3.y+texture2D(T,vec2(t12.x,t3.y)).rgb*w12.x*w3.y+texture2D(T,vec2(t3.x,t3.y)).rgb*w3.x*w3.y; return r; }
+   void main(){ vec2 uv=cr.xy+u*cr.zw, px=1./ts; vec3 c=cat(uv);
+     vec3 n=texture2D(T,uv+vec2(0.,-px.y)).rgb, s=texture2D(T,uv+vec2(0.,px.y)).rgb, e=texture2D(T,uv+vec2(px.x,0.)).rgb, w=texture2D(T,uv+vec2(-px.x,0.)).rgb;
+     vec3 mn=min(c,min(min(n,s),min(e,w))), mx=max(c,max(max(n,s),max(e,w)));
+     vec3 amp=sqrt(clamp(min(mn,1.-mx)/max(mx,1e-4),0.,1.)); vec3 wt=-amp*mix(.125,.2,k);
+     vec3 o=(c+wt*(n+s+e+w))/(1.+4.*wt); gl_FragColor=vec4(clamp(o,0.,1.),1.); }`));
+  g.linkProgram(pr); if(!g.getProgramParameter(pr,g.LINK_STATUS)) return UP=false; g.useProgram(pr);
+  const bf=g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER,bf); g.bufferData(g.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),g.STATIC_DRAW); const a=g.getAttribLocation(pr,'p'); g.enableVertexAttribArray(a); g.vertexAttribPointer(a,2,g.FLOAT,false,0,0);
+  const tx=g.createTexture(); g.bindTexture(g.TEXTURE_2D,tx); [g.TEXTURE_WRAP_S,g.TEXTURE_WRAP_T].forEach(q=>g.texParameteri(g.TEXTURE_2D,q,g.CLAMP_TO_EDGE)); [g.TEXTURE_MIN_FILTER,g.TEXTURE_MAG_FILTER].forEach(q=>g.texParameteri(g.TEXTURE_2D,q,g.LINEAR));
+  const U={}; ['ts','cr','k'].forEach(q=>U[q]=g.getUniformLocation(pr,q)); return UP={c,g,U} }catch(e){ return UP=false } }
+function upDraw(c,v,sx,sy,cw,ch,dx,dy,dw,dh){ const vw=v.videoWidth||v.width, vh=v.videoHeight||v.height, scale=dw/cw;
+  if((S.data&&S.data.upscale===false)||!vw||scale<=1.05){ try{c.drawImage(v,sx,sy,cw,ch,dx,dy,dw,dh)}catch(e){} return }
+  const G=upGL(); if(!G){ try{c.drawImage(v,sx,sy,cw,ch,dx,dy,dw,dh)}catch(e){} return }
+  const {c:gc,g,U}=G, W=Math.round(Math.min(dw,2160)), H=Math.round(Math.min(dh,3840)); if(gc.width!==W||gc.height!==H){gc.width=W;gc.height=H} g.viewport(0,0,W,H);
+  try{ g.texImage2D(g.TEXTURE_2D,0,g.RGBA,g.RGBA,g.UNSIGNED_BYTE,v) }catch(e){ try{c.drawImage(v,sx,sy,cw,ch,dx,dy,dw,dh)}catch(_){} return }
+  g.uniform2f(U.ts,vw,vh); g.uniform4f(U.cr,sx/vw,sy/vh,cw/vw,ch/vh); g.uniform1f(U.k,Math.min(1,(scale-1)/1.5)); g.drawArrays(g.TRIANGLE_STRIP,0,4);
+  c.drawImage(gc,dx,dy,dw,dh) }
 let GL=null;
 function lookGL(){ if(GL!==null) return GL; try{ const c=document.createElement('canvas'), g=c.getContext('webgl',{premultipliedAlpha:false,antialias:false}); if(!g) return GL=false;
   const sh=(t,src)=>{const x=g.createShader(t); g.shaderSource(x,src); g.compileShader(x); return x};
@@ -795,8 +824,8 @@ function drawShot(c,W,H,v,m,shot,prog,el,filt){ const [sx,sy,cw,ch]=cropFor(m,v,
   if(shot==='dutch'){ const a=-0.07*ease(el/0.3); c.translate(W/2,H/2); c.rotate(a); c.scale(1.14,1.14); c.translate(-W/2,-H/2) }
   if(shot==='frame'){ c.filter=(filt&&filt!=='none'?filt+' ':'')+`blur(${Math.round(W/40)}px) brightness(.62)`; try{c.drawImage(v,sx,sy,cw,ch,-W*.05,-H*.05,W*1.1,H*1.1)}catch(e){}
     c.filter=filt||'none'; const k=0.8, fw=W*k, fh=H*k, fx=(W-fw)/2, fy=H*0.42-fh/2; c.shadowColor='rgba(0,0,0,.55)'; c.shadowBlur=W/25; c.beginPath(); c.roundRect(fx,fy,fw,fh,W*0.035); c.fillStyle='#000'; c.fill(); c.shadowBlur=0; c.clip();
-    try{c.drawImage(v,sx,sy,cw,ch,fx,fy,fw,fh)}catch(e){} c.restore(); return }
-  try{c.drawImage(v,sx,sy,cw,ch,0,0,W,H)}catch(e){} c.restore() }
+    upDraw(c,v,sx,sy,cw,ch,fx,fy,fw,fh); c.restore(); return }
+  upDraw(c,v,sx,sy,cw,ch,0,0,W,H); c.restore() }
 function ovTime(bk,o){ const t=o.at==null||o.at==='start'||!bk.words||!bk.words[o.at]?bk._o:srcToOut(bk,bk.words[o.at][1]); return Math.min((bk._o||0)+(bk._d||0)-0.05,t+0.3) }
 function showOv(bk,o){ if(!bk._d||S.playing) return; drawAt(ovTime(bk,o)) }
 function shotPicker(bk){ if(SHOTOLD[bk.shot]) bk.shot=SHOTOLD[bk.shot]; if(SHOTOLD[bk.shot0]) bk.shot0=SHOTOLD[bk.shot0]; if(!bk.shot0){ bk.shot0=bk.shot; save() }
@@ -1338,7 +1367,7 @@ function drawTeach(c,W,H,v,m,bk,prog,el,filt){ const T=bk.teach, k=W/1080, top=T
   (S.emHits=S.emHits||[]).push({o:F,x:fcx,y:fcy,w:fw,h:fh,face:true,edge:Math.max(18*k,Math.min(fw,fh)*0.16)});
   const fm=Object.assign({},m,{cx:F.cx??m.cx,cy:F.cy??m.cy,zm:(m.zm||1)*(F.z||1)}); const [sx,sy,cw,ch]=cropFor(fm,v,'close',prog,el,fw,fh);
   c.save(); c.shadowColor='rgba(0,0,0,.35)'; c.shadowBlur=30*k; path(fx,fy,fw,fh); c.fillStyle=F.border||'#fff'; c.fill(); c.shadowBlur=0;
-  path(fx+bw,fy+bw,fw-bw*2,fh-bw*2); c.clip(); c.filter=filt||'none'; try{c.drawImage(v,sx,sy,cw,ch,fx+bw,fy+bw,fw-bw*2,fh-bw*2)}catch(e){} c.restore() }
+  path(fx+bw,fy+bw,fw-bw*2,fh-bw*2); c.clip(); c.filter=filt||'none'; upDraw(c,v,sx,sy,cw,ch,fx+bw,fy+bw,fw-bw*2,fh-bw*2); c.restore() }
 function teachUI(bk){ const T=bk.teach||{}; const box=el('div','teach'); const r1=el('div','row'); const cb=el('input'); cb.type='checkbox'; cb.checked=!!T.on;
   r1.append(cb,el('b',null,'📚 설명 화면'),el('span','hint','얼굴을 작은 창으로 줄이고 한글·설명·사진을 크게 보여줘요'));
   box.appendChild(r1); if(!T.on){ cb.onchange=()=>{ bk.teach=Object.assign({text:(bk.text.match(/[가-힣]+/g)||[]).join(' '),sub:'',pos:'bl'},bk.teach||{},{on:true}); if(!bk.teach.sub&&bk.teach.text) bk.teach.sub=romanize(bk.teach.text.replace(/\s/g,''),true); save(); renderBlocks(); drawAt(bk._o+0.3) }; return box }
@@ -1386,7 +1415,7 @@ function teachUI(bk){ const T=bk.teach||{}; const box=el('div','teach'); const r
     r7.append(cc,el('span','hint','직접 고르기')); lb.appendChild(r7);
     if((L.items||[]).length){ const tl=el('div','hint'); tl.textContent='나오는 순간: '+L.items.map(x=>x.text+' '+Math.max(0,x.t-bk.a).toFixed(1)+'초').join(' · '); lb.appendChild(tl) } }
   box.appendChild(fr); box.appendChild(lb); return box }
-function editSig(){ const d=S.data; const j=JSON.stringify([d.format,d.speed,d.gap,d.cap,d.filter,d.sfx,d.sfxVol,d.music&&d.music.on?[d.music.style,d.music.seed,d.music.vol]:0,d.blocks.map(b=>[b.on,b.take,b.cam,b.a,b.b,b.cuts,b.shot,b.ov,b.cx,b.cy,b.z,JSON.stringify(b.teach||0),b.sfx,b.text])]); let h=0; for(let i=0;i<j.length;i++) h=(h*31+j.charCodeAt(i))|0; return h.toString(36) }
+function editSig(){ const d=S.data; const j=JSON.stringify([d.format,d.speed,d.gap,d.cap,d.filter,d.sfx,d.sfxVol,d.upscale,d.music&&d.music.on?[d.music.style,d.music.seed,d.music.vol]:0,d.blocks.map(b=>[b.on,b.take,b.cam,b.a,b.b,b.cuts,b.shot,b.ov,b.cx,b.cy,b.z,JSON.stringify(b.teach||0),b.sfx,b.text])]); let h=0; for(let i=0;i<j.length;i++) h=(h*31+j.charCodeAt(i))|0; return h.toString(36) }
 /* ================= caption · upload ================= */
 const ACC={personal:{name:'개인 @soykyu_coreano',nets:['instagram','tiktok'],tags:'#coreano #aprendecoreano #idiomacoreano #coreanoparaprincipiantes #corea #hangul #kdrama #kpop #mexico'},
   academy:{name:'학원 @institutocoreanokyu',nets:['instagram','facebook'],tags:'📍 Clases de coreano en CDMX · Inscripciones por DM\n#InstitutoCoreanoKYU #clasesdecoreano #coreanoCDMX #aprendecoreano #coreano #cdmx #idiomas #corea'}};
