@@ -55,6 +55,10 @@ textarea{width:100%;resize:vertical}
 .blocks .head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .blk{border:1px solid var(--line);background:var(--panel);border-radius:10px;margin-bottom:6px}
 .blk.sel{border-color:var(--accent)}
+.blk.now{border-color:#3ecf8e;background:#13261d;box-shadow:inset 4px 0 0 #3ecf8e}
+.blk.now .no{color:#3ecf8e;font-weight:700}
+.brow{position:relative}
+.blk.now>.brow::after{content:'';position:absolute;left:0;bottom:0;height:3px;width:calc(var(--p,0)*100%);background:#3ecf8e;border-radius:0 2px 2px 0}
 .blk.off{opacity:.45}
 .blk.miss{border-color:var(--red)}
 .brow{display:grid;grid-template-columns:22px 28px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 10px;cursor:pointer}
@@ -524,12 +528,29 @@ async function advance(){ const c=AC; const old=slot(cur); old.g.gain.setValueAt
   p.v.playbackRate=S.data.speed; p.g.gain.setValueAtTime(0,c.currentTime); p.g.gain.linearRampToValueAtTime(takeGain(s.m.take),c.currentTime+0.006); p.v.play(); prep(cur+1); prep(cur+2) }
 function loop(){ if(!S.playing) return; const s=S.tl[cur], p=slot(cur); const st=p.v.currentTime;
   if(st>=s.b-0.012||p.v.ended){ advance().then(()=>{ if(S.playing) raf=requestAnimationFrame(loop) }); return }
-  S.outT=s.o+Math.max(0,st-s.a)/S.data.speed; draw(S.outT,p.v,s);
+  S.outT=s.o+Math.max(0,st-s.a)/S.data.speed; draw(S.outT,p.v,s); markNow(S.outT);
   if(S.stopAt!=null&&S.outT>=S.stopAt){S.stopAt=null; stop(); return}
   raf=requestAnimationFrame(loop) }
 $('playBtn').onclick=()=>S.playing?stop():play();
-document.addEventListener('keydown',e=>{ if(e.code==='Space'&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault(); S.playing?stop():play()} });
-async function drawAt(t){ if(!S.tl.length){clearCv(); return} S.outT=t; const i=segAt(t), s=S.tl[i]; if(S.playing) return; const p=await prep(i,t-s.o); draw(t,p.v,s); updTC() }
+document.addEventListener('keydown',e=>{ if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.metaKey||e.ctrlKey||e.altKey) return;
+  if(e.code==='Space'){e.preventDefault(); S.playing?stop():play(); return}
+  const dir={ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[e.key]; if(dir) {e.preventDefault(); jumpBlock(dir)} });
+let nowI=-1;
+function blockAt(t){ if(!S.tl.length) return -1; const s=S.tl[segAt(t)]; return s?s.bi:-1 }
+function markNow(t){ const bi=blockAt(t), box=$('blist'); if(!box) return;
+  if(bi!==nowI){ box.querySelectorAll('.blk.now').forEach(x=>{x.classList.remove('now'); x.style.removeProperty('--p')}); nowI=bi;
+    const row=box.querySelector(`.blk[data-i="${bi}"]`); if(row){ row.classList.add('now'); row.scrollIntoView({block:'nearest',behavior:S.playing?'smooth':'auto'}) } }
+  const bk=S.data&&S.data.blocks[bi], row=box.querySelector(`.blk[data-i="${bi}"]`);
+  if(bk&&row&&bk._d) row.style.setProperty('--p',Math.min(1,Math.max(0,(t-bk._o)/bk._d)).toFixed(3)) }
+function jumpBlock(dir){ const B=S.data&&S.data.blocks; if(!B||!S.tl.length) return;
+  const ok=B.map((b,i)=>i).filter(i=>B[i].on&&B[i]._d>0); if(!ok.length) return;
+  const cur=blockAt(S.outT||0); let k=ok.indexOf(cur);
+  if(k<0){ k=dir>0?ok.findIndex(i=>B[i]._o>(S.outT||0)):ok.length-1-[...ok].reverse().findIndex(i=>B[i]._o<(S.outT||0)); if(k<0||k>=ok.length) return }
+  else { k+=dir; if(k<0||k>=ok.length) return }
+  const i=ok[k], t=B[i]._o+0.01; S.stopAt=null;
+  if(S.sel!=null){ S.sel=i; renderBlocks(); renderScrub() }
+  if(S.playing) play(t); else drawAt(t); markNow(t) }
+async function drawAt(t){ if(!S.tl.length){clearCv(); return} S.outT=t; const i=segAt(t), s=S.tl[i]; if(S.playing) return; const p=await prep(i,t-s.o); draw(t,p.v,s); updTC(); markNow(t) }
 
 /* ================= drawing ================= */
 const cv=$('cv'), ctx=cv.getContext('2d');
@@ -606,13 +627,13 @@ $('scrub').addEventListener('pointerdown',e=>{ const r=$('scrub').getBoundingCli
 function renderBlocks(){ const box=$('blist'); box.textContent=''; const B=S.data.blocks;
   $('bInfo').textContent=B.length?`${B.filter(b=>b.on&&b.take).length}/${B.length}개 사용 · ${fmt(S.total)}`:'';
   if(!B.length){box.appendChild(el('div','empty',Object.keys(S.data.takes).some(k=>S.data.takes[k].words)?'대본이 없어요. 왼쪽 설정에서 대본을 고르거나 ✨ 자동 초안을 누르세요.':'먼저 왼쪽 아래 📝 받아쓰기를 눌러 주세요. 받아쓰기가 끝나면 대본 줄마다 블록이 자동으로 생겨요.'));return}
-  B.forEach((bk,i)=>{ const c=el('div','blk'+(S.sel===i?' sel':'')+(bk.on?'':' off')+(bk.take?'':' miss'));
+  B.forEach((bk,i)=>{ const c=el('div','blk'+(S.sel===i?' sel':'')+(bk.on?'':' off')+(bk.take?'':' miss')); c.dataset.i=i;
     const r=el('div','brow'); const cb=el('input'); cb.type='checkbox'; cb.checked=bk.on; cb.title='이 블록 쓰기'; cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>{bk.on=cb.checked; buildTL(); renderBlocks(); save()};
     const tx=el('div','tx'); tx.textContent=bk.text.replace(/\*/g,''); if(bk.chapter){const ch=el('span','chip k','📑 '+bk.chapter); ch.style.marginRight='6px'; tx.prepend(ch)}
     const meta=el('div','meta'); if(bk.take){ meta.append(el('span','chip',bk.take.replace(/^kyu_[^_]+_/,'')+(bk.cam?' '+bk.cam:'')),el('span',null,((bk._d||0)).toFixed(1)+'s'),el('span','chip',(SHOTS[bk.shot]||bk.shot).replace(/^\d+\. /,''))) } else meta.append(el('span','chip','⚠️ 테이크 없음'));
     const pb=el('button','btn sm','▶'); pb.title='이 블록 결과 듣기'; pb.onclick=e=>{e.stopPropagation(); playBlock(i)}; meta.appendChild(pb);
     r.append(cb,el('span','no',String(i+1)),tx,meta); r.onclick=()=>{S.sel=S.sel===i?null:i; renderBlocks(); renderScrub(); if(S.sel!=null&&bk._d) drawAt(bk._o+0.01)};
-    c.appendChild(r); if(S.sel===i) c.appendChild(blockEditor(bk,i)); box.appendChild(c) }) }
+    c.appendChild(r); if(S.sel===i) c.appendChild(blockEditor(bk,i)); box.appendChild(c) }); nowI=-1; if(S.tl.length) markNow(S.outT||0) }
 function playBlock(i){ const bk=S.data.blocks[i]; if(!bk._d){toast('이 블록은 테이크가 없어요');return} S.stopAt=bk._o+bk._d; play(bk._o) }
 // raw audition (1x, with breathing room)
 let raw=null;
