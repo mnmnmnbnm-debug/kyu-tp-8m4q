@@ -643,8 +643,10 @@ async function unlock(pw){
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(ENC.i)},key,b64(ENC.d));
   return JSON.parse(new TextDecoder().decode(pt));
 }
+window.__EXTRA_S={"scripts": {"bap": "0:00 Si un coreano te pregunta \"¿Ya comiste?\"…\n0:02.5 no te está invitando a comer.\n0:04 En coreano se dice 밥 먹었어?: Bap meo-geo-sseo?\n0:07.5 Y los coreanos lo preguntan… ¡todos los días!\n0:10 Pero en realidad significa: \"¿Cómo estás?\"\n0:13 ¿Por qué? La explicación más común:\n0:15 después de la guerra, en los años 50 y 60, en Corea había mucha hambre.\n0:19.5 Si alguien ya había comido… es que estaba bien.\n0:22.5 Por eso \"¿ya comiste?\" se volvió una forma de decir \"me importas\".\n0:26 Es como cuando tu mamá te pregunta: \"¿Ya comiste, mijo?\"\n0:29.5 No quiere saber el menú… quiere saber si estás bien.\n0:32.5 ¿Y qué contestas? Fácil: 네, 먹었어요!\n0:35.5 Pero ojo con esta otra: 언제 밥 한번 먹자.\n0:38.5 \"Un día comamos juntos\"…\n0:40.5 casi nunca es una invitación real.\n0:42.5 Es como nuestro \"al rato nos vemos\".\n0:45 ¿Y tú, ya comiste hoy? Dímelo en los comentarios.\n0:48 ✂ 컷"}, "options": [["bap", "#5 밥 먹었어?", "idioma"]]};
 async function tryOpen(pw,remember){
   try{window.__S=await unlock(pw)}catch(e){return false}
+  try{const X=window.__EXTRA_S; if(X){Object.assign(window.__S.scripts,X.scripts); const have=new Set(window.__S.options.map(o=>o[0])); window.__S.options=X.options.filter(o=>!have.has(o[0])).concat(window.__S.options)}}catch(e){}
   if(remember){try{localStorage.setItem('kyu-gate',pw)}catch(e){}}
   document.getElementById('gate').remove(); boot(); return true;
 }
