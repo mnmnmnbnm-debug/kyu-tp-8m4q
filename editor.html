@@ -936,6 +936,11 @@ function wordFinder(bk){ const wrap=el('div','wfind'); const T=takeList(); let t
       const [A,Bb]=refineEdges(take,W[s0][1],W[s1][2],W[s0],W[s1]); bk.a=A; bk.b=Bb; delete bk.guess; autoCuts(bk); alignWords(bk); S.findOpen=false; S.findTake=null; buildTL(); renderBlocks(); save(); audition(take,bk.a,bk.b); toast('이 블록 구간을 정했어요') };
     lst.appendChild(c) });
   wrap.appendChild(lst); requestAnimationFrame(()=>{ const g=lst.querySelector('.w.gap,.w.me'); if(g) g.scrollIntoView({block:'nearest'}) }); return wrap }
+function bigClip(url,a,b,title){ stop(); stopAud(); const d=document.createElement('dialog'); d.className='wide'; d.style.maxWidth='520px';
+  const v=document.createElement('video'); v.src=url; v.controls=true; v.playsInline=true; v.style.cssText='width:100%;max-height:72vh;background:#000;border-radius:8px';
+  const h=el('div','row'); h.style.cssText='justify-content:space-between;align-items:center;margin-bottom:6px'; const x=el('button','btn sm','✕ 닫기'); h.append(el('b',null,title),x); d.append(h,v); document.body.appendChild(d); d.showModal();
+  const close=()=>{ v.pause(); d.close(); d.remove() }; x.onclick=close; d.addEventListener('cancel',close);
+  v.onloadedmetadata=()=>{ v.currentTime=Math.max(0,a-0.1); v.play().catch(()=>{}) }; v.ontimeupdate=()=>{ if(v.currentTime>=b+0.2){ v.currentTime=Math.max(0,a-0.1) } } }
 function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const vids=[];
   const stopAll=()=>vids.forEach(v=>{ v.pause(); v.muted=true });
   const list=[]; (bk.cands||[]).forEach(cd=>list.push(cd)); Object.keys(T).forEach(k=>{ if(!list.some(c=>c.take===k)) list.push({take:k,a:0,b:Math.min(T[k][0].dur||3,6),score:null,none:true}) });
@@ -945,10 +950,10 @@ function takeCompare(bk){ const wrap=el('div','tcmp'); const T=takeList(); const
     v.onloadedmetadata=()=>{ v.currentTime=cd.a+Math.min(1,(cd.b-cd.a)/2) }; vids.push(v);
     const lab=el('div','tl'); lab.append(el('b',null,cd.take.replace(/^kyu_[^_]+_/,'').replace(/^\d{4}-\d{4}_/,'')+(m.cam?' · '+m.cam.replace('cam','카메라 '):'')),el('small',null,cd.none?'이 줄을 못 찾음 · 전체 '+(m.dur||0).toFixed(1)+'초':Math.round(cd.score*100)+'% 일치 · '+(cd.b-cd.a).toFixed(1)+'초'));
     if(cd.none) card.classList.add('none');
-    const pb=el('button','btn sm','▶ 듣기'); let tmr=null;
-    pb.onclick=()=>{ stop(); stopAud(); const was=!v.paused; stopAll(); clearTimeout(tmr); if(was){ pb.textContent='▶ 듣기'; return }
-      vids.forEach(x=>x.parentNode.querySelector('.tcb button')&&(x.parentNode.querySelector('.tcb button').textContent='▶ 듣기'));
-      v.currentTime=Math.max(0,cd.a-0.1); v.muted=false; v.play(); pb.textContent='■ 멈춤'; const chk=()=>{ if(v.currentTime>=cd.b+0.15||v.paused){ v.pause(); v.muted=true; pb.textContent='▶ 듣기'; return } tmr=setTimeout(chk,60) }; chk() };
+    const pb=el('button','btn sm','▶ 보기'); let tmr=null; v.style.cursor='zoom-in'; v.title='누르면 크게 보기'; v.onclick=()=>{ stopAll(); bigClip(S.urls[m.file],cd.none?0:cd.a,cd.none?(m.dur||cd.b):cd.b,lab.querySelector('b').textContent) };
+    pb.onclick=()=>{ stop(); stopAud(); const was=!v.paused; stopAll(); clearTimeout(tmr); if(was){ pb.textContent='▶ 보기'; return }
+      vids.forEach(x=>x.parentNode.querySelector('.tcb button')&&(x.parentNode.querySelector('.tcb button').textContent='▶ 보기'));
+      v.currentTime=Math.max(0,cd.a-0.1); v.muted=false; v.play(); pb.textContent='■ 멈춤'; const chk=()=>{ if(v.currentTime>=cd.b+0.15||v.paused){ v.pause(); v.muted=true; pb.textContent='▶ 보기'; return } tmr=setTimeout(chk,60) }; chk() };
     const use=el('button','btn sm primary',on?'✓ 사용 중':cd.none?'🔍 여기서 찾기':'이걸로'); use.disabled=on;
     if(cd.none) use.onclick=()=>{ stopAll(); S.findTake=cd.take; S.findOpen=true; S.cmpOpen=false; renderBlocks() };
     if(!cd.none) use.onclick=()=>{ stopAll(); pickCand(bk,cd); bk.cam=m.cam||''; buildTL(); renderBlocks(); save(); drawAt(bk._o+0.05); toast('이 블록을 '+lab.querySelector('b').textContent+'(으)로 바꿨어요') };
