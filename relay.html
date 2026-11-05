@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>KYU 전달</title>
+<body style="font:16px system-ui;padding:30px;background:#111;color:#eee">영상 전달 중… <span id="s"></span>
+<script>
+(async()=>{ const q=new URLSearchParams(location.search), src=q.get('src'), to=q.get('to')||'https://business.facebook.com', name=q.get('name')||'video.mp4', s=document.getElementById('s');
+  const ok=['https://raw.githubusercontent.com/mnmnmnbnm-debug/','https://mnmnmnbnm-debug.github.io/'].some(p=>src&&src.startsWith(p)); if(!ok||!/^https:\/\/([a-z]+\.)?(facebook|instagram|tiktok)\.com$/.test(to)){ s.textContent='허용되지 않은 주소'; return }
+  if(!window.opener){ s.textContent='원래 창을 찾지 못했어요'; return }
+  const b=await (await fetch(src)).blob(); s.textContent=(b.size/1e6).toFixed(1)+'MB';
+  window.opener.postMessage({kyuFile:b,name},to); s.textContent+=' · 보냈어요'; setTimeout(()=>window.close(),800) })();
+</script>
