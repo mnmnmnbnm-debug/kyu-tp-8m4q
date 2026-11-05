@@ -35,6 +35,11 @@ button,select,input,textarea{font:inherit;color:inherit}
 .capm .cm{border:1px solid var(--line);background:var(--panel2);border-radius:9px;padding:8px 10px;cursor:pointer;font-size:12px;line-height:1.45;white-space:pre-wrap;max-height:120px;overflow:auto}
 .capm .cm b{display:block;font-size:12px;color:var(--accent);margin-bottom:3px;white-space:normal}
 .capm .cm.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.emopick{display:flex;flex-wrap:wrap;gap:2px;padding:6px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;margin:2px 0 4px}
+.emopick .eg{width:100%;font-size:11px;color:var(--dim);margin:4px 2px 1px}
+.emopick button{font-size:22px;line-height:1;width:36px;height:36px;border:1px solid transparent;border-radius:7px;background:none;cursor:pointer}
+.emopick button:hover{background:var(--panel);border-color:var(--line)}
+.emopick button.on{border-color:var(--accent);background:#2a2410}
 .upst{font-size:12px;margin-top:6px;padding:7px 9px;border-radius:8px;background:#1d2a20;color:#9fe0b8;display:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 select,input[type=text],input[type=number],textarea{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
@@ -254,6 +259,7 @@ function charMap(a,b){const m=a.length,n=b.length,D=[]; for(let i=0;i<=m;i++){D.
 const S={root:null,single:false,projects:[],dir:null,folder:'',data:null,mtime:0,files:{},urls:{},tl:[],total:0,sel:null,playing:false,outT:0,exporting:false,dirty:false};
 const DEF={version:1,format:'reel',speed:1.15,gap:0.4,cap:{mode:'pop',size:84,y:78,wpl:3},filter:'mid',sfx:1,lang:'spanish',media:[],takes:{},blocks:[],renders:[],caption:'',status:{state:'idle'}};
 const SHOTS={wide:'1. 와이드',close:'2. 클로즈업',punch:'3. 펀치인',extreme:'4. 아주 가까이',zoomin:'5. 천천히 줌인',zoomout:'6. 천천히 줌아웃',snap:'7. 스냅 줌 (확 당기기)',pan:'8. 옆으로 흐르기',shake:'9. 흔들림 강조',dutch:'10. 기울이기'};
+const EMOJIS={'반응':'🤔😮😱🤯😂🤣😅😍🥰😎🙄😳🥺😭😤🤫🫢👀','손·몸짓':'👍👎👏🙌🙏👉👆☝️✌️🤞💪🫶🤷🙋🤦','표시':'✅❌⭕❗❓‼️⁉️💯🔥⭐✨💡📌⚠️🚫🆗','한국·학습':'🇰🇷🇲🇽🏯🍜🍚🥢🎎📚✏️📝🗣️💬🎧🎤🏙️','기분·축하':'❤️💔🎉🎊🥳💥⚡🌟🌈☀️'};
 const OVT={card:'카드',red:'빨간 카드',emoji:'이모지',big:'큰 글씨',cta:'질문 (위쪽)'};
 
 /* ================= root & project list ================= */
@@ -758,7 +764,10 @@ function blockEditor(bk,i){ const box=el('div','bedit');
     if(o.type==='emoji'){ const sz=el('input'); sz.type='range'; sz.min=0.3; sz.max=4; sz.step=0.05; sz.value=o.s||1; sz.title='이모지 크기'; sz.style.width='110px';
       const lab=el('span','lab','크기 '+Math.round((o.s||1)*100)+'%'); sz.oninput=()=>{o.s=+sz.value; lab.textContent='크기 '+Math.round(o.s*100)+'%'; drawAt(S.outT)}; sz.onchange=()=>save();
       const rs=el('button','btn sm','위치·크기 초기화'); rs.onclick=()=>{delete o.x; delete o.y; delete o.s; renderBlocks(); save(); drawAt(S.outT)};
-      const r2=el('div','ov'); r2.append(lab,sz,el('span','hint','화면에서 이모지를 끌면 이동, 휠을 굴리면 크기 조절'),rs); ob.append(r); ob.appendChild(r2); return }
+      const r2=el('div','ov'); r2.append(lab,sz,el('span','hint','화면에서 이모지를 끌면 이동, 휠을 굴리면 크기 조절'),rs);
+      const pk=el('div','emopick'); Object.entries(EMOJIS).forEach(([g,list])=>{ pk.appendChild(el('div','eg',g)); [...list].forEach(ch=>{ if(!ch.trim()) return; const b=el('button',o.text===ch?'on':null,ch); b.title=ch;
+        b.onclick=()=>{ o.text=ch; t1.value=ch; pk.querySelectorAll('button.on').forEach(x=>x.classList.remove('on')); b.classList.add('on'); save(); drawAt(S.outT) }; pk.appendChild(b) }) });
+      ob.append(r,pk,r2); return }
     ob.appendChild(r) });
   const add=el('button','btn sm','＋ 추가'); add.style.alignSelf='flex-start'; add.onclick=()=>{(bk.ov=bk.ov||[]).push({type:'card',text:'',at:null}); renderBlocks()}; ob.appendChild(add);
   box.appendChild(ob);
