@@ -592,6 +592,7 @@ function draft(rebuild){
     const order=Object.keys(cnt).sort((a,b)=>(cnt[b]-cnt[a])||b.localeCompare(a)); const primary=order[0];
     S.data.blocks.forEach((bk,i)=>{ const c=bk.cands; if(c.length){ const pc=c.find(x=>x.take===primary&&x.score>=c[0].score-0.12); pickCand(bk,pc||c[0],true) } else {bk.take=null} if(rebuild){ bk.shot=SHOTROT[i%SHOTROT.length]; delete bk.shot0 } });
     if(S.data.blocks.length) S.data.blocks[S.data.blocks.length-1].shot='close';
+    { const TLs=takeList(); let ci=0; S.data.blocks.forEach(bk=>{ const ms=TLs[bk.take]||[]; if(ms.length>1){ bk.cam=ms[ci%ms.length].cam||''; ci++ } }) }
   }
   buildTL(); renderBlocks(); save(); drawAt(0); $('stOvl').hidden=!!S.tl.length;
   const miss=S.data.blocks.filter(b=>!b.take).length; toast('초안을 만들었어요'+(miss?' · 못 찾은 줄 '+miss+'개 (빨간 블록)':''));
